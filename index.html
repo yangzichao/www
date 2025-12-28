@@ -1,80 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zichao Yang - Personal Homepage</title>
     <meta name="description" content="Personal homepage of Zichao Yang. Researcher, Developer, and Creator.">
-    
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- Icons (Phosphor Icons for a clean look) -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons (Phosphor Icons) -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <div class="background-gradient"></div>
 
     <main class="container">
-        
+
         <!-- Profile Card -->
         <header class="profile-section fade-in">
             <div class="profile-card glass">
                 <div class="profile-content">
-                    <h1 class="name">Zichao Yang</h1>
-                    <p class="role">Researcher & Developer</p>
-                    <p class="bio">
-                        Passionate about Artificial Intelligence, Human-Computer Interaction, and building tools that empower creativity.
-                    </p>
-                    
-                    <div class="social-links">
-                        <a href="#" class="social-btn" aria-label="GitHub"><i class="ph ph-github-logo"></i></a>
-                        <a href="#" class="social-btn" aria-label="Twitter"><i class="ph ph-twitter-logo"></i></a>
-                        <a href="#" class="social-btn" aria-label="LinkedIn"><i class="ph ph-linkedin-logo"></i></a>
-                        <a href="#" class="social-btn" aria-label="Email"><i class="ph ph-envelope-simple"></i></a>
+                    <h1 class="name" id="profile-name"></h1>
+                    <p class="role" id="profile-role"></p>
+                    <p class="bio" id="profile-bio"></p>
+
+                    <div class="social-links" id="social-links">
+                        <!-- Injected via JS -->
                     </div>
                 </div>
-                <div class="profile-actions">
-                    <a href="#" class="btn primary">Download Resume <i class="ph ph-download-simple"></i></a>
+                <div class="profile-actions" id="profile-actions">
+                    <!-- Resume button injected via JS -->
                 </div>
             </div>
         </header>
 
         <!-- Bento Grid Layout for Content -->
         <div class="bento-grid">
-            
+
             <!-- Research Papers Section -->
             <section class="bento-item papers glass fade-in delay-1">
                 <div class="section-header">
                     <h2><i class="ph ph-scroll"></i> Research Papers</h2>
                 </div>
-                <ul class="paper-list">
-                    <li class="paper-item">
-                        <span class="year">2024</span>
-                        <div class="paper-details">
-                            <a href="#" class="paper-title">Advancements in Agentic Workflows</a>
-                            <p class="paper-venue">ICLR 2024 (Under Review)</p>
-                        </div>
-                    </li>
-                    <li class="paper-item">
-                        <span class="year">2023</span>
-                        <div class="paper-details">
-                            <a href="#" class="paper-title">Generative Models for Code Synthesis</a>
-                            <p class="paper-venue">NeurIPS 2023</p>
-                        </div>
-                    </li>
-                    <li class="paper-item">
-                        <span class="year">2022</span>
-                        <div class="paper-details">
-                            <a href="#" class="paper-title">Interactive Interfaces for AI Interaction</a>
-                            <p class="paper-venue">CHI 2022</p>
-                        </div>
-                    </li>
+                <ul class="paper-list" id="paper-list">
+                    <!-- Injected via JS -->
                 </ul>
                 <a href="#" class="view-all">View Google Scholar &rarr;</a>
             </section>
@@ -84,58 +63,40 @@
                 <div class="section-header">
                     <h2><i class="ph ph-code"></i> Selected Projects</h2>
                 </div>
-                <div class="project-list">
-                    <a href="#" class="project-card">
-                        <div class="project-icon"><i class="ph ph-sparkle"></i></div>
-                        <div class="project-info">
-                            <h3>Project Alpha</h3>
-                            <p>Next-gen AI coding assistant.</p>
-                        </div>
-                    </a>
-                    <a href="#" class="project-card">
-                        <div class="project-icon"><i class="ph ph-kanban"></i></div>
-                        <div class="project-info">
-                            <h3>Workflow Manager</h3>
-                            <p>Simplify your daily tasks.</p>
-                        </div>
-                    </a>
-                    <a href="#" class="project-card">
-                        <div class="project-icon"><i class="ph ph-globe"></i></div>
-                        <div class="project-info">
-                            <h3>Personal Web</h3>
-                            <p>This static website generator.</p>
-                        </div>
-                    </a>
+                <div class="project-list" id="project-list">
+                    <!-- Injected via JS -->
                 </div>
                 <a href="#" class="view-all">View GitHub &rarr;</a>
             </section>
 
             <!-- Quick Links / Status -->
             <section class="bento-item status glass fade-in delay-3">
-                <h2>Current Focus</h2>
-                <p>Explaining complex systems through simple UI.</p>
+                <h2 id="status-title">Current Focus</h2>
+                <p id="status-text"></p>
                 <div class="status-indicator">
-                    <span class="dot"></span> Open to collaboration
+                    <span class="dot"></span> <span id="status-indicator-text"></span>
                 </div>
             </section>
 
-             <!-- Blog / Thoughts (Optional) -->
-             <section class="bento-item thoughts glass fade-in delay-3">
+            <!-- Blog / Thoughts (Optional) -->
+            <section class="bento-item thoughts glass fade-in delay-3">
                 <h2>Latest Thoughts</h2>
-                <ul class="simple-list">
-                    <li><a href="#">The future of statically generated sites</a></li>
-                    <li><a href="#">Why I switched to Rust</a></li>
+                <ul class="simple-list" id="thoughts-list">
+                    <!-- Injected via JS -->
                 </ul>
             </section>
 
         </div>
 
         <footer>
-            <p>&copy; <span id="year"></span> Zichao Yang. Built with curiosity.</p>
+            <p>&copy; <span id="year"></span> <span id="footer-name"></span>. <span id="footer-text"></span></p>
         </footer>
 
     </main>
 
+    <!-- Load data first, then the script to render it -->
+    <script src="data.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>
