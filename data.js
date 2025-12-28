@@ -22,6 +22,13 @@ const siteData = {
             description: "Fast, Local, Multilingual, and Non-Profit & Free speech-to-text for macOS.",
             image: "hoah-cover.jpg",
             url: "https://hoah.app/"
+        },
+        {
+            type: "Paper",
+            year: "2021",
+            title: "β-delayed proton emission from ¹¹Be in effective field theory",
+            description: "Resolved a major experimental controversy in ¹¹Be decay using Halo Effective Field Theory. Our theoretical predictions were subsequently validated by high-precision experiments at CERN, debunking previous anomalies and establishing the definitive benchmark for this rare decay channel.",
+            url: "/research/11be-proton-emission/"
         }
     ],
     status: {
