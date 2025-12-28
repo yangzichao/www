@@ -57,8 +57,7 @@ function renderContent() {
                 ${imageHtml}
                 <div class="${contentClass}">
                     <div style="margin-bottom:12px;">
-                        <span class="card-year">${item.year}</span>
-                        <span class="card-tag-inline" style="font-size:0.8rem; color:#666; margin-left:8px;">${item.type}</span>
+                        <span class="card-tag-inline" style="font-size:0.8rem; color:#666;">${item.type}</span>
                     </div>
                     <h3 class="card-title">${item.title}</h3>
                     <p class="card-desc">${item.description}</p>
