@@ -42,7 +42,34 @@ body {
 /* HEADER */
 .header {
     margin-bottom: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 40px;
+}
+
+.header-content {
     max-width: 650px;
+    flex: 1;
+}
+
+.header-avatar {
+    width: 140px;
+    height: 140px;
+    border-radius: 12px;
+    object-fit: cover;
+    display: none;
+    /* Hidden by default until JS sets src */
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Show avatar when src is set (handled by simple presence check logic or just keep it block and let JS handle src) 
+   Actually, easiest is to let it be block but if src is empty it might show broken icon. 
+   We will rely on JS to set display block or we add a class. 
+   For simplicity, let's keep it visible but style it nicely. */
+.header-avatar[src=""] {
+    display: none;
 }
 
 .name {
@@ -236,8 +263,8 @@ body {
 }
 
 .status {
-    display: flex;
-    align-items: center;
+    display: none;
+    /* Hidden per request */
 }
 
 .status-dot {
@@ -260,6 +287,14 @@ body {
 
     .header {
         margin-bottom: 50px;
+        flex-direction: column-reverse;
+        /* Avatar on top on mobile */
+        gap: 24px;
+    }
+
+    .header-avatar {
+        width: 100px;
+        height: 100px;
     }
 
     .name {

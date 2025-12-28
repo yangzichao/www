@@ -10,8 +10,15 @@ function renderContent() {
 
     // --- Header ---
     setText('profile-name', siteData.profile.name);
-    // Profile Bio (and role combined if needed, but bio is enough for intro)
+    // Profile Bio
     setText('profile-bio', siteData.profile.bio);
+
+    // Profile Avatar
+    const avatarImg = document.getElementById('profile-avatar');
+    if (avatarImg && siteData.profile.avatar) {
+        avatarImg.src = siteData.profile.avatar;
+        avatarImg.style.display = 'block';
+    }
 
     // Links (Buttons)
     const socialContainer = document.getElementById('social-links');
@@ -32,37 +39,29 @@ function renderContent() {
         socialContainer.innerHTML = linksHtml;
     }
 
-    // --- Papers (Cards) ---
-    const paperList = document.getElementById('paper-list');
-    if (paperList) {
-        paperList.innerHTML = siteData.papers.map(paper => `
-            <a href="${paper.url}" class="card">
-                <div class="card-content-only">
-                    <span class="card-year">${paper.year}</span>
-                    <h3 class="card-title">${paper.title}</h3>
-                    <div class="card-desc"></div> <!-- Spacer -->
-                    <span class="card-tag">${paper.venue}</span>
-                </div>
-            </a>
-        `).join('');
-    }
-
-    // --- Projects (Cards) ---
-    const projectList = document.getElementById('project-list');
-    if (projectList) {
-        projectList.innerHTML = siteData.projects.map(project => {
-            const imageHtml = project.image ?
+    // --- Unified Work List ---
+    const workList = document.getElementById('work-list');
+    if (workList && siteData.items) {
+        workList.innerHTML = siteData.items.map(item => {
+            // Optional Image
+            const imageHtml = item.image ?
                 `<div class="card-image-container">
-                    <img src="${project.image}" class="card-image" loading="lazy" alt="${project.title}">
+                    <img src="${item.image}" class="card-image" loading="lazy" alt="${item.title}">
                  </div>` : '';
 
+            // Adjust grid content padding class based on image presence
+            const contentClass = item.image ? 'card-content' : 'card-content-only';
+
             return `
-            <a href="${project.url}" class="card">
+            <a href="${item.url}" class="card">
                 ${imageHtml}
-                <div class="card-content">
-                    <h3 class="card-title">${project.title}</h3>
-                    <p class="card-desc">${project.description}</p>
-                    <span class="card-tag">View Project &rarr;</span>
+                <div class="${contentClass}">
+                    <div style="margin-bottom:12px;">
+                        <span class="card-year">${item.year}</span>
+                        <span class="card-tag-inline" style="font-size:0.8rem; color:#666; margin-left:8px;">${item.type}</span>
+                    </div>
+                    <h3 class="card-title">${item.title}</h3>
+                    <p class="card-desc">${item.description}</p>
                 </div>
             </a>
             `;
@@ -70,7 +69,7 @@ function renderContent() {
     }
 
     // --- Footer ---
-    setText('status-text', siteData.status.text + " — " + siteData.status.indicatorText);
+    // Status text removed per request
 
     document.getElementById('img-year') ? document.getElementById('img-year').textContent = new Date().getFullYear() : null;
     document.getElementById('year').textContent = new Date().getFullYear();
