@@ -1,8 +1,8 @@
 const siteData = {
     profile: {
-        name: "Zichao Yang",
+        name: "Zichao Yang (杨 子超)",
         role: "Researcher & Developer",
-        bio: "Passionate about Artificial Intelligence, Human-Computer Interaction, and building tools that empower creativity.",
+        bio: "PhD in Theoretical Physics. Programmer & App Developer. Science enthusiast obsessed with AI tools. Former active researcher.",
         social: [
             { icon: "ph-github-logo", url: "https://github.com/yangzichao", label: "GitHub" },
             { icon: "ph-linkedin-logo", url: "https://www.linkedin.com/in/zichaoyang/", label: "LinkedIn" }
