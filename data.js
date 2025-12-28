@@ -38,19 +38,22 @@ const siteData = {
             title: "Project Alpha",
             description: "Next-gen AI coding assistant.",
             icon: "ph-sparkle",
-            url: "#"
+            url: "#",
+            image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1000&auto=format&fit=crop" // Code/Tech visual
         },
         {
             title: "Workflow Manager",
             description: "Simplify your daily tasks.",
             icon: "ph-kanban",
-            url: "#"
+            url: "#",
+            image: "https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?q=80&w=1000&auto=format&fit=crop" // Minimalist desk/organization
         },
         {
             title: "Personal Web",
             description: "This static website generator.",
             icon: "ph-globe",
-            url: "#"
+            url: "#",
+            image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?q=80&w=1000&auto=format&fit=crop" // Web/Coding
         }
     ],
     status: {

@@ -121,6 +121,7 @@ body {
 }
 
 /* CARDS */
+/* CARDS */
 .card {
     display: flex;
     flex-direction: column;
@@ -128,19 +129,58 @@ body {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 28px;
+    padding: 0;
+    /* Remove padding so image is flush */
     text-decoration: none;
     color: var(--text-main);
     transition: var(--transition);
     position: relative;
     top: 0;
+    overflow: hidden;
+    /* Ensure image corners clip */
 }
 
 .card:hover {
     border-color: #bbbbbb;
     top: -4px;
-    /* Distinct hover lift */
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04);
+}
+
+.card-image-container {
+    width: 100%;
+    height: 180px;
+    /* Fixed height banner */
+    background-color: #f5f5f5;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+}
+
+.card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.card:hover .card-image {
+    transform: scale(1.05);
+}
+
+.card-content {
+    padding: 24px;
+    /* Inner padding for text */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+/* For cards without images (like papers), we can add a helper class or just use the structure */
+.card-content-only {
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .card-year {

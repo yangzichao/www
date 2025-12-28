@@ -37,10 +37,12 @@ function renderContent() {
     if (paperList) {
         paperList.innerHTML = siteData.papers.map(paper => `
             <a href="${paper.url}" class="card">
-                <span class="card-year">${paper.year}</span>
-                <h3 class="card-title">${paper.title}</h3>
-                <div class="card-desc"></div> <!-- Spacer -->
-                <span class="card-tag">${paper.venue}</span>
+                <div class="card-content-only">
+                    <span class="card-year">${paper.year}</span>
+                    <h3 class="card-title">${paper.title}</h3>
+                    <div class="card-desc"></div> <!-- Spacer -->
+                    <span class="card-tag">${paper.venue}</span>
+                </div>
             </a>
         `).join('');
     }
@@ -48,13 +50,23 @@ function renderContent() {
     // --- Projects (Cards) ---
     const projectList = document.getElementById('project-list');
     if (projectList) {
-        projectList.innerHTML = siteData.projects.map(project => `
+        projectList.innerHTML = siteData.projects.map(project => {
+            const imageHtml = project.image ?
+                `<div class="card-image-container">
+                    <img src="${project.image}" class="card-image" loading="lazy" alt="${project.title}">
+                 </div>` : '';
+
+            return `
             <a href="${project.url}" class="card">
-                <h3 class="card-title">${project.title}</h3>
-                <p class="card-desc">${project.description}</p>
-                <span class="card-tag">View Project &rarr;</span>
+                ${imageHtml}
+                <div class="card-content">
+                    <h3 class="card-title">${project.title}</h3>
+                    <p class="card-desc">${project.description}</p>
+                    <span class="card-tag">View Project &rarr;</span>
+                </div>
             </a>
-        `).join('');
+            `;
+        }).join('');
     }
 
     // --- Footer ---
