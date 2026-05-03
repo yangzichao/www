@@ -1,0 +1,82 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  frontmatter: CollectionEntry<'blog'>['data'];
+}
+
+const { frontmatter } = Astro.props;
+
+// Use UTC so a frontmatter date like `2026-05-02` (parsed as midnight
+// UTC by the YAML loader) doesn't shift to the previous day in any
+// negative-offset timezone during build.
+const formattedDate = frontmatter.date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+const isoDate = frontmatter.date.toISOString();
+---
+
+<BaseLayout
+  title={frontmatter.title}
+  description={frontmatter.description ?? frontmatter.title}
+>
+  <article class="prose prose-lg mx-auto">
+    <header class="not-prose post-header">
+      <h1 class="post-title">{frontmatter.title}</h1>
+      <time class="post-date" datetime={isoDate}>{formattedDate}</time>
+      {
+        frontmatter.tags.length > 0 && (
+          <ul class="post-tags">
+            {frontmatter.tags.map((tag) => (
+              <li class="post-tag">{tag}</li>
+            ))}
+          </ul>
+        )
+      }
+    </header>
+    <slot />
+  </article>
+</BaseLayout>
+
+<style>
+  .post-header {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border, #e5e5e5);
+  }
+
+  .post-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    margin: 0 0 0.75rem;
+    color: var(--color-text-main, #111111);
+  }
+
+  .post-date {
+    font-size: 0.875rem;
+    color: var(--color-text-muted, #666666);
+  }
+
+  .post-tags {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .post-tag {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    background: #f3f3f3;
+    border-radius: 4px;
+    color: var(--color-text-muted, #666666);
+  }
+</style>
