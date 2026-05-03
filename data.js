@@ -9,7 +9,7 @@ const siteData = {
             { icon: "ph-linkedin-logo", url: "https://www.linkedin.com/in/zichaoyang/", label: "LinkedIn" }
         ],
         resume: {
-            url: "#",
+            url: "#", // TODO: 占位,待填入真实简历链接
             text: "Download Resume",
             visible: true // Set to false to hide the button
         }
@@ -36,6 +36,7 @@ const siteData = {
         text: "Explaining complex systems through simple UI.",
         indicatorText: "Open to collaboration"
     },
+    // TODO: 占位,thoughts/blog 模块待启用(目前 UI 未渲染)
     thoughts: [
         { title: "The future of statically generated sites", url: "#" },
         { title: "Why I switched to Rust", url: "#" }
