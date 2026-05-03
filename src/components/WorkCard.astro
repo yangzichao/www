@@ -1,0 +1,25 @@
+---
+import type { WorkItem } from '../data/site';
+
+interface Props {
+  item: WorkItem;
+}
+
+const { item } = Astro.props;
+const contentClass = item.image ? 'work-card-content' : 'work-card-content-only';
+---
+
+<a href={item.url} class="work-card">
+  {
+    item.image && (
+      <div class="work-card-image-container">
+        <img src={item.image} class="work-card-image" loading="lazy" alt={item.title} />
+      </div>
+    )
+  }
+  <div class={contentClass}>
+    <span class="work-card-type">{item.type}</span>
+    <h3 class="work-card-title">{item.title}</h3>
+    <p class="work-card-description">{item.description}</p>
+  </div>
+</a>

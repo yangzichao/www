@@ -1,0 +1,42 @@
+---
+import type { Profile } from '../data/site';
+
+interface Props {
+  profile: Profile;
+}
+
+const { profile } = Astro.props;
+---
+
+<header class="header">
+  <div class="header-content">
+    <h1 class="name">{profile.name}</h1>
+    <div class="bio">{profile.bio}</div>
+
+    <div class="links">
+      {
+        profile.social.map((item) => (
+          <a href={item.url} target="_blank" rel="noopener noreferrer" class="link-button">
+            <i class={`ph ${item.icon}`} />
+            {item.label}
+          </a>
+        ))
+      }
+      {
+        profile.resume.visible && (
+          <a
+            href={profile.resume.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link-button"
+          >
+            <i class="ph ph-file-text" />
+            Resume
+          </a>
+        )
+      }
+    </div>
+  </div>
+
+  <img class="header-avatar" alt={`${profile.name} avatar`} src={profile.avatar} />
+</header>

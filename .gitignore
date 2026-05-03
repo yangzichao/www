@@ -12,17 +12,16 @@
 *.sln
 *.sw?
 
-# Node.js (if you decide to use it later)
+# Node / npm
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 yarn.lock
 
-# Build directories (if/when you have a build step)
+# Astro build artifacts
 dist/
-build/
+.astro/
 
 # Local env files
 .env
