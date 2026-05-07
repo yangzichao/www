@@ -22,10 +22,28 @@ function greet(name) {
 console.log(greet('world'));
 ```
 
+## Math via KaTeX
+
+Inline math like $E = mc^2$ and display equations both work:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
+$$
+
+## Diagrams via Mermaid
+
+The build pipeline, end to end:
+
+```mermaid
+flowchart LR
+  A[markdown file] --> B[Astro build]
+  B --> C[static HTML]
+  C --> D[GitHub Pages]
+  D --> E((reader))
+```
+
 ## What's coming
 
-- KaTeX for math (slice 3) — needed for the physics notes.
-- Mermaid for diagrams (slice 3).
 - GitHub Actions deployment (slice 4).
 
 [← Back to home](/)

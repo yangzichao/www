@@ -86,7 +86,7 @@ export const siteData: SiteData = {
       title: 'β-delayed proton emission from ¹¹Be in effective field theory',
       description:
         'Resolved a major experimental controversy in ¹¹Be decay using Halo Effective Field Theory. Our theoretical predictions were subsequently validated by high-precision experiments at CERN, debunking previous anomalies and establishing the definitive benchmark for this rare decay channel.',
-      url: '/research/11be-proton-emission/',
+      url: '/blog/physics/11be-proton-emission/',
     },
   ],
   status: {

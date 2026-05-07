@@ -1,6 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import type { CollectionEntry } from 'astro:content';
+import 'katex/dist/katex.min.css';
 
 interface Props {
   frontmatter: CollectionEntry<'blog'>['data'];
@@ -27,7 +28,11 @@ const isoDate = frontmatter.date.toISOString();
   <article class="prose prose-lg mx-auto">
     <header class="not-prose post-header">
       <h1 class="post-title">{frontmatter.title}</h1>
-      <time class="post-date" datetime={isoDate}>{formattedDate}</time>
+      <div class="post-meta">
+        <time datetime={isoDate}>{formattedDate}</time>
+        {frontmatter.venue && <span class="post-meta-separator">·</span>}
+        {frontmatter.venue && <span class="post-venue">{frontmatter.venue}</span>}
+      </div>
       {
         frontmatter.tags.length > 0 && (
           <ul class="post-tags">
@@ -40,6 +45,23 @@ const isoDate = frontmatter.date.toISOString();
     </header>
     <slot />
   </article>
+
+  <script slot="body-end" is:inline>
+    // Lazy-load mermaid only on pages that contain a diagram. The
+    // `remarkMermaidToPre` plugin emits `<pre class="mermaid">` during
+    // the markdown build, so a single querySelector is enough to
+    // detect whether this page actually needs the renderer.
+    if (document.querySelector('pre.mermaid')) {
+      import('https://esm.sh/mermaid@11')
+        .then(({ default: mermaid }) => {
+          mermaid.initialize({ startOnLoad: false, theme: 'default' });
+          return mermaid.run({ querySelector: 'pre.mermaid' });
+        })
+        .catch((error) => {
+          console.error('Failed to initialize Mermaid:', error);
+        });
+    }
+  </script>
 </BaseLayout>
 
 <style>
@@ -58,9 +80,21 @@ const isoDate = frontmatter.date.toISOString();
     color: var(--color-text-main, #111111);
   }
 
-  .post-date {
+  .post-meta {
     font-size: 0.875rem;
     color: var(--color-text-muted, #666666);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .post-meta-separator {
+    opacity: 0.5;
+  }
+
+  .post-venue {
+    font-style: italic;
   }
 
   .post-tags {

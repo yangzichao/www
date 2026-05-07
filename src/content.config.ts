@@ -9,6 +9,9 @@ const blog = defineCollection({
     description: z.string().optional(),
     draft: z.boolean().default(false),
     tags: z.array(z.string()).default([]),
+    // Optional publication venue, displayed in the post header for
+    // paper entries (e.g. "Physics Letters B").
+    venue: z.string().optional(),
   }),
 });
 
