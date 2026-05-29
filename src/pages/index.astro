@@ -4,9 +4,6 @@ import Header from '../components/Header.astro';
 import WorkCard from '../components/WorkCard.astro';
 import Footer from '../components/Footer.astro';
 import { siteData } from '../data/site';
-import { getPublishedPosts, formatPostDate } from '../lib/posts';
-
-const recentPosts = (await getPublishedPosts()).slice(0, 5);
 ---
 
 <BaseLayout>
@@ -19,87 +16,5 @@ const recentPosts = (await getPublishedPosts()).slice(0, 5);
     </div>
   </section>
 
-  <section class="writing-section">
-    <h2 class="section-title">Writing</h2>
-    <ul class="home-post-list">
-      {
-        recentPosts.map((post) => (
-          <li class="home-post-row">
-            <a class="home-post-link" href={`/blog/${post.id}/`}>
-              <span class="home-post-title">{post.data.title}</span>
-              <time class="home-post-date" datetime={post.data.date.toISOString()}>
-                {formatPostDate(post.data.date)}
-              </time>
-            </a>
-          </li>
-        ))
-      }
-    </ul>
-    <a class="see-all-link" href="/blog/">All writing →</a>
-  </section>
-
   <Footer />
 </BaseLayout>
-
-<style>
-  .writing-section {
-    margin-bottom: 80px;
-  }
-
-  .home-post-list {
-    list-style: none;
-  }
-
-  .home-post-row {
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .home-post-link {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1.5rem;
-    padding: 0.85rem 0;
-    text-decoration: none;
-    color: var(--color-text-main);
-    transition: color var(--transition);
-  }
-
-  .home-post-title {
-    font-size: 1.05rem;
-    font-weight: 500;
-    letter-spacing: -0.01em;
-  }
-
-  .home-post-link:hover .home-post-title {
-    color: var(--color-text-muted);
-  }
-
-  .home-post-date {
-    flex-shrink: 0;
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .see-all-link {
-    display: inline-block;
-    margin-top: 1.25rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--color-text-main);
-    text-decoration: none;
-    transition: opacity var(--transition);
-  }
-
-  .see-all-link:hover {
-    opacity: 0.6;
-  }
-
-  @media (max-width: 640px) {
-    .home-post-link {
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-  }
-</style>
