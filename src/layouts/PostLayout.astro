@@ -1,14 +1,20 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import BlogSidebar from '../components/BlogSidebar.astro';
 import type { CollectionEntry } from 'astro:content';
+import { getPublishedPosts, groupByCategory } from '../lib/posts';
 import 'katex/dist/katex.min.css';
 import '../styles/post.css';
+import '../styles/blog-layout.css';
 
 interface Props {
   frontmatter: CollectionEntry<'blog'>['data'];
+  id: string;
 }
 
-const { frontmatter } = Astro.props;
+const { frontmatter, id } = Astro.props;
+
+const groups = groupByCategory(await getPublishedPosts());
 
 // Use UTC so a frontmatter date like `2026-05-02` (parsed as midnight
 // UTC by the YAML loader) doesn't shift to the previous day in any
@@ -26,29 +32,31 @@ const isoDate = frontmatter.date.toISOString();
   title={frontmatter.title}
   description={frontmatter.description ?? frontmatter.title}
 >
-  <nav class="post-nav">
-    <a href="/blog/">← Writing</a>
-  </nav>
-  <article class="prose prose-lg post-article">
-    <header class="not-prose post-header">
-      <h1 class="post-title">{frontmatter.title}</h1>
-      <div class="post-meta">
-        <time datetime={isoDate}>{formattedDate}</time>
-        {frontmatter.venue && <span class="post-meta-separator">·</span>}
-        {frontmatter.venue && <span class="post-venue">{frontmatter.venue}</span>}
-      </div>
-      {
-        frontmatter.tags.length > 0 && (
-          <ul class="post-tags">
-            {frontmatter.tags.map((tag) => (
-              <li class="post-tag">{tag}</li>
-            ))}
-          </ul>
-        )
-      }
-    </header>
-    <slot />
-  </article>
+  <div class="blog-layout">
+    <BlogSidebar groups={groups} currentId={id} />
+    <div class="blog-main">
+      <article class="prose prose-lg post-article">
+        <header class="not-prose post-header">
+          <h1 class="post-title">{frontmatter.title}</h1>
+          <div class="post-meta">
+            <time datetime={isoDate}>{formattedDate}</time>
+            {frontmatter.venue && <span class="post-meta-separator">·</span>}
+            {frontmatter.venue && <span class="post-venue">{frontmatter.venue}</span>}
+          </div>
+          {
+            frontmatter.tags.length > 0 && (
+              <ul class="post-tags">
+                {frontmatter.tags.map((tag) => (
+                  <li class="post-tag">{tag}</li>
+                ))}
+              </ul>
+            )
+          }
+        </header>
+        <slot />
+      </article>
+    </div>
+  </div>
 
   <script slot="body-end" is:inline>
     // Lazy-load mermaid only on pages that contain a diagram. The
@@ -69,22 +77,6 @@ const isoDate = frontmatter.date.toISOString();
 </BaseLayout>
 
 <style>
-  .post-nav {
-    font-family: var(--font-stack);
-    margin-bottom: 1.75rem;
-  }
-
-  .post-nav a {
-    font-size: 0.875rem;
-    color: var(--color-text-muted, #666666);
-    text-decoration: none;
-    transition: color 0.2s ease;
-  }
-
-  .post-nav a:hover {
-    color: var(--color-text-main, #111111);
-  }
-
   /* The article body is serif; keep the title and meta on Inter so the
      masthead matches the homepage. */
   .post-header {

@@ -1,0 +1,74 @@
+---
+import type { CategoryGroup } from '../lib/posts';
+
+interface Props {
+  groups: CategoryGroup[];
+  currentId?: string;
+}
+
+const { groups, currentId } = Astro.props;
+---
+
+<button
+  class="sidebar-toggle"
+  type="button"
+  aria-label="Toggle contents"
+  aria-expanded="false"
+  data-sidebar-toggle
+>
+  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M1 3h14M1 8h14M1 13h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+  </svg>
+  <span>Contents</span>
+</button>
+
+<div class="sidebar-overlay" data-sidebar-overlay aria-hidden="true"></div>
+
+<aside class="blog-sidebar" data-blog-sidebar>
+  <nav class="sidebar-nav" aria-label="Writing">
+    <a class="sidebar-home" href="/blog/">Writing</a>
+    {
+      groups.map((group) => (
+        <div class="sidebar-group">
+          <p class="sidebar-group-label">{group.label}</p>
+          <ul class="sidebar-post-list">
+            {group.posts.map((post) => (
+              <li>
+                <a
+                  class:list={['sidebar-post-link', { 'is-active': post.id === currentId }]}
+                  href={`/blog/${post.id}/`}
+                  aria-current={post.id === currentId ? 'page' : undefined}
+                >
+                  {post.data.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+  </nav>
+</aside>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>('[data-sidebar-toggle]');
+  const sidebar = document.querySelector<HTMLElement>('[data-blog-sidebar]');
+  const overlay = document.querySelector<HTMLElement>('[data-sidebar-overlay]');
+
+  function setOpen(open: boolean) {
+    sidebar?.classList.toggle('is-open', open);
+    overlay?.classList.toggle('is-visible', open);
+    toggle?.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('sidebar-locked', open);
+  }
+
+  toggle?.addEventListener('click', () => setOpen(!sidebar?.classList.contains('is-open')));
+  overlay?.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setOpen(false);
+  });
+  // Close the drawer after navigating on mobile.
+  sidebar?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => setOpen(false));
+  });
+</script>

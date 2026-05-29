@@ -1,6 +1,8 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import BlogSidebar from '../../components/BlogSidebar.astro';
 import { getPublishedPosts, groupByCategory, formatPostDate } from '../../lib/posts';
+import '../../styles/blog-layout.css';
 
 const posts = await getPublishedPosts();
 const groups = groupByCategory(posts);
@@ -10,32 +12,37 @@ const groups = groupByCategory(posts);
   title="Writing — Zichao Yang"
   description="Notes and essays on physics, systems, AI, and life."
 >
-  <header class="writing-head">
-    <a class="back-home" href="/">← Home</a>
-    <h1 class="writing-title">Writing</h1>
-    <p class="writing-sub">Notes and essays on physics, systems, AI, and life.</p>
-  </header>
+  <div class="blog-layout">
+    <BlogSidebar groups={groups} />
+    <div class="blog-main">
+      <header class="writing-head">
+        <a class="back-home" href="/">← Home</a>
+        <h1 class="writing-title">Writing</h1>
+        <p class="writing-sub">Notes and essays on physics, systems, AI, and life.</p>
+      </header>
 
-  {
-    groups.map((group) => (
-      <section class="category">
-        <h2 class="section-title">{group.label}</h2>
-        <ul class="post-list">
-          {group.posts.map((post) => (
-            <li class="post-row">
-              <a class="post-row-link" href={`/blog/${post.id}/`}>
-                <span class="post-row-title">{post.data.title}</span>
-                <time class="post-row-date" datetime={post.data.date.toISOString()}>
-                  {formatPostDate(post.data.date)}
-                </time>
-              </a>
-              {post.data.description && <p class="post-row-desc">{post.data.description}</p>}
-            </li>
-          ))}
-        </ul>
-      </section>
-    ))
-  }
+      {
+        groups.map((group) => (
+          <section class="category">
+            <h2 class="section-title">{group.label}</h2>
+            <ul class="post-list">
+              {group.posts.map((post) => (
+                <li class="post-row">
+                  <a class="post-row-link" href={`/blog/${post.id}/`}>
+                    <span class="post-row-title">{post.data.title}</span>
+                    <time class="post-row-date" datetime={post.data.date.toISOString()}>
+                      {formatPostDate(post.data.date)}
+                    </time>
+                  </a>
+                  {post.data.description && <p class="post-row-desc">{post.data.description}</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+    </div>
+  </div>
 </BaseLayout>
 
 <style>

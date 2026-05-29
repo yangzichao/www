@@ -237,23 +237,10 @@
   overflow-x: auto;
 }
 
-/* ---------------------------------------------------------------
- * Reading container. `main.container` (0,1,1) outranks the homepage's
- * `.container` (0,1,0) so post pages get a narrower, centered measure
- * without touching the homepage grid. Only loaded on post pages.
- * --------------------------------------------------------------- */
-main.container {
-  max-width: 880px;
-  padding-top: 64px;
-  padding-bottom: 96px;
-}
-
+/* The reading column width is governed by `.blog-layout` /
+ * `main.container` in blog-layout.css, which both post pages and the
+ * /blog index share. */
 @media (max-width: 768px) {
-  main.container {
-    padding-top: 40px;
-    padding-bottom: 56px;
-  }
-
   .post-article {
     font-size: 1.125rem; /* 18px on small screens */
   }

@@ -1,0 +1,195 @@
+/* ---------------------------------------------------------------
+ * Two-column blog shell: a persistent mdBook-style sidebar (category
+ * /post tree) beside the content. Imported by PostLayout and the
+ * /blog index, so it only ships on blog pages and owns the wider
+ * `main.container` width there (the homepage keeps its own 1080px).
+ *
+ * Below 1000px the sidebar collapses into a slide-in drawer toggled
+ * by a floating "Contents" button.
+ * --------------------------------------------------------------- */
+
+main.container {
+  max-width: 1120px;
+  padding-top: 56px;
+  padding-bottom: 96px;
+}
+
+.blog-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 56px;
+  align-items: start;
+}
+
+/* The content column. `min-width: 0` lets wide children (code blocks,
+ * tables) scroll instead of stretching the grid track. */
+.blog-main {
+  min-width: 0;
+}
+
+/* Sidebar ---------------------------------------------------------- */
+.blog-sidebar {
+  position: sticky;
+  top: 56px;
+  align-self: start;
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sidebar-nav {
+  font-family: var(--font-stack);
+}
+
+.sidebar-home {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-main);
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+}
+
+.sidebar-group {
+  margin-bottom: 1.5rem;
+}
+
+.sidebar-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.sidebar-post-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sidebar-post-link {
+  display: block;
+  padding: 0.35rem 0.6rem;
+  margin-left: -0.6rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition:
+    color var(--transition),
+    background var(--transition);
+}
+
+.sidebar-post-link:hover {
+  color: var(--color-text-main);
+  background: var(--color-card-hover);
+}
+
+.sidebar-post-link.is-active {
+  color: var(--color-text-main);
+  font-weight: 600;
+  background: var(--color-card-hover);
+  border-left-color: var(--color-accent);
+  border-radius: 0 6px 6px 0;
+}
+
+/* Floating drawer toggle + overlay — desktop hides them. */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 0.9rem;
+  left: 0.9rem;
+  z-index: 60;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  font-family: var(--font-stack);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-main);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.sidebar-toggle svg {
+  display: block;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* Drawer mode ----------------------------------------------------- */
+@media (max-width: 1000px) {
+  main.container {
+    max-width: 760px;
+    padding-top: 40px;
+    padding-bottom: 56px;
+  }
+
+  .blog-layout {
+    display: block;
+  }
+
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .blog-main {
+    padding-top: 2.75rem;
+  }
+
+  /* Slide via `left` rather than `transform`: a fixed, scrollable
+   * `<aside>` ignored transforms in testing, and animating `left` is
+   * perfectly smooth for an off-canvas drawer. */
+  .blog-sidebar {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    bottom: 0;
+    width: 290px;
+    max-width: 84vw;
+    z-index: 70;
+    margin: 0;
+    padding: 1.75rem 1.5rem;
+    background: var(--color-background);
+    border-right: 1px solid var(--color-border);
+    max-height: none;
+    overflow-y: auto;
+    transition: left 0.25s ease;
+  }
+
+  .blog-sidebar.is-open {
+    left: 0;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .sidebar-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.sidebar-locked {
+    overflow: hidden;
+  }
+}
