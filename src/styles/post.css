@@ -228,11 +228,15 @@
   overflow-y: hidden;
 }
 
-/* Mermaid diagrams ------------------------------------------------ */
+/* Mermaid diagrams. `prose` gives every `<pre>` a dark slate background
+ * (--tw-prose-pre-bg). Shiki code blocks override it with an inline light
+ * style, but the mermaid `<pre>` has none — so clear it explicitly, or the
+ * transparent diagram SVG ends up sitting on a dark navy block. */
 .post-article pre.mermaid {
   margin: 2em 0;
   padding: 0;
   border: 0;
+  background: none;
   text-align: center;
   overflow-x: auto;
 }
