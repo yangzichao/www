@@ -1,0 +1,138 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPublishedPosts, groupByCategory, formatPostDate } from '../../lib/posts';
+
+const posts = await getPublishedPosts();
+const groups = groupByCategory(posts);
+---
+
+<BaseLayout
+  title="Writing — Zichao Yang"
+  description="Notes and essays on physics, systems, AI, and life."
+>
+  <header class="writing-head">
+    <a class="back-home" href="/">← Home</a>
+    <h1 class="writing-title">Writing</h1>
+    <p class="writing-sub">Notes and essays on physics, systems, AI, and life.</p>
+  </header>
+
+  {
+    groups.map((group) => (
+      <section class="category">
+        <h2 class="section-title">{group.label}</h2>
+        <ul class="post-list">
+          {group.posts.map((post) => (
+            <li class="post-row">
+              <a class="post-row-link" href={`/blog/${post.id}/`}>
+                <span class="post-row-title">{post.data.title}</span>
+                <time class="post-row-date" datetime={post.data.date.toISOString()}>
+                  {formatPostDate(post.data.date)}
+                </time>
+              </a>
+              {post.data.description && <p class="post-row-desc">{post.data.description}</p>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+</BaseLayout>
+
+<style>
+  .writing-head {
+    margin-bottom: 3.5rem;
+  }
+
+  .back-home {
+    display: inline-block;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    transition: color var(--transition);
+  }
+
+  .back-home:hover {
+    color: var(--color-text-main);
+  }
+
+  .writing-title {
+    font-size: 2.75rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--color-text-main);
+  }
+
+  .writing-sub {
+    margin-top: 0.75rem;
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
+  .category {
+    margin-bottom: 3.5rem;
+  }
+
+  .post-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .post-row {
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .post-row:last-child {
+    border-bottom: 0;
+  }
+
+  .post-row-link {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5rem;
+    text-decoration: none;
+    color: var(--color-text-main);
+  }
+
+  .post-row-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    transition: color var(--transition);
+  }
+
+  .post-row-link:hover .post-row-title {
+    color: var(--color-text-muted);
+  }
+
+  .post-row-date {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .post-row-desc {
+    margin-top: 0.4rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--color-text-muted);
+    max-width: 65ch;
+  }
+
+  @media (max-width: 640px) {
+    .writing-title {
+      font-size: 2.25rem;
+    }
+
+    .post-row-link {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+  }
+</style>
