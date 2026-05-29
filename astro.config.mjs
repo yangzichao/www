@@ -25,5 +25,8 @@ export default defineConfig({
     // syntax highlighting entirely.
     remarkPlugins: [remarkMath, remarkMermaidToPre],
     rehypePlugins: [rehypeKatex],
+    // Light syntax theme to match the site's white, minimal surface;
+    // the dark default clashed with the surrounding page.
+    shikiConfig: { theme: 'github-light' },
   },
 });

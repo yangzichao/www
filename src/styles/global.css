@@ -24,10 +24,16 @@
   --transition: 0.2s ease;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Keep the reset inside `@layer base` so it zeroes user-agent defaults
+ * but still loses to Tailwind utilities (`mx-auto`) and the typography
+ * plugin's `:where()` rules — both live in later layers. An unlayered
+ * reset would override them and silently flatten all prose spacing. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {

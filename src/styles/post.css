@@ -1,0 +1,268 @@
+/* ---------------------------------------------------------------
+ * Long-form reading styles for blog posts.
+ *
+ * Layered on top of Tailwind Typography's `prose` as a refined,
+ * editorial reading mode. Selectors are class-based (`.post-article …`)
+ * so they reliably win over `prose`'s zero-specificity `:where()`
+ * defaults. Imported only by PostLayout, so nothing here ships to the
+ * homepage — including the narrower `.container` override below.
+ * --------------------------------------------------------------- */
+
+.post-article {
+  --prose-body: #232629;
+  --prose-muted: #6b7280;
+  --prose-heading: #0b0d0f;
+  --prose-border: #e8e8e6;
+  --prose-rule: #ededeb;
+  --prose-accent: #111111;
+  --prose-link-underline: #c6c6c2;
+  --prose-code-bg: #f5f5f3;
+  --prose-code-border: #e6e6e2;
+  --prose-quote-border: #d9d9d4;
+
+  /* Serif body for a calm, editorial reading surface; headings and
+   * UI chrome stay on Inter (see PostLayout) for continuity with the
+   * homepage. CJK text falls back to a system serif. */
+  font-family: 'Newsreader', Georgia, 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC',
+    serif;
+  font-optical-sizing: auto;
+  font-size: 1.1875rem; /* 19px */
+  line-height: 1.72;
+  font-weight: 400;
+  color: var(--prose-body);
+  letter-spacing: 0.002em;
+  max-width: none; /* fill the container; width is governed by .container */
+  text-wrap: pretty;
+}
+
+/* Paragraph rhythm ------------------------------------------------ */
+.post-article p {
+  margin: 0 0 1.35em;
+}
+.post-article > :first-child {
+  margin-top: 0;
+}
+
+/* Headings — Inter, tight tracking, generous space above ---------- */
+.post-article :is(h2, h3, h4) {
+  font-family: var(--font-stack);
+  color: var(--prose-heading);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+.post-article h2 {
+  font-size: 1.6rem;
+  margin: 2.6em 0 0.7em;
+  padding-bottom: 0.32em;
+  border-bottom: 1px solid var(--prose-rule);
+}
+.post-article h3 {
+  font-size: 1.3rem;
+  margin: 2.1em 0 0.55em;
+}
+.post-article h4 {
+  font-size: 1.08rem;
+  margin: 1.8em 0 0.45em;
+}
+
+/* Links — understated underline that firms up on hover ------------ */
+.post-article a {
+  color: var(--prose-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: var(--prose-link-underline);
+  transition:
+    color 0.15s ease,
+    text-decoration-color 0.15s ease;
+}
+.post-article a:hover {
+  text-decoration-color: var(--prose-accent);
+}
+
+/* Inline emphasis ------------------------------------------------- */
+.post-article strong {
+  font-weight: 600;
+  color: var(--prose-heading);
+}
+.post-article em {
+  font-style: italic;
+}
+
+/* Lists ----------------------------------------------------------- */
+.post-article :is(ul, ol) {
+  margin: 0 0 1.35em;
+  padding-left: 1.4em;
+}
+.post-article ul {
+  list-style: disc;
+}
+.post-article ol {
+  list-style: decimal;
+}
+.post-article li {
+  margin: 0.4em 0;
+  padding-left: 0.2em;
+}
+.post-article li::marker {
+  color: var(--prose-muted);
+}
+.post-article li > :is(ul, ol) {
+  margin: 0.4em 0;
+}
+
+/* Blockquote — calm aside, no auto quotation glyphs --------------- */
+.post-article blockquote {
+  margin: 1.7em 0;
+  padding: 0.15em 0 0.15em 1.25em;
+  border-left: 3px solid var(--prose-quote-border);
+  color: var(--prose-muted);
+  font-style: italic;
+}
+.post-article blockquote p {
+  margin: 0.6em 0;
+}
+.post-article blockquote strong {
+  color: var(--prose-body);
+}
+/* `prose` injects decorative curly quotes via ::before/::after. */
+.post-article blockquote p:first-of-type::before,
+.post-article blockquote p:last-of-type::after {
+  content: none;
+}
+
+/* Inline code ----------------------------------------------------- */
+.post-article :not(pre) > code {
+  font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  font-style: normal;
+  background: var(--prose-code-bg);
+  border: 1px solid var(--prose-code-border);
+  border-radius: 5px;
+  padding: 0.1em 0.4em;
+}
+/* `prose` wraps inline code in literal backticks via ::before/::after. */
+.post-article :not(pre) > code::before,
+.post-article :not(pre) > code::after {
+  content: none;
+}
+
+/* Code blocks (Shiki emits .astro-code with an inline bg/color) --- */
+.post-article pre {
+  font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 1.7em 0;
+  padding: 1.05em 1.2em;
+  border: 1px solid var(--prose-border);
+  border-radius: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.post-article pre code {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* Tables ---------------------------------------------------------- */
+.post-article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.9em 0;
+  font-family: var(--font-stack);
+  font-size: 0.95rem;
+}
+.post-article :is(th, td) {
+  padding: 0.6em 0.85em;
+  text-align: left;
+  border-bottom: 1px solid var(--prose-rule);
+  vertical-align: top;
+}
+.post-article th {
+  font-weight: 600;
+  color: var(--prose-heading);
+  border-bottom: 2px solid var(--prose-quote-border);
+}
+.post-article tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Horizontal rule ------------------------------------------------- */
+.post-article hr {
+  border: 0;
+  height: 1px;
+  width: 100%;
+  margin: 3em auto;
+  background: var(--prose-rule);
+}
+
+/* Images & figures ------------------------------------------------ */
+.post-article img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.9em auto;
+  border-radius: 10px;
+}
+.post-article figure {
+  margin: 1.9em 0;
+}
+.post-article figcaption {
+  margin-top: 0.7em;
+  font-family: var(--font-stack);
+  font-size: 0.85rem;
+  color: var(--prose-muted);
+  text-align: center;
+}
+
+/* Display math — scroll wide equations instead of overflowing ----- */
+.post-article .katex-display {
+  margin: 1.5em 0;
+  padding: 0.4em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Mermaid diagrams ------------------------------------------------ */
+.post-article pre.mermaid {
+  margin: 2em 0;
+  padding: 0;
+  border: 0;
+  text-align: center;
+  overflow-x: auto;
+}
+
+/* ---------------------------------------------------------------
+ * Reading container. `main.container` (0,1,1) outranks the homepage's
+ * `.container` (0,1,0) so post pages get a narrower, centered measure
+ * without touching the homepage grid. Only loaded on post pages.
+ * --------------------------------------------------------------- */
+main.container {
+  max-width: 880px;
+  padding-top: 64px;
+  padding-bottom: 96px;
+}
+
+@media (max-width: 768px) {
+  main.container {
+    padding-top: 40px;
+    padding-bottom: 56px;
+  }
+
+  .post-article {
+    font-size: 1.125rem; /* 18px on small screens */
+  }
+
+  .post-article h2 {
+    font-size: 1.4rem;
+  }
+
+  .post-article h3 {
+    font-size: 1.2rem;
+  }
+}
