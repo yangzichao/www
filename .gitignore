@@ -31,3 +31,6 @@ dist/
 # Logs
 logs
 *.log
+
+# Playwright MCP artifacts
+.playwright-mcp/
