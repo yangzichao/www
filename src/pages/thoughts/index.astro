@@ -1,0 +1,244 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getThoughts, formatThoughtMonth } from '../../lib/thoughts';
+
+const thoughts = await getThoughts();
+const rendered = await Promise.all(
+  thoughts.map(async (thought) => {
+    const { Content } = await render(thought);
+    return { thought, Content };
+  })
+);
+---
+
+<BaseLayout
+  title="Thoughts — Zichao Yang"
+  description="Short thoughts, observations, and fragments."
+>
+  <div class="thoughts-layout">
+    <header class="thoughts-head">
+      <a class="back-home" href="/">← Home</a>
+      <h1 class="thoughts-title">Thoughts</h1>
+      <p class="thoughts-sub">Short observations. Randomly shuffled each visit.</p>
+    </header>
+
+    <div id="thoughts-pool">
+      {
+        rendered.map(({ thought, Content }, index) => (
+          <article
+            class="thought-card"
+            data-index={index}
+            data-date={thought.data.date.toISOString()}
+          >
+            <div class="thought-meta">
+              <time
+                class="thought-date"
+                datetime={thought.data.date.toISOString()}
+              >
+                {formatThoughtMonth(thought.data.date)}
+              </time>
+              {thought.data.tags.length > 0 && (
+                <div class="thought-tags">
+                  {thought.data.tags.map((tag) => (
+                    <span class="thought-tag">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div class="thought-body prose">
+              <Content />
+            </div>
+          </article>
+        ))
+      }
+    </div>
+
+    <footer class="thoughts-footer">
+      <span id="thoughts-count" class="thoughts-count"></span>
+      <button id="shuffle-btn" class="shuffle-btn" type="button">
+        <i class="ph ph-shuffle"></i>
+        Shuffle
+      </button>
+    </footer>
+  </div>
+</BaseLayout>
+
+<script>
+  const VISIBLE_COUNT = 8;
+
+  function shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function showRandom() {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>('.thought-card'));
+    const count = Math.min(VISIBLE_COUNT, cards.length);
+
+    cards.forEach((c) => {
+      c.style.display = 'none';
+      c.classList.remove('visible');
+    });
+
+    const picked = shuffle(cards).slice(0, count);
+    picked.forEach((c) => {
+      c.style.display = 'block';
+      c.classList.add('visible');
+    });
+
+    const countEl = document.getElementById('thoughts-count');
+    if (countEl) {
+      countEl.textContent =
+        cards.length <= VISIBLE_COUNT
+          ? `All ${cards.length} thoughts`
+          : `${count} of ${cards.length} thoughts`;
+    }
+
+    const shuffleBtn = document.getElementById('shuffle-btn');
+    if (shuffleBtn) {
+      shuffleBtn.style.display = cards.length <= VISIBLE_COUNT ? 'none' : 'inline-flex';
+    }
+  }
+
+  document.getElementById('shuffle-btn')?.addEventListener('click', showRandom);
+  showRandom();
+</script>
+
+<style>
+  .thoughts-layout {
+    max-width: 620px;
+  }
+
+  .thoughts-head {
+    margin-bottom: 3.5rem;
+  }
+
+  .back-home {
+    display: inline-block;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    transition: color var(--transition);
+  }
+
+  .back-home:hover {
+    color: var(--color-text-main);
+  }
+
+  .thoughts-title {
+    font-size: 2.75rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--color-text-main);
+  }
+
+  .thoughts-sub {
+    margin-top: 0.75rem;
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
+  /* Cards hidden until JS runs */
+  .thought-card {
+    display: none;
+    padding: 1.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  #thoughts-pool .thought-card:first-child {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .thought-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .thought-date {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  .thought-tags {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .thought-tag {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    background: var(--color-card-hover);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+  }
+
+  .thought-body {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--color-text-main);
+  }
+
+  .thought-body :global(p) {
+    margin: 0;
+  }
+
+  .thought-body :global(p + p) {
+    margin-top: 0.9em;
+  }
+
+  .thoughts-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.75rem 0 0;
+    gap: 1rem;
+  }
+
+  .thoughts-count {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .shuffle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-main);
+    background: var(--color-card-hover);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+    font-family: var(--font-stack);
+  }
+
+  .shuffle-btn:hover {
+    background: #eef0f2;
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 640px) {
+    .thoughts-title {
+      font-size: 2.25rem;
+    }
+  }
+</style>

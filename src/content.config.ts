@@ -1,5 +1,7 @@
 import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
+import { join } from 'path';
+import { thoughtsLoader } from './loaders/thoughts-loader';
 
 const blog = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/blog' }),
@@ -9,10 +11,16 @@ const blog = defineCollection({
     description: z.string().optional(),
     draft: z.boolean().default(false),
     tags: z.array(z.string()).default([]),
-    // Optional publication venue, displayed in the post header for
-    // paper entries (e.g. "Physics Letters B").
     venue: z.string().optional(),
   }),
 });
 
-export const collections = { blog };
+const thoughts = defineCollection({
+  loader: thoughtsLoader(join(process.cwd(), 'src/content/thoughts')),
+  schema: z.object({
+    date: z.date(),
+    tags: z.array(z.string()).default([]),
+  }),
+});
+
+export const collections = { blog, thoughts };
