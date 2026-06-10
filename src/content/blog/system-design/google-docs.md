@@ -1,178 +1,653 @@
 ---
 title: "系统设计：Design Google Docs（实时协同编辑）"
 date: 2026-06-07
-description: 实时协同编辑系统设计入门——面试标准答题结构，加上 OT vs CRDT 的工业内幕，全部结论经多源对抗式核实。
-draft: true
+description: 用一条清晰主线讲透 Google Docs 实时协同编辑：需求、容量估算、API、数据模型、OT/CRDT、presence、离线同步和可靠性取舍。
+draft: false
 tags: [system-design, interview, learning, collaborative-editing]
 ---
 
-> 本文是一份入门教程，同时覆盖两件事：**(1) 面试的标准答题结构**，和 **(2) 实时协同编辑背后的真实工业知识（OT vs CRDT）**。所有关键结论都标注了来源，并经过多源对抗式核实。
+这道题不要一上来就想数据库、缓存、Kafka。Google Docs 最难的地方不是“把一篇文档存起来”，而是：几个人同时改同一篇文档时，大家最后看到的内容不能乱。
 
-## 这道题到底在考什么
+先看一个很小的例子。现在文档里只有一个词：
 
-「设计 Google Docs」本质是一道 **实时协同编辑（real-time collaborative editing）** 系统设计题。难点不在「存文档」，而在于 **多个人同时改同一个文档时，如何让每个人最终看到一致的结果**。
+```text
+cat
+```
 
-所以它同时考两件事：
+Alice 想在开头加一个 `s`，所以她的操作是：
 
-1. 系统设计的通用答题套路（任何题都适用）
-2. 协同编辑的核心算法（OT vs CRDT —— 这道题的灵魂 deep dive）
+```text
+insert(pos=0, "s")
+```
+
+Bob 想在结尾加一个 `s`，所以他的操作是：
+
+```text
+insert(pos=3, "s")
+```
+
+这两条操作都没错，因为它们都是基于原文 `cat` 算出来的。但服务器如果先处理 Alice，文档就变成了 `scat`。这时 Bob 原来的 `pos=3` 已经不是结尾了，直接应用会变成：
+
+```text
+sca|t -> scast
+```
+
+Bob 本来想要的是 `scats`。这就是协同编辑的核心问题：**位置会因为别人的操作而过期**。
+
+所以这道题真正要设计的是一套系统，让每个人都能很快看到自己的输入，也能很快看到别人的输入；即使网络延迟、消息乱序、有人离线再回来，所有副本最后仍然能收敛到同一个文档。现实里我们通常追求的是最终一致性，而不是每一毫秒都强一致。[^sdhandbook]
 
 ---
 
-## 第一部分：面试标准答题结构
+## 面试策略：不要把这题讲成知识背诵
 
-### 为什么大多数人挂掉：没有结构
+这篇文章后面会讲很多内容，但面试时你不能像念教程一样从头讲到尾。系统设计面试更像一次有时间限制的技术讨论。你的目标不是把所有知识点倒出来，而是让面试官相信三件事：
 
-候选人答不下去，主要原因是 **缺乏结构化的方法**，所以要按固定框架走，给自己一条「轨道」。[^hellointerview-intro] Educative 的 Grokking 课程把这套固定框架叫 **RESHADED**，是一套可复用的 45 分钟答题路线图。[^educative-course]
+1. 你知道这题真正难在哪里。
+2. 你能先搭出一个能工作的系统。
+3. 你能在关键点上做取舍，而不是只背方案。
 
-不管叫什么名字，标准结构都是这五步，按顺序走：
+所以这题的上场策略可以这样安排。
 
-> **功能/非功能需求 → 核心实体 → API 设计 → 高层架构 → 深入专题（deep dive）** [^hellointerview-gdocs]
+**前 5 分钟：先锁定题目**
 
-### 第 1 步：厘清需求（Requirements）
+不要直接画架构图。先问清楚范围，然后主动收敛：
 
-**功能需求（Functional）—— 公认的 4 个核心：** [^hellointerview-gdocs]
+> 我会先聚焦实时协同编辑本身：创建文档、多人编辑、实时同步、presence。搜索、评论、复杂权限和计费可以作为外部系统先不展开。
 
-- 多用户 **并发编辑** 同一文档
-- 用户能 **实时看到** 别人的修改
-- 能看到别人的 **光标位置和在线状态**（presence）
-- 文档的创建
+这句话的作用是告诉面试官：你知道 Google Docs 很大，但你能把题目切到核心。
 
-更完整的功能清单还包括：富文本格式、离线访问 + 同步、细粒度权限控制（谁能看 / 谁能改）。[^algomaster]
+**接下来 5 分钟：用一个小例子暴露核心难点**
 
-**非功能需求（Non-functional）—— 最关键的一条：**
+不要急着说 WebSocket。先讲 `cat` 例子：
 
-- **低延迟**：编辑要在 **毫秒级** 内传播给所有协作者 [^algomaster]
-- **最终一致性（eventual consistency）**：并发修改下，所有人最终收敛到同一状态（第二部分细讲）
+> Alice 在位置 0 插入 `s`，Bob 在位置 3 插入 `s`。两条操作都基于旧版本 `cat`，但如果 Alice 先被应用，Bob 的位置就过期了。所以这题的核心不是存文档，而是并发操作如何收敛。
 
-> 💡 面试技巧：明确说出「我们追求 **毫秒级低延迟** 和 **最终一致性**」会直接踩中考点。[^algomaster]
+这个例子是你的“抓手”。后面讲 `baseVersion`、room 串行化、OT/CRDT，都是围绕它展开。
 
-### 第 2 步：核心实体（Core Entities）
+**中间 20 分钟：先给主方案，再解释取舍**
 
-典型的有：User、Document、文档内容 / 操作记录（Operations）、权限（Permission/ACL）、版本历史（Version History）。
+主线不要散。按这个顺序走：
 
-**版本历史 + 冲突解决** 被明确当作核心必备能力，别漏。[^educative-gdocs]
-
-### 第 3 步：API 设计
-
-- **REST** 用于「非实时」操作：创建文档、改权限、拉历史版本
-- **WebSocket** 用于「实时」操作：推送 / 接收编辑、广播光标位置、presence
-
-### 第 4 步：高层架构
-
-被反复推荐的技术栈组合：**WebSocket（实时通道）+ 消息/处理队列（管并发）+ 持久化存储**，以此实现并发管理和低延迟更新。[^educative-gdocs]
-
-一个典型的数据流：
-
-```
-客户端 ──(WebSocket 长连接)──► 实时协同服务（每文档一个"房间"）
-                                    │
-                       ┌────────────┼────────────┐
-                       ▼            ▼            ▼
-                  冲突解决(OT)   广播给其他人   写入存储/版本历史
+```text
+需求 -> 估算 -> 数据模型 -> API -> 架构 -> OT deep dive
 ```
 
-> 工业参照：**Figma 给每个协同文档单独起一个服务进程**，所有编辑这个文档的人都连到这个进程上。[^figma] 这就是「每文档一个房间（room/process）」模式的真实案例，面试里说出来很加分。
+每一步都只讲和协同编辑有关的东西。比如容量估算不是为了展示算术，而是为了推出 WebSocket 接入层、operation log、snapshot。数据模型不是为了列很多表，而是为了说明 `current_version` 和 append-only operation 为什么重要。
 
-### 第 5 步：Deep Dive —— 冲突解决
+**最后 10 分钟：等面试官选择 deep dive**
 
-这是整道题的高潮，直接进入第二部分。
+你可以主动给几个深入方向，让面试官选：
+
+- 如果他关心一致性，就深入 OT vs CRDT。
+- 如果他关心可靠性，就讲 ack 什么时候发、room 崩了怎么恢复。
+- 如果他关心规模，就讲热点文档、fanout、presence 为什么不落库。
+- 如果他关心产品体验，就讲离线编辑、语义冲突和版本恢复。
+
+这比你自己无限展开更好，因为系统设计面试通常是互动式的。你要给面试官可追问的入口。
+
+**一个实用原则**
+
+每讲一个组件，都顺手讲一句“为什么不是另一种方案”。比如：
+
+- 用 WebSocket，因为编辑是双向低延迟，不适合轮询。
+- 同一文档进同一个 room，因为并发操作需要一个权威顺序。
+- presence 不进操作日志，因为它是易逝状态，丢一帧没关系。
+- ack 等日志写入，因为用户收到确认的操作应该能从故障中恢复。
+
+这套说法会让你的答案听起来像设计，而不是背架构图。
 
 ---
 
-## 第二部分：工业内幕 —— 协同编辑到底怎么工作的
+## 1. 先把题目边界说清楚
 
-### 核心问题：并发编辑会冲突
+面试官说“设计 Google Docs”，你不要默认要做完整 Google Workspace。先把范围收住。
 
-假设文档是 `"cat"`，Alice 在开头插 `"s"`（想要 `"scat"`），Bob 同时在末尾插 `"s"`（想要 `"cats"`）。两人都基于 `"cat"` 这个版本操作。如果天真地把两条指令叠加，位置编号会错乱，两人最终看到的文档可能不一样。**怎么保证所有人收敛到同一个结果？** 这就是 OT 和 CRDT 要解决的问题。
+我会先确认这几个核心功能：[^hellointerview-gdocs]
 
-一个关键的现实认知：系统 **理想上想要「立即一致」（所有人画面瞬间相同），但物理网络决定了现实只能做到「最终一致性」**。[^sdhandbook]
+1. 用户可以创建文档。
+2. 多个用户可以同时编辑同一篇文档。
+3. 一个用户的修改要实时出现在其他协作者那里。
+4. 用户可以看到其他人的在线状态和光标位置，也就是 presence。
 
-### 方案 A：Operational Transformation（OT）—— Google Docs 的选择
+然后说明哪些东西先不展开：账号系统、计费、搜索、评论、复杂分享策略。这些都重要，但不是这道题的主线。今天重点放在实时协同编辑。
 
-**OT 是 Google Docs 历史上一直用来解决并发编辑的算法。** [^sdhandbook]
+非功能需求里，最关键的是这几个：
 
-核心机制：
+- **低延迟**：打字后不能等一两秒才看到反馈。自己的输入要本地立即出现，别人的修改也要尽快同步。[^algomaster]
+- **最终一致性**：并发修改之后，所有人最终看到同一份文档。[^algomaster]
+- **高可用**：某台机器挂了，用户可以重连，文档不能丢。
+- **可扩展**：系统要能支撑很多文档、很多在线连接，但单篇文档里的同时编辑人数通常不会是百万级。
 
-- 有一个 **中央服务器** 维护一个操作序列（operation sequence）。在这套设计里，**服务器是文档状态的权威，每一条客户端编辑都先发到服务器**，客户端通过 **持久 WebSocket 连接** 与之通信。[^designgurus-arch]
-- OT 传输的操作是 **相对于某个基线（baseline）** 的；当一条操作传来，**必须把它针对"自基线以来发生的本地操作"做变换（transform）**，才能正确应用。[^tiny-ot]
-- 用 **确定性的「平局裁决」规则**（deterministic tie-breaking）保证所有副本收敛：比如「如果 Alice 的操作赢得平局，Bob 的插入就排到 Alice 之后」。[^sandbox-ot]
+这里有一个重要取舍：我们不追求传统意义上的强一致。强一致通常意味着锁、同步等待、阻塞写入。那样文档会很“卡”，不适合实时编辑。更自然的做法是：客户端先乐观更新，服务端负责给所有操作排出权威顺序，最后把大家拉回同一个状态。
 
-一句话本质：**服务器是中央权威，负责给操作排序、做变换，从而提供"强的立即一致性"。** [^designgurus-otcrdt]
+---
 
-**为什么 Google Docs 选 OT 而不是 CRDT？** 一个很实际的工程理由：**服务器反正都要看到每一条操作（为了做权限控制）**，既然它无论如何都在链路中央，那用中央式的 OT 就很自然。[^systemdr]
+## 2. 容量估算：数字不用精确，但要能推出设计
 
-### 方案 B：CRDT（Conflict-free Replicated Data Type）—— 新派做法
+估算不是为了算出一个漂亮答案，而是为了知道哪里会成为瓶颈。
 
-**CRDT 是 OT 的替代方案，在较新的协同系统里越来越流行**，它把「合并逻辑」直接嵌进数据结构本身，而不是事后再做变换。[^sdhandbook]
+先给一组方便面试讨论的假设：
 
-核心机制：
+| 假设 | 数字 |
+|---|---:|
+| 日活用户 | 100M |
+| 高峰期同时编辑比例 | 1% |
+| 高峰期并发编辑用户 | 1M |
+| 活跃编辑时每人每秒产生操作 | 约 5 ops/s |
+| 平均文档正文大小 | 100KB |
 
-- 不依赖中央排序。**给每个插入的字符分配一个稳定的位置标识符（position identifier）**，写进操作的元数据里。[^sandbox-crdt]
-- 这样 **无论操作以什么顺序到达**（Alice 先还是 Bob 先），每个副本都能把字符排成同样的顺序。[^sandbox-crdt]
-- CRDT 的「魔法」在于：它把数据 **拆成足够小的碎片**，以至于通常 **不需要变换改动内容本身，只需要变换改动的位置**（文本场景里，每个字符都是一个独立实体）。[^tiny-crdt]
-- **每个客户端独立地先应用自己的编辑，之后再合并（merge）别人的改动**，各自维护一份副本，有网时再同步。[^designgurus-otcrdt]
+这样可以得到几个数量级。
 
-### OT vs CRDT：一张对比表
+**WebSocket 连接数**
+
+高峰期大约有 `100M * 1% = 1M` 个在线编辑连接。编辑场景是持续、双向、低延迟通信，WebSocket 比 HTTP 轮询更合适。接入层要能水平扩展，并且最好保持无状态，这样用户断线后可以重连到其他机器。
+
+**编辑操作吞吐**
+
+如果 1M 用户都在活跃编辑，粗略就是：
+
+```text
+1M * 5 ops/s = 5M ops/s
+```
+
+实际系统会有很多优化，比如批量发送、合并连续输入、只对活跃文档做高频广播。但这个数量级足够说明一件事：不能让每个按键都直接同步写主数据库。通常会让文档协同服务先处理操作，然后通过日志、队列或流式存储异步持久化。[^educative-gdocs]
+
+**存储**
+
+正文 100KB 不大，真正麻烦的是历史操作。如果每次插入、删除、格式变化都变成一条 operation，长期下来操作日志会比正文大很多。所以要有两层东西：
+
+- append-only operation log，用来重放历史、做版本恢复、支持离线同步。
+- periodic snapshot，每隔一段时间保存一份文档快照，避免从第一条操作开始重放。
+
+这里也有取舍。快照越频繁，恢复越快，但写入和存储成本更高；快照越少，存储省一点，但故障恢复和打开老文档会更慢。
+
+---
+
+## 3. 数据模型：正文只是结果，operation 才是核心
+
+可以把核心实体拆成这些：
+
+- `User`：用户。
+- `Document`：文档元数据。
+- `Permission`：谁能看、谁能改。
+- `Operation`：一次编辑操作。
+- `Snapshot`：某个版本的全文快照。
+- `Session`：当前在线连接和 presence 状态。
+
+一个简化的数据模型如下：
+
+```sql
+Document(
+  doc_id           PK,
+  title,
+  owner_id,
+  current_version BIGINT,
+  created_at,
+  updated_at
+)
+
+Permission(
+  doc_id,
+  user_id,
+  role             -- owner / editor / viewer
+)
+
+Operation(
+  op_id            PK,
+  doc_id,
+  version          BIGINT,
+  author_id,
+  type,            -- insert / delete / format
+  position,
+  payload,
+  created_at
+)
+
+Snapshot(
+  doc_id,
+  version,
+  content_blob,
+  created_at
+)
+```
+
+这里最重要的是 `current_version` 和 `Operation.version`。
+
+客户端发来的每条操作都要带一个 `baseVersion`，意思是：“我是在文档版本 42 的基础上做出这个编辑的。”服务端当前如果已经到了版本 45，就说明中间已经发生了别人的操作。这条操作不能直接应用，必须先变换到新版本上。
+
+为什么不只存全文？因为全文只是当前状态，丢掉了过程。协同编辑系统需要过程：
+
+- 冲突解决要看操作粒度。
+- 版本历史可以从操作日志重建。
+- 离线用户重连后，只需要补发它缺失的操作。
+- 房间进程故障后，可以从 snapshot + operation log 恢复。
+
+所以这类系统通常不是“只存一个大字符串”，而是“当前快照 + 操作日志”。[^educative-gdocs]
+
+---
+
+## 4. API：普通请求走 REST，实时编辑走 WebSocket
+
+低频操作可以走 REST：
+
+```text
+POST   /documents
+GET    /documents/{docId}
+PUT    /documents/{docId}/permissions
+GET    /documents/{docId}/history
+```
+
+打开文档时，客户端可以先通过 REST 拿到当前 snapshot 和 `currentVersion`。进入编辑状态后，建立 WebSocket。
+
+WebSocket 上主要有三类消息。
+
+客户端发给服务端：
+
+```json
+{
+  "type": "op",
+  "docId": "doc_123",
+  "baseVersion": 42,
+  "op": { "type": "insert", "pos": 3, "text": "s" }
+}
+```
+
+```json
+{
+  "type": "cursor",
+  "docId": "doc_123",
+  "pos": 7
+}
+```
+
+服务端发给客户端：
+
+```json
+{
+  "type": "op",
+  "docId": "doc_123",
+  "version": 43,
+  "authorId": "user_456",
+  "op": { "type": "insert", "pos": 4, "text": "s" }
+}
+```
+
+```json
+{
+  "type": "ack",
+  "docId": "doc_123",
+  "clientOpId": "local_789",
+  "version": 43
+}
+```
+
+`clientOpId` 很实用。客户端本地会先乐观应用自己的操作，服务端 ack 回来后，客户端要知道 ack 的是哪一条本地操作。如果网络重试导致同一条 op 发了两次，服务端也可以用它做幂等。
+
+---
+
+## 5. 高层架构：把同一篇文档的操作放到同一个地方排序
+
+整体架构可以长这样：
+
+```mermaid
+flowchart TD
+  A([Alice 浏览器]) -->|WebSocket| GW
+  B([Bob 浏览器]) -->|WebSocket| GW
+  GW[WebSocket 接入层<br/>维持连接，尽量无状态]
+  GW -->|按 docId 路由| ROOM[文档协同服务<br/>每篇文档一个 owner/room<br/>串行处理 operation]
+  ROOM -->|追加操作日志| LOG[(Operation Log)]
+  ROOM -->|周期性生成| SNAP[(Snapshot Store)]
+  ROOM -.->|广播权威操作| GW
+  LOG --> DB[(查询库 / 历史存储)]
+```
+
+这个架构的关键不是某个具体组件名字，而是这个原则：
+
+**同一篇文档的操作必须进入同一个有序处理点。**
+
+你可以把它叫 room、actor、shard、owner worker，甚至进程。Figma 的多人协作架构里就有类似“每个文件一个服务进程”的思路。[^figma] 面试里说“每文档一个 room”比较容易讲清楚，但生产实现未必真的是一个 OS process，也可能是一组 actor 分片。
+
+一条编辑操作的路径是：
+
+1. Alice 在本地输入，客户端立刻显示结果，这叫乐观更新。
+2. 客户端把操作、`baseVersion`、`clientOpId` 发到 WebSocket 接入层。
+3. 接入层按 `docId` 路由到对应文档 room。
+4. room 串行处理操作：检查权限，比较版本，必要时做 OT 变换。
+5. room 生成新的权威版本号，追加操作日志。
+6. room 给 Alice 发 ack，并把权威操作广播给其他在线用户。
+7. 其他客户端收到操作后，结合自己的本地未确认操作，再做一次本地变换并应用。
+
+```mermaid
+sequenceDiagram
+  participant A as Alice 客户端
+  participant S as 文档 room
+  participant L as Operation Log
+  participant B as Bob 客户端
+  A->>A: 本地乐观应用
+  A->>S: op + baseVersion + clientOpId
+  Note over S: 权限检查<br/>串行排序<br/>必要时变换
+  S->>L: append op(version=43)
+  L-->>S: 写入确认
+  S-->>A: ack(version=43)
+  S->>B: broadcast op(version=43)
+  B->>B: 变换并应用
+```
+
+这里有一个很容易被追问的点：**ack 到底什么时候发？**
+
+如果 room 内存里处理完就 ack，延迟最低，但 room 在落库前崩了，可能会丢掉已经确认给用户的操作。更稳妥的方案是：至少等 operation log 或队列写入成功后再 ack。这样延迟会多一点，但用户收到 ack 的操作不会轻易丢。
+
+面试里可以这样说：编辑体验上客户端先乐观更新，所以用户不会等 ack 才看到字；可靠性上，服务端 ack 应该在操作进入可恢复日志之后再发。
+
+---
+
+## 6. 核心算法：OT 怎么把过期位置变成正确位置
+
+Google Docs 历史上使用的是 Operational Transformation，也就是 OT。[^sdhandbook]
+
+OT 的思路可以先不用说得很学术。你可以这样讲：
+
+> 客户端发来的操作是基于某个旧版本算出来的。服务端如果发现文档已经被别人改过，就把这条操作的位置调整一下，让它在新版本里仍然表达原来的意图。
+
+还是 `cat` 的例子。
+
+初始状态：
+
+```text
+cat, version=0
+```
+
+Alice 和 Bob 都基于 version 0 编辑：
+
+```text
+Alice: insert(pos=0, "s")  -> 想要 scat
+Bob:   insert(pos=3, "s")  -> 想要 cats
+```
+
+服务端先收到 Alice：
+
+```text
+cat -> scat, version=1
+```
+
+然后收到 Bob。Bob 的 `baseVersion=0`，但服务端已经是 version 1。中间发生过 Alice 的插入，而且 Alice 插入的位置 `0` 在 Bob 的位置 `3` 前面，所以 Bob 的位置要往后挪一位：
+
+```text
+Bob: insert(pos=3, "s")
+变换后: insert(pos=4, "s")
+```
+
+于是：
+
+```text
+scat -> scats
+```
+
+```mermaid
+flowchart LR
+  D0["cat (v0)"]
+  A["Alice: insert(0, s)"]
+  Braw["Bob: insert(3, s)<br/>baseVersion=0"]
+  D0 --> A
+  D0 --> Braw
+  A -->|先应用| D1["scat (v1)"]
+  Braw -->|和 Alice 的操作做 OT<br/>位置 3 变成 4| Bt["Bob': insert(4, s)"]
+  D1 --> Bt
+  Bt --> D2["scats (v2)"]
+```
+
+如果两个人都在同一个位置插入呢？比如都在 `pos=0`。这时系统需要一个确定性的 tie-breaker，比如按服务端接收顺序，再结合 `user_id` 或 `op_id` 做稳定排序。重点不是规则多聪明，而是所有副本都必须按同一个规则得到同一个顺序。[^sandbox-ot]
+
+OT 的难点在实现。你不只要处理 insert vs insert，还要处理：
+
+- insert vs delete
+- delete vs insert
+- delete vs delete
+- format vs insert
+- format vs delete
+
+操作类型越多，变换函数越多，边界条件也越多。这就是 OT 难调试的地方。[^systemdr]
+
+那为什么还用 OT？因为 Google Docs 这种产品本来就需要中央服务端：
+
+- 要做权限检查。
+- 要保存历史。
+- 要做审计和恢复。
+- 多端同步要有权威版本。
+
+既然服务端已经在链路中间，让服务端负责排序和变换是合理的工程选择。[^designgurus-arch][^systemdr]
+
+---
+
+## 7. CRDT：另一条路，把顺序藏进数据结构
+
+CRDT 是另一类协同编辑方案，在很多新协同系统和离线优先应用里很常见。[^sdhandbook]
+
+它和 OT 的思路不一样。OT 说：“位置过期了，我帮你变换操作。”CRDT 说：“我干脆不用容易过期的普通位置。”
+
+在文本 CRDT 里，每个字符都有一个稳定的、有序的 ID。你可以粗略理解成一个可以无限插入的小数位置。比如：
+
+```text
+c(1) a(2) t(3)
+```
+
+Alice 在开头插入 `s`，给它一个排在 `c(1)` 前面的 ID：
+
+```text
+s(0.5)
+```
+
+Bob 在结尾插入 `s`，给它一个排在 `t(3)` 后面的 ID：
+
+```text
+s(3.5)
+```
+
+不管两个操作以什么顺序到达，只要所有副本都按 ID 排序，最后都是：
+
+```text
+s(0.5) c(1) a(2) t(3) s(3.5)
+```
+
+也就是 `scats`。[^sandbox-crdt]
+
+```mermaid
+flowchart TD
+  subgraph R1["副本 1：先收到 Alice，再收到 Bob"]
+    direction LR
+    X1["s(0.5)"] --> X2["c(1)"] --> X3["a(2)"] --> X4["t(3)"] --> X5["s(3.5)"]
+  end
+  subgraph R2["副本 2：先收到 Bob，再收到 Alice"]
+    direction LR
+    Y1["s(0.5)"] --> Y2["c(1)"] --> Y3["a(2)"] --> Y4["t(3)"] --> Y5["s(3.5)"]
+  end
+  R1 --> OUT["按 ID 排序后结果相同"]
+  R2 --> OUT
+```
+
+CRDT 的优势是离线和去中心化更自然。客户端离线很久也可以继续生成操作；回来之后把操作同步给别人，大家按 CRDT 规则合并。
+
+代价也很明显：每个字符都要带额外元数据，比如唯一 ID、逻辑时间、删除墓碑等。长文档会带来内存和存储开销，客户端实现也更复杂。[^tiny-crdt][^systemdr]
+
+一个简化对比如下：
 
 | 维度 | OT | CRDT |
 |---|---|---|
-| 架构 | **中央式**，服务器是权威 [^designgurus-otcrdt] | **去中心化**，客户端各自合并 [^designgurus-otcrdt] |
-| 变换什么 | 变换操作本身（相对基线）[^tiny-ot] | 只变换位置，靠稳定 ID [^tiny-crdt][^sandbox-crdt] |
-| 一致性取向 | 强的立即一致性 [^designgurus-otcrdt] | 更适合离线/去中心化，更灵活 [^designgurus-otcrdt] |
-| 成本落在哪 | 需要 **强力的服务器** [^systemdr] | 把计算/存储 **成本推给客户端** [^systemdr] |
-| 谁在用 | Google Docs [^sdhandbook] | 较新的协同系统 [^sdhandbook] |
+| 核心思路 | 操作基于旧版本时，变换操作 | 给数据元素稳定 ID，按规则合并 |
+| 权威顺序 | 通常由中央服务端决定 | 每个副本可以独立合并 |
+| 适合场景 | 中心化、强服务端、权限和历史都在服务端 | 离线优先、弱中心、多端自治 |
+| 主要成本 | 变换函数难写，服务端压力大 | 元数据多，客户端和存储更重 |
+| 代表 | Google Docs 历史方案 | 很多新协同编辑库和离线优先应用 |
 
-> ⚠️ 诚实标注：成本对比那条（OT 要强服务器 / CRDT 推给客户端）在核实时是 2-1 票通过，是常见说法但有争议——面试里可以提，别说得太绝对。其余各条均为多票/满票确认。
+面试里不用把 OT 和 CRDT 讲成宗教选择。更自然的回答是：
 
-### 第三种现实：工业界还会「自创」
-
-不是只有 OT 和 CRDT 两条路。**Figma 故意没用 OT，认为它对自己的场景「过于复杂」，于是自建了一套受 CRDT 启发、但又不是真正 CRDT 的系统。** [^figma] 它的冲突解决用的是 **属性级的「最后写入者赢」（last-writer-wins）**：服务器记住每个属性最新的值，并发修改就以最后到达的值为准。[^figma]
-
-这给你一个重要洞察：**协同系统的方案要看场景**。Figma 是图形设计（对象的属性），last-writer-wins 够用；Google Docs 是文本（字符顺序很敏感），需要 OT 这种更精细的方案。
+> 如果这个系统像 Google Docs 一样本来就有中央服务端，要做权限、历史、审计，我会选 OT 或中心化协同协议。如果产品特别强调离线优先、端到端合并、弱中心同步，我会认真考虑 CRDT。
 
 ---
 
-## 第三部分：推荐学习资源（按入门顺序）
+## 8. 为什么 Figma 可以更简单
 
-**先打面试框架基础：**
+顺手讲 Figma 是一个很好的加分点，但不要把它讲成“Figma 更高级，所以 Google Docs 也应该这样做”。
 
-1. **Hello Interview** —— 免费，讲「Delivery Framework」答题结构，还有 [Google Docs 专题拆解](https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs)。[^hellointerview-gdocs]
-2. **AlgoMaster 博客** —— [Google Docs 系统设计](https://blog.algomaster.io/p/google-docs-system-design-interview)，需求/挑战列得清楚。[^algomaster]
-3. **Grokking the System Design Interview（Educative）** —— 付费，有专门的 [5 节 Google Docs 模块](https://www.educative.io/courses/grokking-the-system-design-interview)，教 RESHADED 框架。[^educative-course]
+Figma 的协同编辑场景和文本不一样。它编辑的是对象属性，比如矩形的位置、颜色、宽高。很多属性天然可以独立覆盖。Figma 工程博客里提到，他们没有直接用 OT，而是做了一套更贴合自己数据模型的多人协作方案，其中很多冲突可以用属性级 last-writer-wins 处理。[^figma]
 
-**再补 OT vs CRDT 算法：**
+文本不一样。文本是一条有顺序的字符流。你在前面插一个字，后面所有位置都会偏移。所以 Google Docs 需要更精细的位置处理。
 
-4. **System Design Sandbox** —— [OT vs CRDT](https://www.systemdesignsandbox.com/learn/ot-vs-crdt)，用 Alice/Bob 例子讲得最直观。[^sandbox-ot]
-5. **System Design Handbook** —— [Google Docs 指南](https://www.systemdesignhandbook.com/guides/google-docs-system-design/)。[^sdhandbook]
-6. **Tiny.cloud 博客** —— [Real-time collaboration: OT vs CRDT](https://www.tiny.cloud/blog/real-time-collaboration-ot-vs-crdt/)，机制讲得细。[^tiny-ot]
-7. **Design Gurus** —— [设计实时编辑器](https://www.designgurus.io/blog/design-real-time-editor)。[^designgurus-otcrdt]
-
-**看真实工业系统（进阶，强烈推荐读）：**
-
-8. **Figma 工程博客** —— [How Figma's multiplayer technology works](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/)，一手资料，讲为什么不用 OT。[^figma]
+这个对比的价值是说明：**协同算法不是脱离业务单独选择的，数据形态会决定冲突解决方案。**
 
 ---
 
-## 一句话总结你该怎么答这道题
+## 9. Presence 和正文操作不要混在一起
 
-> 按「需求 → 实体 → API → 高层架构 → deep dive」五步走；高层架构用 **WebSocket + 队列 + 存储**，强调 **毫秒级低延迟 + 最终一致性**；deep dive 直奔 **冲突解决**，讲清 **Google Docs 用 OT（中央服务器排序 + 变换操作）**，对比 **CRDT（去中心化、稳定位置 ID、只变换位置、适合离线）**，再用 **Figma 自建 last-writer-wins** 说明「方案随场景而变」。
+文档内容和 presence 看起来都在 WebSocket 上跑，但它们的可靠性要求完全不同。
+
+文档 operation：
+
+- 不能丢。
+- 要有顺序。
+- 要能恢复。
+- 要进入操作日志。
+
+Presence 和光标：
+
+- 高频变化。
+- 可以丢一两帧。
+- 不需要长期存储。
+- 用户断线后自然失效。
+
+所以 room 里可以维护一份内存表：
+
+```text
+user_id -> { cursor_pos, selection_range, color, last_seen }
+```
+
+客户端移动光标时发 cursor 消息，room 更新内存状态并广播给其他在线用户。用户断线或心跳超时，就把他从 presence 表里移除。
+
+这也是一个典型 tradeoff：presence 追求轻量和实时，不追求持久可靠；正文操作追求可靠和有序，可以接受稍微多一点处理成本。
+
+---
+
+## 10. 离线编辑和重连
+
+离线编辑可以这样处理：
+
+1. 客户端断网后继续允许用户编辑。
+2. 每条本地操作进入本地队列，同时在界面上乐观应用。
+3. 客户端记住断线前最后看到的服务端版本，比如 `lastSyncedVersion=42`。
+4. 重连后，客户端先告诉服务端自己最后同步到 42。
+5. 服务端补发 43 之后的操作。
+6. 客户端再上传本地离线期间产生的操作。
+7. 双方通过 OT 或 CRDT 合并，最终收敛。
+
+```mermaid
+sequenceDiagram
+  participant C as 客户端
+  participant L as 本地队列
+  participant S as 文档 room
+  Note over C,L: 离线期间
+  C->>C: 本地编辑并立即显示
+  C->>L: 缓存本地 op
+  Note over C,S: 网络恢复
+  C->>S: reconnect(lastSyncedVersion=42)
+  S-->>C: 补发 v43..v60
+  C->>S: 上传本地 op 队列
+  Note over C,S: OT 变换或 CRDT 合并
+  S-->>C: ack + 最新版本
+```
+
+这里要诚实讲一个边界：算法能解决结构性冲突，不一定能解决语义冲突。
+
+比如两个人离线期间都重写了同一段话，系统可以合并字符层面的操作，但结果未必符合人的意图。产品上可能还需要冲突提示、版本历史、恢复按钮，或者在复杂场景里让用户手动处理。
+
+---
+
+## 11. 扩展性和故障恢复
+
+这套系统最容易被追问的几个点是：room 怎么扩展，热点文档怎么办，机器挂了怎么办。
+
+**接入层扩展**
+
+WebSocket 接入层尽量无状态。它负责维持连接、认证、心跳、转发消息。机器挂了以后，客户端重连到其他接入节点，再根据 `docId` 找到对应 room。
+
+**文档 room 分片**
+
+普通文档可以按 `docId` 做一致性哈希或通过 placement service 分配到某个 room worker。同一篇文档的操作只进一个 owner，这样排序简单。
+
+代价是热点文档会成为单点瓶颈。比如一个超大公开文档有上万人同时打开，不可能让所有 presence 和广播都堆在一个进程里。可以拆两层：
+
+- 编辑者仍然进主 room，保证写操作有序。
+- 只读观看者走 fanout 节点或订阅层，降低主 room 广播压力。
+
+**故障恢复**
+
+room 崩溃后，新 owner 从最近 snapshot 加之后的 operation log 重建文档状态。这里前面提到的 ack 策略很关键：如果 ack 必须等 operation log 写入成功，那么用户收到确认的操作就能在恢复时重放回来。
+
+**持久化和队列**
+
+可以把 operation log 放在强顺序的日志系统里，也可以先写队列再异步消费到数据库。核心要求是：对同一篇文档，日志顺序必须和 room 生成的版本顺序一致。[^educative-gdocs]
+
+---
+
+## 12. 一套可以直接上场的 45 分钟打法
+
+如果面试官给你完整 45 分钟，可以按下面这个节奏讲。时间不是死的，但它能防止你在 OT 细节里讲太久，最后没时间讲架构和可靠性。
+
+| 时间 | 你要完成什么 | 关键话术 |
+|---|---|---|
+| 0-5 分钟 | 澄清范围 | “我先聚焦实时协同编辑：多人编辑、实时同步、presence、创建文档。” |
+| 5-8 分钟 | 点出核心难点 | “难点是并发操作的位置会过期，比如 `cat` 里 Alice 和 Bob 同时插入。” |
+| 8-13 分钟 | 估算和约束 | “1M 连接、百万级 ops/s，所以接入层要水平扩展，编辑操作要走日志/队列。” |
+| 13-20 分钟 | 数据模型和 API | “核心不是只存全文，而是 `Document.current_version`、operation log、snapshot。” |
+| 20-30 分钟 | 画主架构 | “WebSocket 接入层按 `docId` 路由到文档 room，同一文档在 room 内串行排序。” |
+| 30-38 分钟 | deep dive OT | “Bob 的 `baseVersion` 过期，所以服务端把 `insert(pos=3)` 变换成 `insert(pos=4)`。” |
+| 38-43 分钟 | 可靠性和扩展 | “ack 等日志写入后再发；room 崩了从 snapshot + log 恢复；热点读者走 fanout。” |
+| 43-45 分钟 | 总结取舍 | “我选择中心化 room + OT，是因为 Google Docs 需要权限、历史和权威版本；离线优先系统可以考虑 CRDT。” |
+
+你可以把开场说成这样：
+
+> 我会先把范围收窄到实时协同编辑，不展开搜索、评论和计费。这个系统的核心难点是并发编辑时操作位置会过期，所以我会围绕 operation、version、room 串行化和 OT 来设计。目标是低延迟体验加最终一致性，而不是用锁做强一致。
+
+如果面试官让你“简单讲架构”，你就压缩成这版：
+
+> 客户端通过 WebSocket 连接接入层；接入层按 `docId` 把编辑操作路由到对应文档 room；room 是该文档的权威排序点，负责权限检查、版本比较、OT 变换、生成新版本；操作写入 operation log 后 ack 给作者，并广播给其他协作者；快照周期性生成，用于快速加载和故障恢复。Presence 走内存广播，不进入可靠日志。
+
+如果面试官追问“为什么这么设计”，你就按取舍回答：
+
+- **为什么不是 HTTP 轮询？** 编辑是持续双向通信，轮询延迟和浪费都更高。
+- **为什么同一文档要进一个 room？** 因为并发操作需要一个权威顺序，否则冲突解决会复杂很多。
+- **为什么不只存全文？** 因为离线同步、版本历史、故障恢复和冲突解决都需要 operation log。
+- **为什么 ack 不应该太早？** 因为 ack 代表服务端承诺了这条操作，至少要等它进入可恢复日志。
+- **为什么 presence 不落库？** 因为光标是易逝状态，可靠性要求和正文操作完全不同。
+- **什么时候换成 CRDT？** 如果产品强调离线优先、弱中心同步、客户端自治，就更值得考虑 CRDT。
+
+这套策略的重点是：你不是在展示“我知道 Google Docs 用 OT”，而是在展示“我能把需求、规模、数据模型、实时通道、一致性算法和故障恢复串成一个可运行的系统”。
+
+---
+
+## 想继续深入？推荐资源
+
+1. **Hello Interview — [Google Docs Problem Breakdown](https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs)**：答题结构很清楚。[^hellointerview-gdocs]
+2. **AlgoMaster — [Google Docs System Design Interview](https://blog.algomaster.io/p/google-docs-system-design-interview)**：需求和挑战列得比较完整。[^algomaster]
+3. **System Design Sandbox — [OT vs CRDT](https://www.systemdesignsandbox.com/learn/ot-vs-crdt)**：适合看 Alice/Bob 推演。[^sandbox-ot]
+4. **Tiny.cloud — [Real-time collaboration: OT vs CRDT](https://www.tiny.cloud/blog/real-time-collaboration-ot-vs-crdt/)**：机制解释更细。[^tiny-ot]
+5. **Design Gurus — [Design a Real-time Editor](https://www.designgurus.io/blog/design-real-time-editor)**：中心化实时编辑器讲得比较直观。[^designgurus-otcrdt]
+6. **Educative — [Grokking the System Design Interview](https://www.educative.io/courses/grokking-the-system-design-interview)**：付费课程，Google Docs 模块覆盖比较全。[^educative-course]
+7. **Figma Engineering — [How Figma's multiplayer technology works](https://www.figma.com/blog/how-figmas-multiplayer-technology-works/)**：理解“算法要贴合数据模型”的好材料。[^figma]
 
 ---
 
 ## 参考来源
 
-[^hellointerview-intro]: Hello Interview — System Design in a Hurry: Introduction. 「候选人答不下去主要因为缺乏结构，建议按 Delivery Framework 走。」<https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction>
-[^hellointerview-gdocs]: Hello Interview — Google Docs Problem Breakdown. 4 个核心功能需求 + 「需求 → 实体 → API → 架构 → deep dive」结构。<https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs>
-[^educative-course]: Educative — Grokking the System Design Interview. 含 5 节 Google Docs 模块；教 RESHADED 45 分钟答题结构。<https://www.educative.io/courses/grokking-the-system-design-interview>
-[^educative-gdocs]: Educative — Design of Google Docs. 推荐 WebSocket + 时序数据库 + 处理队列；冲突解决与版本历史为核心能力。<https://www.educative.io/courses/grokking-the-system-design-interview/design-of-google-docs>
-[^algomaster]: AlgoMaster — Google Docs System Design Interview. 功能需求与「毫秒级编辑传播 + 最终一致性」非功能需求。<https://blog.algomaster.io/p/google-docs-system-design-interview>
-[^sdhandbook]: System Design Handbook — Google Docs Guide. OT 是 Google Docs 历史算法；CRDT 是新派替代；现实是最终一致性。<https://www.systemdesignhandbook.com/guides/google-docs-system-design/>
-[^sandbox-ot]: System Design Sandbox — OT vs CRDT. OT 中央服务器维护操作序列 + 确定性平局裁决。<https://www.systemdesignsandbox.com/learn/ot-vs-crdt>
-[^sandbox-crdt]: System Design Sandbox — OT vs CRDT. CRDT 给每个字符分配稳定位置标识符，任意到达顺序都收敛。<https://www.systemdesignsandbox.com/learn/ot-vs-crdt>
-[^tiny-ot]: Tiny.cloud — Real-time collaboration: OT vs CRDT. 「incoming operations must be transformed to include the local operations that have happened since that baseline.」<https://www.tiny.cloud/blog/real-time-collaboration-ot-vs-crdt/>
-[^tiny-crdt]: Tiny.cloud — Real-time collaboration: OT vs CRDT. 「CRDT breaks down data into such small pieces that it generally doesn't need to transform the change itself, only the position of the change.」<https://www.tiny.cloud/blog/real-time-collaboration-ot-vs-crdt/>
-[^designgurus-arch]: Design Gurus — Design a Real-time Editor. 「the server is the authority on the document's state … Every edit operation from clients goes to the server first … persistent connection … via WebSockets.」<https://www.designgurus.io/blog/design-real-time-editor>
-[^designgurus-otcrdt]: Design Gurus — Design a Real-time Editor. OT 中央权威 + 强立即一致性；CRDT 客户端独立应用并稍后合并。<https://www.designgurus.io/blog/design-real-time-editor>
-[^systemdr]: systemdr — CRDTs vs Operational Transformation. Google Docs 用 OT（服务器反正要看每条操作做权限控制）；OT 需强服务器 / CRDT 推成本给客户端（2-1 票，有争议）。<https://systemdr.systemdrd.com/p/crdts-vs-operational-transformation>
-[^figma]: Figma Engineering — How Figma's multiplayer technology works. 故意避开 OT；client/server + WebSocket + 每文档一进程；属性级 last-writer-wins。<https://www.figma.com/blog/how-figmas-multiplayer-technology-works/>
+[^hellointerview-gdocs]: Hello Interview — Google Docs Problem Breakdown. 4 个核心功能需求和系统设计答题结构。<https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs>
+[^educative-course]: Educative — Grokking the System Design Interview. 含 Google Docs 相关模块。<https://www.educative.io/courses/grokking-the-system-design-interview>
+[^educative-gdocs]: Educative — Design of Google Docs. 推荐 WebSocket、处理队列、冲突解决和版本历史。<https://www.educative.io/courses/grokking-the-system-design-interview/design-of-google-docs>
+[^algomaster]: AlgoMaster — Google Docs System Design Interview. 功能需求与低延迟、最终一致性等非功能需求。<https://blog.algomaster.io/p/google-docs-system-design-interview>
+[^sdhandbook]: System Design Handbook — Google Docs Guide. Google Docs 历史上使用 OT，CRDT 是常见替代方向，协同编辑现实中追求最终收敛。<https://www.systemdesignhandbook.com/guides/google-docs-system-design/>
+[^sandbox-ot]: System Design Sandbox — OT vs CRDT. OT 中央服务器维护操作顺序，并需要确定性冲突裁决。<https://www.systemdesignsandbox.com/learn/ot-vs-crdt>
+[^sandbox-crdt]: System Design Sandbox — OT vs CRDT. CRDT 使用稳定位置标识符，让不同到达顺序最终收敛。<https://www.systemdesignsandbox.com/learn/ot-vs-crdt>
+[^tiny-ot]: Tiny.cloud — Real-time collaboration: OT vs CRDT. OT 需要将 incoming operations 针对基线之后发生的本地操作做变换。<https://www.tiny.cloud/blog/real-time-collaboration-ot-vs-crdt/>
+[^tiny-crdt]: Tiny.cloud — Real-time collaboration: OT vs CRDT. CRDT 将数据拆成很小的实体，通常更多处理位置而不是变换改动本身。<https://www.tiny.cloud/blog/real-time-collaboration-ot-vs-crdt/>
+[^designgurus-arch]: Design Gurus — Design a Real-time Editor. 服务端作为文档状态权威，客户端通过持久连接发送编辑。<https://www.designgurus.io/blog/design-real-time-editor>
+[^designgurus-otcrdt]: Design Gurus — Design a Real-time Editor. 对比 OT 的中心化权威和 CRDT 的独立合并。<https://www.designgurus.io/blog/design-real-time-editor>
+[^systemdr]: systemdr — CRDTs vs Operational Transformation. 讨论 Google Docs 使用 OT、OT 服务端复杂度和 CRDT 客户端/元数据成本。<https://systemdr.systemdrd.com/p/crdts-vs-operational-transformation>
+[^figma]: Figma Engineering — How Figma's multiplayer technology works. 介绍 Figma 的 client/server、WebSocket、每文件进程以及属性级冲突处理思路。<https://www.figma.com/blog/how-figmas-multiplayer-technology-works/>

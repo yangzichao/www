@@ -1,0 +1,72 @@
+/* ---------------------------------------------------------------
+ * Print / "Download PDF" styles for blog posts.
+ *
+ * The one-click PDF button just calls `window.print()`; the browser's
+ * "Save as PDF" produces a far cleaner result than a client-side
+ * rasteriser, and KaTeX math + Mermaid SVG (already in the DOM by
+ * click time) come through crisply. This sheet strips the on-screen
+ * chrome (sidebar, drawer toggle, the button itself) and reflows the
+ * article to fill the page. Imported only by PostLayout.
+ * --------------------------------------------------------------- */
+
+@media print {
+  /* Drop the two-column shell and all interactive chrome. */
+  .blog-sidebar,
+  .sidebar-toggle,
+  .sidebar-overlay,
+  .pdf-download {
+    display: none !important;
+  }
+
+  /* Article fills the printable page; kill the screen layout's widths
+   * and outer padding so margins are owned by @page below. */
+  main.container {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .blog-layout {
+    display: block !important;
+  }
+
+  .blog-main {
+    padding-top: 0 !important;
+  }
+
+  /* Preserve the editorial palette (code-block fills, tags, rules)
+   * instead of letting the print engine flatten backgrounds. */
+  .post-article {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 11pt;
+  }
+
+  /* Sensible page margins for a long-form document. */
+  @page {
+    margin: 18mm 16mm;
+  }
+
+  /* Avoid awkward breaks: keep code, tables, diagrams, and figures
+   * intact, and don't strand a heading at the bottom of a page. */
+  .post-article :is(pre, table, figure, blockquote, .katex-display) {
+    break-inside: avoid;
+  }
+
+  .post-article :is(h1, h2, h3, h4) {
+    break-after: avoid;
+  }
+
+  .post-article :is(img, svg) {
+    max-width: 100% !important;
+    height: auto;
+  }
+
+  /* Spell out link targets so the PDF stays useful offline — skip
+   * in-page anchors and fragment-only links. */
+  .post-article a[href^="http"]::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.85em;
+    color: #555;
+    word-break: break-all;
+  }
+}

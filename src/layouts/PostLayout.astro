@@ -6,6 +6,7 @@ import { getPublishedPosts, groupByCategory } from '../lib/posts';
 import 'katex/dist/katex.min.css';
 import '../styles/post.css';
 import '../styles/blog-layout.css';
+import '../styles/print.css';
 
 interface Props {
   frontmatter: CollectionEntry<'blog'>['data'];
@@ -37,6 +38,15 @@ const isoDate = frontmatter.date.toISOString();
     <div class="blog-main">
       <article class="prose prose-lg post-article">
         <header class="not-prose post-header">
+          <button
+            type="button"
+            class="pdf-download"
+            aria-label="Download this post as PDF"
+            onclick="window.print()"
+          >
+            <i class="ph ph-file-pdf" aria-hidden="true"></i>
+            <span>Download PDF</span>
+          </button>
           <h1 class="post-title">{frontmatter.title}</h1>
           <div class="post-meta">
             <time datetime={isoDate}>{formattedDate}</time>
@@ -106,10 +116,60 @@ const isoDate = frontmatter.date.toISOString();
   /* The article body is serif; keep the title and meta on Inter so the
      masthead matches the homepage. */
   .post-header {
+    position: relative;
     font-family: var(--font-stack);
     margin-bottom: 3rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--color-border, #e5e5e5);
+  }
+
+  /* One-click "Save as PDF" — anchored top-right of the header, clear
+     of the title. Hidden in print via styles/print.css. */
+  .pdf-download {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-stack);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-text-muted, #666666);
+    background: var(--color-background, #ffffff);
+    border: 1px solid var(--color-border, #e5e5e5);
+    border-radius: 999px;
+    cursor: pointer;
+    transition:
+      color var(--transition, 0.15s ease),
+      border-color var(--transition, 0.15s ease),
+      background var(--transition, 0.15s ease);
+  }
+
+  .pdf-download:hover {
+    color: var(--color-text-main, #111111);
+    border-color: var(--color-text-muted, #999999);
+    background: var(--color-card-hover, #f6f6f4);
+  }
+
+  .pdf-download i {
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  /* On narrow screens the floating "Contents" toggle sits top-left;
+     keep the PDF button from colliding with a long wrapped title by
+     letting it sit on its own line above the title. */
+  @media (max-width: 600px) {
+    .pdf-download {
+      position: static;
+      margin-bottom: 1rem;
+    }
+
+    .pdf-download span {
+      display: inline;
+    }
   }
 
   .post-title {
