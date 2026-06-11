@@ -24,6 +24,8 @@ export interface RenderOptions {
   selectedId: string | null;
   /** When true, skip the grid and selection chrome (SVG/PNG export). */
   presentation?: boolean;
+  /** Hide the background grid while keeping selection chrome. */
+  hideGrid?: boolean;
 }
 
 export function renderDiagram(
@@ -36,7 +38,7 @@ export function renderDiagram(
     if (child.tagName !== 'defs') child.remove();
   }
 
-  if (!options.presentation) {
+  if (!options.presentation && !options.hideGrid) {
     svg.appendChild(
       createSvgElement('rect', {
         x: '0',

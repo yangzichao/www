@@ -14,6 +14,7 @@ export class EditorState {
   selectedId: string | null = null;
   activeTool: ToolName = 'fermion';
   snapEnabled = true;
+  gridVisible = true;
   /** Kind used by the loop tool; follows the last propagator tool picked. */
   lastPropagatorKind: PropagatorKind = 'fermion';
 

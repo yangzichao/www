@@ -68,6 +68,12 @@ export function initFeynmanEditor(): void {
     state.snapEnabled = snapToggle.checked;
   });
 
+  const gridToggle = document.getElementById('feynman-grid-toggle') as HTMLInputElement | null;
+  gridToggle?.addEventListener('change', () => {
+    state.gridVisible = gridToggle.checked;
+    state.notifyChange();
+  });
+
   document.getElementById('feynman-undo')?.addEventListener('click', () => state.undo());
   document.getElementById('feynman-redo')?.addEventListener('click', () => state.redo());
   document.getElementById('feynman-clear')?.addEventListener('click', () => {
@@ -108,7 +114,10 @@ export function initFeynmanEditor(): void {
     const elements = pointerController.draftElement
       ? [...state.elements, pointerController.draftElement]
       : state.elements;
-    renderDiagram(svg, elements, { selectedId: state.selectedId });
+    renderDiagram(svg, elements, {
+      selectedId: state.selectedId,
+      hideGrid: !state.gridVisible,
+    });
 
     for (const button of toolButtons) {
       button.classList.toggle('is-active', button.dataset.tool === state.activeTool);
