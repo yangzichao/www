@@ -73,6 +73,14 @@ export const siteData: SiteData = {
   items: [
     {
       type: 'Project',
+      year: '2026',
+      title: 'Feynman Diagram Editor',
+      description:
+        'A browser-based take on JaxoDraw: draw Feynman diagrams with click-and-drag — fermion, photon, gluon, scalar and ghost propagators, arcs, loops and LaTeX labels — then export to axodraw2 LaTeX, SVG or PNG. Runs entirely in your browser.',
+      url: '/tools/feynman/',
+    },
+    {
+      type: 'Project',
       year: '2024',
       title: 'HoAh (吼蛙)',
       description:

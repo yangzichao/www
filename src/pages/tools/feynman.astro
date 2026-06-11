@@ -1,0 +1,131 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import 'katex/dist/katex.min.css';
+import '../../styles/tools/feynman-editor.css';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE } from '../../scripts/feynman-editor/diagram-types';
+---
+
+<BaseLayout
+  title="Feynman Diagram Editor — Zichao Yang"
+  description="A browser-based Feynman diagram editor inspired by JaxoDraw: draw propagators, arcs and loops with click-and-drag, export to axodraw2 LaTeX, SVG or PNG."
+>
+  <header class="feynman-page-header">
+    <a href="/" class="feynman-hint">&larr; Home</a>
+    <h1>Feynman Diagram Editor</h1>
+    <p>
+      A web take on <a href="https://jaxodraw.sourceforge.io/">JaxoDraw</a>: pick a propagator,
+      click-and-drag to draw, then drag the midpoint handle to bend a line into an arc. Everything
+      stays in your browser, and the diagram exports as
+      <code>axodraw2</code> LaTeX, SVG or PNG.
+    </p>
+  </header>
+
+  <div class="feynman-toolbar">
+    <div class="feynman-toolbar-group" role="group" aria-label="Tools">
+      <button class="feynman-tool-button" data-tool="select">Select</button>
+      <button class="feynman-tool-button" data-tool="fermion">Fermion ─&gt;─</button>
+      <button class="feynman-tool-button" data-tool="photon">Photon ~~~</button>
+      <button class="feynman-tool-button" data-tool="gluon">Gluon ⊚⊚⊚</button>
+      <button class="feynman-tool-button" data-tool="scalar">Scalar - - -</button>
+      <button class="feynman-tool-button" data-tool="ghost">Ghost ····</button>
+      <button class="feynman-tool-button" data-tool="loop" title="Drag from center outward; uses the last propagator type">Loop ◯</button>
+      <button class="feynman-tool-button" data-tool="vertex">Vertex ●</button>
+      <button class="feynman-tool-button" data-tool="label">Label 𝑒⁻</button>
+    </div>
+
+    <div class="feynman-toolbar-group" role="group" aria-label="Actions">
+      <button class="feynman-tool-button" id="feynman-undo" title="Cmd/Ctrl+Z">Undo</button>
+      <button class="feynman-tool-button" id="feynman-redo" title="Shift+Cmd/Ctrl+Z">Redo</button>
+      <button class="feynman-tool-button" id="feynman-clear">Clear</button>
+      <label class="feynman-toolbar-checkbox">
+        <input type="checkbox" id="feynman-snap-toggle" checked />
+        Snap to grid
+      </label>
+    </div>
+
+    <div
+      class="feynman-toolbar-group"
+      role="group"
+      aria-label="Selected element"
+      id="feynman-selection-controls"
+      style="display: none"
+    >
+      <select class="feynman-kind-select" id="feynman-kind-select" aria-label="Line type">
+        <option value="fermion">Fermion</option>
+        <option value="photon">Photon</option>
+        <option value="gluon">Gluon</option>
+        <option value="scalar">Scalar</option>
+        <option value="ghost">Ghost</option>
+      </select>
+      <label class="feynman-toolbar-checkbox">
+        <input type="checkbox" id="feynman-arrow-toggle" />
+        Arrow
+      </label>
+      <button class="feynman-tool-button" id="feynman-flip-direction" title="Reverse the arrow / traversal direction">
+        Flip
+      </button>
+      <button class="feynman-tool-button" id="feynman-duplicate" title="Cmd/Ctrl+D">
+        Duplicate
+      </button>
+      <button class="feynman-tool-button" id="feynman-delete" title="Delete / Backspace">
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <div id="feynman-canvas-wrapper">
+    <svg
+      id="feynman-canvas"
+      viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <defs>
+        <pattern
+          id="feynman-grid"
+          width={GRID_SIZE * 5}
+          height={GRID_SIZE * 5}
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d={`M ${GRID_SIZE * 5} 0 L 0 0 0 ${GRID_SIZE * 5}`}
+            fill="none"
+            stroke="#ececec"
+            stroke-width="1"></path>
+        </pattern>
+      </defs>
+    </svg>
+  </div>
+
+  <section class="feynman-export-panel">
+    <h2>axodraw2 LaTeX</h2>
+    <textarea
+      id="feynman-latex-output"
+      readonly
+      spellcheck="false"
+      aria-label="Generated axodraw2 LaTeX code"></textarea>
+    <div class="feynman-export-actions">
+      <button class="feynman-action-button" id="feynman-copy-latex">Copy LaTeX</button>
+      <button class="feynman-action-button" id="feynman-download-svg">Download SVG</button>
+      <button class="feynman-action-button" id="feynman-download-png">Download PNG</button>
+      <button class="feynman-action-button" id="feynman-save-json">Save JSON</button>
+      <button class="feynman-action-button" id="feynman-load-json">Load JSON</button>
+    </div>
+    <p class="feynman-hint">
+      Drawing tips: after drawing, the tool switches to <strong>Select</strong> — drag the blue
+      endpoint handles to reconnect lines (they snap to nearby vertices and endpoints), drag the
+      hollow midpoint handle sideways to bend a propagator into an arc, and drag a loop's hollow
+      handle to resize it. The <strong>Loop</strong> tool draws a closed circle using the last
+      propagator type you picked; the dropdown changes the type of whatever is selected.
+      Double-click a label to edit it — labels render with KaTeX, so <code>$e^-$</code> or
+      <code>$\gamma$</code> display as real math and export verbatim into <code>\Text</code>.
+      Arrow keys nudge the selection (Shift for bigger steps), <kbd>Cmd/Ctrl+D</kbd> duplicates.
+      Diagrams autosave to local storage; use Save/Load JSON to keep or share a file. PNG/SVG
+      exports draw labels as plain text — compile the LaTeX for publication-quality output.
+    </p>
+  </section>
+
+  <script>
+    import { initFeynmanEditor } from '../../scripts/feynman-editor/feynman-editor-main';
+    initFeynmanEditor();
+  </script>
+</BaseLayout>
