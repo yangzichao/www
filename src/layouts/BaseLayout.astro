@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import '../styles/effects/depth-3d.css';
 
 interface Props {
   title?: string;
@@ -28,6 +29,15 @@ const {
     />
 
     <script src="https://unpkg.com/@phosphor-icons/web" is:inline></script>
+
+    <!-- Pre-paint gate for the 3D depth effects: depth-3d.css only
+         hides reveal targets under html.fx3d, so no-JS and
+         reduced-motion visitors get the flat page with no flash. -->
+    <script is:inline>
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('fx3d');
+      }
+    </script>
   </head>
 
   <body>
@@ -35,5 +45,9 @@ const {
       <slot />
     </main>
     <slot name="body-end" />
+    <script>
+      import { initDepthEffects } from '../scripts/effects/init-depth-effects';
+      initDepthEffects();
+    </script>
   </body>
 </html>

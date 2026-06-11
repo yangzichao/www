@@ -14,8 +14,8 @@ const groups = groupByCategory(posts);
 >
   <div class="blog-layout">
     <BlogSidebar groups={groups} />
-    <div class="blog-main">
-      <header class="writing-head">
+    <div class="blog-main" data-depth-stagger>
+      <header class="writing-head" data-depth-reveal>
         <a class="back-home" href="/">← Home</a>
         <h1 class="writing-title">Writing</h1>
         <p class="writing-sub">Notes and essays on physics, systems, AI, and life.</p>
@@ -23,7 +23,7 @@ const groups = groupByCategory(posts);
 
       {
         groups.map((group) => (
-          <section class="category">
+          <section class="category" data-depth-reveal>
             <h2 class="section-title">{group.label}</h2>
             <ul class="post-list">
               {group.posts.map((post) => (

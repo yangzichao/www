@@ -9,7 +9,7 @@ const { profile } = Astro.props;
 ---
 
 <header class="header">
-  <div class="header-content">
+  <div class="header-content" data-depth-reveal>
     <h1 class="name">{profile.name}</h1>
     <div class="bio">{profile.bio}</div>
 
@@ -38,5 +38,12 @@ const { profile } = Astro.props;
     </div>
   </div>
 
-  <img class="header-avatar" alt={`${profile.name} avatar`} src={profile.avatar} />
+  <div class="header-avatar-frame" data-depth-reveal style="--reveal-delay: 120ms">
+    <img
+      class="header-avatar"
+      data-parallax-depth="16"
+      alt={`${profile.name} avatar`}
+      src={profile.avatar}
+    />
+  </div>
 </header>

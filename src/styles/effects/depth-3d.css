@@ -1,0 +1,93 @@
+/* ---------------------------------------------------------------
+ * 3D depth effects: scroll-reveal from z-depth, pointer-tracked
+ * card tilt with glare, pointer parallax, scroll-velocity tilt.
+ *
+ * Everything is gated behind `html.fx3d`, which a pre-paint inline
+ * script in BaseLayout adds only when JS runs and the user has not
+ * requested reduced motion — no-JS visitors get the flat page.
+ * --------------------------------------------------------------- */
+
+/* SCROLL DEPTH REVEAL — elements start deep on the z-axis, slightly
+ * below and tilted back, then float forward into the page plane. */
+.fx3d [data-depth-reveal] {
+  opacity: 0;
+  transform: perspective(1000px) translate3d(0, 28px, -140px) rotateX(5deg);
+  filter: blur(7px);
+  transition:
+    opacity 0.65s ease var(--reveal-delay, 0s),
+    transform 0.9s cubic-bezier(0.22, 0.65, 0.25, 1) var(--reveal-delay, 0s),
+    filter 0.65s ease var(--reveal-delay, 0s);
+  will-change: transform, opacity, filter;
+}
+
+.fx3d [data-depth-reveal].depth-revealed {
+  opacity: 1;
+  transform: perspective(1000px) translate3d(0, 0, 0) rotateX(0deg);
+  filter: blur(0);
+}
+
+/* POINTER-TRACKED TILT — the tilt script drives the custom
+ * properties; the element rotates toward the cursor and pops
+ * forward on the z-axis while hovered. */
+.fx3d [data-tilt] {
+  position: relative;
+  transform: perspective(900px) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg))
+    translateZ(var(--tilt-z, 0px));
+  transition:
+    transform 0.16s ease-out,
+    border-color 0.2s ease,
+    box-shadow 0.35s ease;
+  will-change: transform;
+}
+
+/* Replace the old 2D `top: -4px` lift with the z-axis pop, and give
+ * the lifted card a deeper, softer shadow so it reads as floating. */
+.fx3d .work-card[data-tilt]:hover {
+  top: 0;
+  box-shadow:
+    0 18px 40px -12px rgba(0, 0, 0, 0.16),
+    0 6px 16px -8px rgba(0, 0, 0, 0.1);
+}
+
+/* Glare sheen that follows the cursor across a tilted card. */
+.tilt-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    480px circle at var(--glare-x, 50%) var(--glare-y, 50%),
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(17, 17, 17, 0.06) 100%
+  );
+  opacity: var(--glare-opacity, 0);
+  transition: opacity 0.3s ease;
+  mix-blend-mode: soft-light;
+  z-index: 1;
+}
+
+/* POINTER PARALLAX — the script writes inline transforms; just hint
+ * the compositor here. */
+.fx3d [data-parallax-depth] {
+  will-change: transform;
+}
+
+/* Safety net: if reduced motion flips on after load, flatten all
+ * effects regardless of the fx3d gate. */
+@media (prefers-reduced-motion: reduce) {
+  .fx3d [data-depth-reveal] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .fx3d [data-tilt] {
+    transform: none;
+  }
+
+  .tilt-glare {
+    display: none;
+  }
+}

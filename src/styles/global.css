@@ -66,6 +66,10 @@ body {
   flex: 1;
 }
 
+.header-avatar-frame {
+  flex-shrink: 0;
+}
+
 .header-avatar {
   width: 140px;
   height: 140px;
@@ -145,6 +149,14 @@ body {
 }
 
 /* CARDS */
+.work-grid-item {
+  display: flex;
+}
+
+.work-grid-item > .work-card {
+  width: 100%;
+}
+
 .work-card {
   display: flex;
   flex-direction: column;

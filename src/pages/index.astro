@@ -10,9 +10,15 @@ import { siteData } from '../data/site';
   <Header profile={siteData.profile} />
 
   <section>
-    <h2 class="section-title">Public Interface</h2>
-    <div class="work-grid">
-      {siteData.items.map((item) => <WorkCard item={item} />)}
+    <h2 class="section-title" data-depth-reveal>Public Interface</h2>
+    <div class="work-grid" data-depth-stagger data-scroll-tilt>
+      {
+        siteData.items.map((item) => (
+          <div class="work-grid-item" data-depth-reveal>
+            <WorkCard item={item} />
+          </div>
+        ))
+      }
     </div>
   </section>
 

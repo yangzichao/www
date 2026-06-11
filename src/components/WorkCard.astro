@@ -9,7 +9,7 @@ const { item } = Astro.props;
 const contentClass = item.image ? 'work-card-content' : 'work-card-content-only';
 ---
 
-<a href={item.url} class="work-card">
+<a href={item.url} class="work-card" data-tilt>
   {
     item.image && (
       <div class="work-card-image-container">
