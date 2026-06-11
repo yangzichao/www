@@ -108,19 +108,6 @@
   z-index: 10;
 }
 
-/* KaTeX labels rendered inside foreignObject on the canvas. */
-.feynman-label-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font: italic 15px Georgia, 'Times New Roman', serif;
-  color: #111111;
-  text-align: center;
-  overflow: visible;
-}
-
 .feynman-export-panel {
   display: grid;
   grid-template-columns: 1fr;

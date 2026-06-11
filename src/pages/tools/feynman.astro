@@ -1,6 +1,5 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import 'katex/dist/katex.min.css';
 import '../../styles/tools/feynman-editor.css';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE } from '../../scripts/feynman-editor/diagram-types';
 ---
@@ -116,11 +115,11 @@ import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SIZE } from '../../scripts/feynman-ed
       hollow midpoint handle sideways to bend a propagator into an arc, and drag a loop's hollow
       handle to resize it. The <strong>Loop</strong> tool draws a closed circle using the last
       propagator type you picked; the dropdown changes the type of whatever is selected.
-      Double-click a label to edit it — labels render with KaTeX, so <code>$e^-$</code> or
-      <code>$\gamma$</code> display as real math and export verbatim into <code>\Text</code>.
+      Double-click a label to edit it — labels are typeset as real math (MathJax), so
+      <code>$e^-$</code> or <code>$\frac&#123;1&#125;&#123;2&#125;$</code> render identically on
+      the canvas and in the SVG/PNG downloads, and export verbatim into <code>\Text</code>.
       Arrow keys nudge the selection (Shift for bigger steps), <kbd>Cmd/Ctrl+D</kbd> duplicates.
-      Diagrams autosave to local storage; use Save/Load JSON to keep or share a file. PNG/SVG
-      exports draw labels as plain text — compile the LaTeX for publication-quality output.
+      Diagrams autosave to local storage; use Save/Load JSON to keep or share a file.
     </p>
   </section>
 

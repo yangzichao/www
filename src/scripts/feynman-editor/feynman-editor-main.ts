@@ -7,6 +7,7 @@ import { downloadDiagramAsPng } from './export/png-exporter';
 import { downloadDiagramAsSvg } from './export/svg-exporter';
 import { installKeyboardShortcuts } from './interactions/keyboard-shortcuts';
 import { PointerController } from './interactions/pointer-controller';
+import { ensureMathJaxLoaded } from './render/label-mathjax';
 import { renderDiagram } from './render/render-diagram';
 
 export function initFeynmanEditor(): void {
@@ -17,6 +18,8 @@ export function initFeynmanEditor(): void {
 
   const state = new EditorState();
   state.restoreFromStorage();
+  // Labels show as plain text until the MathJax bundle arrives, then rerender.
+  ensureMathJaxLoaded(() => state.notifyChange());
   const pointerController = new PointerController(svg, canvasWrapper, state);
   installKeyboardShortcuts(state);
 

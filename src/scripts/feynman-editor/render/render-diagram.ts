@@ -6,7 +6,7 @@ import type {
   VertexElement,
 } from '../diagram-types';
 import { basePathPointAt, sampleLoop } from '../geometry';
-import { labelHtml } from './label-katex';
+import { typesetLabel } from './label-mathjax';
 import {
   basePathData,
   gluonPathData,
@@ -22,8 +22,7 @@ const SELECTION_COLOR = '#3b82f6';
 
 export interface RenderOptions {
   selectedId: string | null;
-  /** When true, skip grid/selection chrome and render labels as plain
-   * <text> (KaTeX foreignObject markup doesn't survive SVG/PNG export). */
+  /** When true, skip the grid and selection chrome (SVG/PNG export). */
   presentation?: boolean;
 }
 
@@ -55,7 +54,7 @@ export function renderDiagram(
     if (element.type === 'propagator') renderPropagator(group, element);
     else if (element.type === 'loop') renderLoop(group, element);
     else if (element.type === 'vertex') renderVertex(group, element);
-    else renderLabel(group, element, options.presentation === true);
+    else renderLabel(group, element);
 
     if (element.id === options.selectedId && !options.presentation) {
       appendSelectionHandles(group, element);
@@ -154,24 +153,16 @@ function renderVertex(group: SVGGElement, vertex: VertexElement): void {
   );
 }
 
-function renderLabel(group: SVGGElement, label: LabelElement, presentation: boolean): void {
-  if (!presentation) {
-    // KaTeX-rendered HTML inside a foreignObject, centered on the anchor.
-    const foreign = createSvgElement('foreignObject', {
-      x: String(label.x - 150),
-      y: String(label.y - 30),
-      width: '300',
-      height: '60',
-      'pointer-events': 'none',
-    });
-    const container = document.createElement('div');
-    container.className = 'feynman-label-content';
-    container.innerHTML = labelHtml(label.text);
-    foreign.appendChild(container);
-    group.appendChild(foreign);
+function renderLabel(group: SVGGElement, label: LabelElement): void {
+  // MathJax SVG (inline glyph paths) — identical on canvas and in exports.
+  const mathNode = typesetLabel(label.text, label.x, label.y);
+  if (mathNode) {
+    mathNode.setAttribute('pointer-events', 'none');
+    group.appendChild(mathNode);
     return;
   }
 
+  // Plain-text fallback while MathJax loads or for invalid TeX.
   const text = createSvgElement('text', {
     x: String(label.x),
     y: String(label.y),
