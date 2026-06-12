@@ -257,3 +257,32 @@
     font-size: 1.2rem;
   }
 }
+
+/* Section deep-links ----------------------------------------------- */
+
+/* Room for comfort under the viewport top when jumping to an anchor
+ * from the TOC or a shared #fragment link. */
+.post-article :is(h2, h3, h4) {
+  scroll-margin-top: 4.5rem;
+}
+
+/* Hover-revealed `#` appended to each heading by
+ * scripts/blog/heading-anchor-links.ts. */
+.post-article .heading-anchor {
+  margin-left: 0.4em;
+  font-family: var(--font-stack);
+  font-weight: 400;
+  color: var(--prose-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.post-article :is(h2, h3, h4):hover .heading-anchor,
+.post-article .heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+.post-article .heading-anchor:hover {
+  color: var(--prose-accent);
+}

@@ -14,6 +14,14 @@ main.container {
   padding-bottom: 96px;
 }
 
+/* In-page anchor jumps (TOC, heading anchors, breadcrumb) glide
+ * instead of teleporting — unless the visitor prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 .blog-layout {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -51,17 +59,51 @@ main.container {
   margin-bottom: 1.5rem;
 }
 
+/* Each category is a native <details>: closed it's a one-line row
+ * (label + post count), and only the category being read starts open —
+ * so the sidebar stays short no matter how many posts accumulate. */
 .sidebar-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .sidebar-group-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-text-muted);
-  margin-bottom: 0.6rem;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  padding: 0.25rem 0;
+  transition: color var(--transition);
+}
+
+.sidebar-group-label::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar-group-label:hover {
+  color: var(--color-text-main);
+}
+
+.sidebar-group-chevron {
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.sidebar-group[open] > .sidebar-group-label .sidebar-group-chevron {
+  transform: rotate(90deg);
+}
+
+.sidebar-group-count {
+  margin-left: auto;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
 }
 
 .sidebar-post-list {
@@ -69,6 +111,7 @@ main.container {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  margin-top: 0.45rem;
 }
 
 .sidebar-post-link {
@@ -97,6 +140,112 @@ main.container {
   background: var(--color-card-hover);
   border-left-color: var(--color-accent);
   border-radius: 0 6px 6px 0;
+}
+
+/* Table of contents ------------------------------------------------ */
+
+/* Shared list styles — used by both the desktop rail and the inline
+ * collapsible block. */
+.toc-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-stack);
+}
+
+.toc-link {
+  display: block;
+  padding: 0.28rem 0 0.28rem 0.85rem;
+  border-left: 2px solid var(--color-border);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition:
+    color var(--transition),
+    border-color var(--transition);
+}
+
+.toc-depth-3 > .toc-link {
+  padding-left: 1.8rem;
+  font-size: 0.8rem;
+}
+
+.toc-link:hover {
+  color: var(--color-text-main);
+}
+
+.toc-link.is-active {
+  color: var(--color-text-main);
+  font-weight: 600;
+  border-left-color: var(--color-accent);
+}
+
+/* Desktop rail: hidden until the viewport can afford a third column. */
+.toc-rail {
+  display: none;
+}
+
+/* Inline fallback: a collapsible "On this page" block above the
+ * article wherever the rail doesn't fit. */
+.toc-inline {
+  font-family: var(--font-stack);
+  margin-bottom: 2.5rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-card-hover);
+}
+
+.toc-inline-summary {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toc-inline[open] > .toc-inline-summary {
+  margin-bottom: 0.75rem;
+}
+
+.toc-rail-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.7rem;
+}
+
+/* Three-column mode: sidebar | article | TOC rail. Only post pages
+ * with a real TOC (`.has-toc`) reserve the third track, and only when
+ * the viewport is wide enough for a comfortable measure. */
+@media (min-width: 1280px) {
+  main.container:has(.blog-layout.has-toc) {
+    max-width: 1360px;
+  }
+
+  .blog-layout.has-toc {
+    grid-template-columns: 240px minmax(0, 1fr) 210px;
+    gap: 48px;
+  }
+
+  .blog-layout.has-toc .toc-rail {
+    display: block;
+    position: sticky;
+    top: 56px;
+    align-self: start;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .blog-layout.has-toc .toc-inline {
+    display: none;
+  }
 }
 
 /* Floating drawer toggle + overlay — desktop hides them. */

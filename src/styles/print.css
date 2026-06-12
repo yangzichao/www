@@ -14,7 +14,12 @@
   .blog-sidebar,
   .sidebar-toggle,
   .sidebar-overlay,
-  .pdf-download {
+  .pdf-download,
+  .toc-rail,
+  .toc-inline,
+  .post-breadcrumb,
+  .post-pager,
+  .heading-anchor {
     display: none !important;
   }
 

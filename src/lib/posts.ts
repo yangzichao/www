@@ -26,8 +26,25 @@ const CATEGORY_LABELS: Record<string, string> = {
   [UNCATEGORIZED]: 'Miscellaneous',
 };
 
+/**
+ * Explicit sidebar order. Categories keep a stable position instead of
+ * reshuffling whenever a newer post lands in a different folder; the
+ * catch-all bucket stays last, and unknown folders slot in just above it.
+ */
+const CATEGORY_ORDER: string[] = ['system-design', 'ai', 'physics', 'life', 'meta', UNCATEGORIZED];
+
+function categoryRank(slug: string): number {
+  const index = CATEGORY_ORDER.indexOf(slug);
+  if (index !== -1) return index;
+  return CATEGORY_ORDER.indexOf(UNCATEGORIZED);
+}
+
+export function categoryOfId(id: string): string {
+  return id.includes('/') ? id.split('/')[0] : UNCATEGORIZED;
+}
+
 export function categoryOf(post: Post): string {
-  return post.id.includes('/') ? post.id.split('/')[0] : UNCATEGORIZED;
+  return categoryOfId(post.id);
 }
 
 export function categoryLabel(slug: string): string {
@@ -47,9 +64,8 @@ export async function getPublishedPosts(): Promise<Post[]> {
 }
 
 /**
- * Group already-sorted posts by category. Categories are ordered by
- * their most recent post (freshest topic first); the catch-all bucket
- * always sorts last.
+ * Group already-sorted posts by category, in the fixed CATEGORY_ORDER
+ * so the sidebar layout stays stable as new posts land.
  */
 export function groupByCategory(posts: Post[]): CategoryGroup[] {
   const buckets = new Map<string, Post[]>();
@@ -62,11 +78,28 @@ export function groupByCategory(posts: Post[]): CategoryGroup[] {
 
   return [...buckets.entries()]
     .map(([slug, groupPosts]) => ({ slug, label: categoryLabel(slug), posts: groupPosts }))
-    .sort((a, b) => {
-      if (a.slug === UNCATEGORIZED) return 1;
-      if (b.slug === UNCATEGORIZED) return -1;
-      return b.posts[0].data.date.getTime() - a.posts[0].data.date.getTime();
-    });
+    .sort((a, b) => categoryRank(a.slug) - categoryRank(b.slug) || a.slug.localeCompare(b.slug));
+}
+
+export type AdjacentPosts = {
+  previous: Post | null;
+  next: Post | null;
+};
+
+/**
+ * Neighbours of a post within its own category, following the sidebar's
+ * newest-first order: `previous` is the next-newer post, `next` the
+ * next-older one — so "Next" walks deeper into the archive.
+ */
+export function getAdjacentPostsInCategory(posts: Post[], currentId: string): AdjacentPosts {
+  const currentCategory = categoryOfId(currentId);
+  const categoryPosts = posts.filter((post) => categoryOf(post) === currentCategory);
+  const index = categoryPosts.findIndex((post) => post.id === currentId);
+  if (index === -1) return { previous: null, next: null };
+  return {
+    previous: index > 0 ? categoryPosts[index - 1] : null,
+    next: index < categoryPosts.length - 1 ? categoryPosts[index + 1] : null,
+  };
 }
 
 export function formatPostDate(date: Date): string {

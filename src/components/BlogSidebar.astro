@@ -1,5 +1,6 @@
 ---
 import type { CategoryGroup } from '../lib/posts';
+import { categoryOfId } from '../lib/posts';
 
 interface Props {
   groups: CategoryGroup[];
@@ -7,6 +8,13 @@ interface Props {
 }
 
 const { groups, currentId } = Astro.props;
+
+/* Only the category you are reading starts expanded; on the index page
+ * (no currentId) every group starts open as a browsable site map. */
+const currentCategory = currentId ? categoryOfId(currentId) : null;
+function isExpanded(group: CategoryGroup): boolean {
+  return currentCategory === null || group.slug === currentCategory;
+}
 ---
 
 <button
@@ -29,8 +37,27 @@ const { groups, currentId } = Astro.props;
     <a class="sidebar-home" href="/blog/">Writing</a>
     {
       groups.map((group) => (
-        <div class="sidebar-group">
-          <p class="sidebar-group-label">{group.label}</p>
+        <details class="sidebar-group" open={isExpanded(group)}>
+          <summary class="sidebar-group-label">
+            <svg
+              class="sidebar-group-chevron"
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              aria-hidden="true"
+            >
+              <path
+                d="M3 1.5 6.5 5 3 8.5"
+                stroke="currentColor"
+                stroke-width="1.5"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>{group.label}</span>
+            <span class="sidebar-group-count">{group.posts.length}</span>
+          </summary>
           <ul class="sidebar-post-list">
             {group.posts.map((post) => (
               <li>
@@ -44,7 +71,7 @@ const { groups, currentId } = Astro.props;
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       ))
     }
   </nav>

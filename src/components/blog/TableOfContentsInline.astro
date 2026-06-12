@@ -1,0 +1,20 @@
+---
+import type { MarkdownHeading } from 'astro';
+import TocList from './TocList.astro';
+import { tocHeadingsOf, shouldShowToc } from '../../lib/toc';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+---
+
+{
+  shouldShowToc(headings) && (
+    <details class="toc-inline" data-toc>
+      <summary class="toc-inline-summary">On this page</summary>
+      <TocList headings={tocHeadingsOf(headings)} />
+    </details>
+  )
+}

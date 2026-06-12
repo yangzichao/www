@@ -1,8 +1,18 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import BlogSidebar from '../components/BlogSidebar.astro';
+import TableOfContentsRail from '../components/blog/TableOfContentsRail.astro';
+import TableOfContentsInline from '../components/blog/TableOfContentsInline.astro';
 import type { CollectionEntry } from 'astro:content';
-import { getPublishedPosts, groupByCategory } from '../lib/posts';
+import type { MarkdownHeading } from 'astro';
+import {
+  getPublishedPosts,
+  groupByCategory,
+  getAdjacentPostsInCategory,
+  categoryOfId,
+  categoryLabel,
+} from '../lib/posts';
+import { shouldShowToc } from '../lib/toc';
 import 'katex/dist/katex.min.css';
 import '../styles/post.css';
 import '../styles/blog-layout.css';
@@ -11,11 +21,19 @@ import '../styles/print.css';
 interface Props {
   frontmatter: CollectionEntry<'blog'>['data'];
   id: string;
+  headings?: MarkdownHeading[];
 }
 
-const { frontmatter, id } = Astro.props;
+const { frontmatter, id, headings = [] } = Astro.props;
 
-const groups = groupByCategory(await getPublishedPosts());
+const posts = await getPublishedPosts();
+const groups = groupByCategory(posts);
+const adjacent = getAdjacentPostsInCategory(posts, id);
+
+const categorySlug = categoryOfId(id);
+const categoryName = categoryLabel(categorySlug);
+
+const hasTableOfContents = shouldShowToc(headings);
 
 // Use UTC so a frontmatter date like `2026-05-02` (parsed as midnight
 // UTC by the YAML loader) doesn't shift to the previous day in any
@@ -33,9 +51,10 @@ const isoDate = frontmatter.date.toISOString();
   title={frontmatter.title}
   description={frontmatter.description ?? frontmatter.title}
 >
-  <div class="blog-layout">
+  <div class:list={['blog-layout', { 'has-toc': hasTableOfContents }]}>
     <BlogSidebar groups={groups} currentId={id} />
     <div class="blog-main">
+      <TableOfContentsInline headings={headings} />
       <article class="prose prose-lg post-article">
         <header class="not-prose post-header">
           <button
@@ -47,6 +66,11 @@ const isoDate = frontmatter.date.toISOString();
             <i class="ph ph-file-pdf" aria-hidden="true"></i>
             <span>Download PDF</span>
           </button>
+          <nav class="post-breadcrumb" aria-label="Breadcrumb">
+            <a href="/blog/">Writing</a>
+            <span class="post-breadcrumb-separator" aria-hidden="true">/</span>
+            <a href={`/blog/#${categorySlug}`}>{categoryName}</a>
+          </nav>
           <h1 class="post-title">{frontmatter.title}</h1>
           <div class="post-meta">
             <time datetime={isoDate}>{formattedDate}</time>
@@ -65,8 +89,37 @@ const isoDate = frontmatter.date.toISOString();
         </header>
         <slot />
       </article>
+
+      {
+        (adjacent.previous || adjacent.next) && (
+          <nav class="post-pager" aria-label={`More in ${categoryName}`}>
+            {adjacent.previous ? (
+              <a class="post-pager-link post-pager-previous" href={`/blog/${adjacent.previous.id}/`}>
+                <span class="post-pager-direction">← Newer in {categoryName}</span>
+                <span class="post-pager-title">{adjacent.previous.data.title}</span>
+              </a>
+            ) : (
+              <span class="post-pager-spacer" />
+            )}
+            {adjacent.next && (
+              <a class="post-pager-link post-pager-next" href={`/blog/${adjacent.next.id}/`}>
+                <span class="post-pager-direction">Older in {categoryName} →</span>
+                <span class="post-pager-title">{adjacent.next.data.title}</span>
+              </a>
+            )}
+          </nav>
+        )
+      }
     </div>
+    <TableOfContentsRail headings={headings} />
   </div>
+
+  <script>
+    import { initTocScrollSpy } from '../scripts/blog/toc-scroll-spy';
+    import { initHeadingAnchorLinks } from '../scripts/blog/heading-anchor-links';
+    initHeadingAnchorLinks();
+    initTocScrollSpy();
+  </script>
 
   <script slot="body-end" is:inline>
     // Lazy-load mermaid only on pages that contain a diagram. The
@@ -172,6 +225,29 @@ const isoDate = frontmatter.date.toISOString();
     }
   }
 
+  .post-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    color: var(--color-text-muted, #666666);
+  }
+
+  .post-breadcrumb a {
+    color: var(--color-text-muted, #666666);
+    text-decoration: none;
+    transition: color var(--transition, 0.15s ease);
+  }
+
+  .post-breadcrumb a:hover {
+    color: var(--color-text-main, #111111);
+  }
+
+  .post-breadcrumb-separator {
+    opacity: 0.45;
+  }
+
   .post-title {
     font-size: 2.5rem;
     font-weight: 700;
@@ -214,5 +290,64 @@ const isoDate = frontmatter.date.toISOString();
     background: #f3f3f3;
     border-radius: 4px;
     color: var(--color-text-muted, #666666);
+  }
+
+  /* Prev/next within the post's category ---------------------------- */
+  .post-pager {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border, #e5e5e5);
+    font-family: var(--font-stack);
+  }
+
+  .post-pager-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--color-border, #e5e5e5);
+    border-radius: var(--radius, 8px);
+    text-decoration: none;
+    transition:
+      border-color var(--transition, 0.15s ease),
+      background var(--transition, 0.15s ease);
+  }
+
+  .post-pager-link:hover {
+    border-color: #bbbbbb;
+    background: var(--color-card-hover, #fafafa);
+  }
+
+  .post-pager-next {
+    text-align: right;
+  }
+
+  .post-pager-direction {
+    font-size: 0.78rem;
+    color: var(--color-text-muted, #666666);
+  }
+
+  .post-pager-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--color-text-main, #111111);
+  }
+
+  @media (max-width: 600px) {
+    .post-pager {
+      grid-template-columns: 1fr;
+    }
+
+    .post-pager-spacer {
+      display: none;
+    }
+
+    .post-pager-next {
+      text-align: left;
+    }
   }
 </style>
