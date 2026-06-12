@@ -6,6 +6,9 @@ import { remarkMermaidToPre } from './src/markdown/remark-mermaid-to-pre.ts';
 
 export default defineConfig({
   site: 'https://zichaoyang.com',
+  devToolbar: {
+    enabled: false,
+  },
 
   // Preserve permalinks from the legacy static site so external citations
   // and search-engine results don't break after the URL move. GitHub

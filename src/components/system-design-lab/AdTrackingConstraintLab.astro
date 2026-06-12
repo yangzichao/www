@@ -1,0 +1,519 @@
+---
+import './ad-tracking-constraint-lab.css';
+
+const workloadControls = [
+  {
+    id: 'eventsPerSecond',
+    label: 'Normal event rate',
+    help: 'Clicks and impressions arriving each second before traffic spikes.',
+    min: 50,
+    max: 500_000,
+    defaultValue: 300,
+    scale: 'log',
+    unit: '/s',
+  },
+  {
+    id: 'peakMultiplier',
+    label: 'Peak multiplier',
+    help: 'Launches, auctions, bot bursts, and retry storms compress traffic into short windows.',
+    min: 1,
+    max: 30,
+    defaultValue: 1.5,
+    scale: 'linear',
+    unit: 'x',
+  },
+  {
+    id: 'reportingQueriesPerMinute',
+    label: 'Reporting queries',
+    help: 'Dashboards, advertiser reports, billing checks, and analyst queries.',
+    min: 1,
+    max: 5_000,
+    defaultValue: 12,
+    scale: 'log',
+    unit: '/min',
+  },
+  {
+    id: 'retentionDays',
+    label: 'Raw retention',
+    help: 'How long raw events must stay queryable or replayable.',
+    min: 1,
+    max: 365,
+    defaultValue: 7,
+    scale: 'linear',
+    unit: 'days',
+  },
+  {
+    id: 'hotCampaignShare',
+    label: 'Hottest campaign share',
+    help: 'Traffic owned by the largest campaign, useful for seeing hot partition risk.',
+    min: 1,
+    max: 80,
+    defaultValue: 5,
+    scale: 'linear',
+    unit: '%',
+  },
+  {
+    id: 'freshnessSeconds',
+    label: 'Metric freshness target',
+    help: 'How quickly counters, billing candidates, or risk signals should update.',
+    min: 5,
+    max: 3600,
+    defaultValue: 900,
+    scale: 'log',
+    unit: 'sec',
+  },
+  {
+    id: 'duplicatePercent',
+    label: 'Retry / duplicate rate',
+    help: 'Client retries and collector retries create repeated events that need idempotency.',
+    min: 0,
+    max: 20,
+    defaultValue: 0.4,
+    scale: 'linear',
+    unit: '%',
+  },
+];
+
+const scenarios = [
+  {
+    id: 'demo',
+    step: '01',
+    title: 'Demo traffic',
+    summary: 'One collector and one database are still enough.',
+  },
+  {
+    id: 'growth',
+    step: '02',
+    title: 'Product grows',
+    summary: 'The first pressure is host capacity, so collectors scale out.',
+  },
+  {
+    id: 'db-pressure',
+    step: '03',
+    title: 'Reports hit writes',
+    summary: 'Shared database contention forces an append-first pipeline.',
+  },
+  {
+    id: 'launch-spike',
+    step: '04',
+    title: 'Launch spike',
+    summary: 'Peak traffic and freshness make partitioning and streaming visible.',
+  },
+  {
+    id: 'billing-realtime',
+    step: '05',
+    title: 'Billing realtime',
+    summary: 'Audit, replay, hot partitions, and serving views are all required.',
+  },
+];
+
+const bottleneckMeters = [
+  ['singleHost', 'Single host ingestion'],
+  ['sharedDatabase', 'Shared DB pressure'],
+  ['storage', 'Raw storage'],
+  ['hotPartition', 'Hot partition'],
+  ['freshness', 'Freshness pressure'],
+];
+
+const decisionCards = [
+  ['multiHost', 'Multi host collectors'],
+  ['sharedDatabase', 'Shared database'],
+  ['eventLog', 'Durable event log'],
+  ['partitioning', 'Partitioning'],
+  ['streaming', 'Stream aggregation'],
+  ['servingStores', 'Serving stores'],
+];
+
+const sourceBackedRules = [
+  {
+    title: 'Partitions scale throughput, but ordering is partition-local',
+    source: 'Apache Kafka docs',
+    url: 'https://kafka.apache.org/documentation/',
+    summary:
+      'Kafka topics are split into partitions across brokers; consumers see ordered events within a topic-partition. This is why the lab treats partition key as both a scaling tool and an ordering tradeoff.',
+  },
+  {
+    title: 'Durable queues and streams decouple failure and back pressure',
+    source: 'AWS Well-Architected',
+    url: 'https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_prevent_interaction_failure_loosely_coupled_system.html',
+    summary:
+      'Queueing and streaming systems isolate producers from consumers and let components scale or fail independently. This supports the event-log step when direct writes start coupling ingestion to reports.',
+  },
+  {
+    title: 'Realtime windows need event time, watermarks, and late-event policy',
+    source: 'Apache Flink docs',
+    url: 'https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/',
+    summary:
+      'Flink uses watermarks to track event-time progress, and late or out-of-order events force latency/correctness tradeoffs. This backs the streaming and freshness parts of the lab.',
+  },
+  {
+    title: 'Realtime analytics is an event-stream serving problem',
+    source: 'ClickHouse docs',
+    url: 'https://clickhouse.com/docs/cloud/get-started/cloud/use-cases/real-time-analytics',
+    summary:
+      'Realtime analytics systems derive insights from event streams soon after generation. This is why dashboard/risk/billing views should split away from the raw ingest path as read pressure grows.',
+  },
+];
+
+const teachingAssumptions = [
+  'Capacity numbers in the sliders are teaching thresholds, not production benchmarks.',
+  'Real capacity depends on payload size, batching, replication, acks, indexes, query shape, disk, network, and operational SLOs.',
+  'The lab is strongest for interview reasoning: show the simplest design first, then name the exact constraint that forces the next component.',
+];
+---
+
+<section class="system-lab" data-system-design-lab>
+  <div class="system-lab__intro">
+    <p class="system-lab__eyebrow">System Design Lab</p>
+    <h1 class="system-lab__title">Ad tracking architecture changes only when constraints force it.</h1>
+    <p class="system-lab__summary">
+      Start with the simplest click/impression collector. Use the scenarios for a normal evolution
+      path, then adjust the workload to see exactly when one host, one shared database, or one
+      partition stops being a good answer.
+    </p>
+  </div>
+
+  <section class="system-lab__scenarios" aria-label="Normal architecture evolution scenarios">
+    <div class="system-lab__scenarios-header">
+      <h2>Normal evolution scenarios</h2>
+      <p>Click left to right for the intended demo path. Each card changes the workload inputs.</p>
+    </div>
+    <div class="system-lab__scenario-grid">
+      {
+        scenarios.map((scenario) => (
+          <button
+            class="system-lab__scenario"
+            type="button"
+            data-scenario-button
+            data-scenario-id={scenario.id}
+            aria-pressed={scenario.id === 'demo' ? 'true' : 'false'}
+          >
+            <span>{scenario.step}</span>
+            <strong>{scenario.title}</strong>
+            <small>{scenario.summary}</small>
+          </button>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="system-lab__workspace">
+    <form class="system-lab__controls" aria-label="Workload controls">
+      <div class="system-lab__controls-header">
+        <h2>Workload</h2>
+        <p>These are inputs, not preset architecture stages.</p>
+      </div>
+
+      {
+        workloadControls.map((control) => (
+          <label class="system-lab__control" for={`lab-${control.id}`}>
+            <span class="system-lab__control-label">
+              <span>{control.label}</span>
+              <output data-control-output={control.id}></output>
+            </span>
+            <input
+              id={`lab-${control.id}`}
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              data-control={control.id}
+              data-min-value={control.min}
+              data-max-value={control.max}
+              data-default-value={control.defaultValue}
+              data-scale={control.scale}
+              data-unit={control.unit}
+            />
+            <span class="system-lab__control-help">{control.help}</span>
+          </label>
+        ))
+      }
+
+      <label class="system-lab__toggle">
+        <input type="checkbox" data-control="billingGrade" />
+        <span>
+          <strong>Billing-grade durability</strong>
+          <small>Every accepted event must be replayable and auditable.</small>
+        </span>
+      </label>
+    </form>
+
+    <div class="system-lab__main">
+      <div class="system-lab__verdict">
+        <p class="system-lab__eyebrow">Recommended shape</p>
+        <h2 data-architecture-title>Single host collector</h2>
+        <p data-architecture-summary>
+          Keep ingestion, validation, and storage together while the workload fits one machine.
+        </p>
+      </div>
+
+      <div class="system-lab__diagram" aria-label="Calculated architecture diagram">
+        <div class="system-lab__diagram-caption">
+          <span>Current architecture path</span>
+          <strong data-architecture-path>Ad events -> single collector -> shared database</strong>
+        </div>
+
+        <svg
+          class="system-lab__sketch"
+          viewBox="0 0 1040 560"
+          role="img"
+          aria-labelledby="ad-tracking-sketch-title ad-tracking-sketch-description"
+        >
+          <title id="ad-tracking-sketch-title">Ad click tracking architecture diagram</title>
+          <desc id="ad-tracking-sketch-description">
+            Whiteboard-style architecture diagram for an ad click and impression tracking pipeline.
+          </desc>
+
+          <defs>
+            <marker
+              id="system-lab-arrow"
+              viewBox="0 0 12 12"
+              refX="10"
+              refY="6"
+              markerWidth="8"
+              markerHeight="8"
+              orient="auto-start-reverse"
+            >
+              <path d="M2 2 L10 6 L2 10 Z"></path>
+            </marker>
+          </defs>
+
+          <g class="system-lab__sketch-zone system-lab__sketch-zone--clients">
+            <rect x="20" y="70" width="150" height="360" rx="10"></rect>
+            <text x="38" y="100">Clients</text>
+          </g>
+          <g class="system-lab__sketch-zone system-lab__sketch-zone--edge">
+            <rect x="210" y="45" width="190" height="410" rx="10"></rect>
+            <text x="228" y="75">Edge / API</text>
+          </g>
+          <g class="system-lab__sketch-zone system-lab__sketch-zone--backbone">
+            <rect x="440" y="70" width="180" height="385" rx="10"></rect>
+            <text x="458" y="100">Event backbone</text>
+          </g>
+          <g class="system-lab__sketch-zone system-lab__sketch-zone--processing">
+            <rect x="660" y="70" width="165" height="385" rx="10"></rect>
+            <text x="678" y="100">Processing</text>
+          </g>
+          <g class="system-lab__sketch-zone system-lab__sketch-zone--storage">
+            <rect x="865" y="45" width="155" height="440" rx="10"></rect>
+            <text x="883" y="75">Storage + serving</text>
+          </g>
+
+          <g class="system-lab__sketch-flows">
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--primary" data-flow="clientToLoadBalancer" d="M155 250 C190 250 190 155 225 155"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--primary" data-flow="clientToCollectors" d="M156 265 C192 265 210 306 225 306"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--primary" data-flow="loadBalancerToCollectors" d="M300 190 L300 260"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--primary" data-flow="collectorsToEventLog" d="M370 310 C405 310 405 220 450 220"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--primary" data-flow="eventLogToStreaming" d="M590 220 C625 220 625 220 675 220"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--primary" data-flow="streamingToServing" d="M805 220 C835 220 835 220 880 220"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--secondary" data-flow="eventLogToPartitioning" d="M525 265 L525 330"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--secondary" data-flow="partitioningToStreaming" d="M590 370 C635 370 640 285 675 285"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--secondary" data-flow="eventLogToDatabase" d="M590 208 C700 155 800 118 880 118"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--secondary" data-flow="streamingToDatabase" d="M805 215 C845 175 860 130 880 120"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--secondary" data-flow="streamingToWarehouse" d="M805 290 C845 290 862 415 880 415"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--secondary" data-flow="streamingToArchive" d="M755 285 C810 285 830 440 880 440"></path>
+            <path class="system-lab__sketch-flow system-lab__sketch-flow--direct" data-flow="collectorsToDatabase" d="M375 290 C550 200 730 135 880 122"></path>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="source" transform="translate(48 210)">
+            <rect width="108" height="84" rx="10"></rect>
+            <text x="16" y="32">Client</text>
+            <text x="16" y="54" class="system-lab__sketch-small">ad server</text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="loadBalancer" transform="translate(225 120)">
+            <rect width="150" height="70" rx="10"></rect>
+            <text x="18" y="31">Load balancer</text>
+            <text x="18" y="52" class="system-lab__sketch-small">health + fanout</text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="collectors" transform="translate(225 260)">
+            <rect width="150" height="92" rx="10"></rect>
+            <text x="18" y="35" data-node-title="collectors">Single collector</text>
+            <text x="18" y="58" class="system-lab__sketch-small" data-node-copy="collectors">
+              validate + write
+            </text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="eventLog" transform="translate(450 180)">
+            <rect width="140" height="86" rx="10"></rect>
+            <text x="18" y="34">Event log</text>
+            <text x="18" y="57" class="system-lab__sketch-small">buffer + replay</text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="partitioning" transform="translate(450 330)">
+            <rect width="140" height="82" rx="10"></rect>
+            <text x="18" y="33">Partition key</text>
+            <text x="18" y="55" class="system-lab__sketch-small">campaign / bucket</text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="streaming" transform="translate(675 190)">
+            <rect width="130" height="126" rx="10"></rect>
+            <text x="18" y="38">Stream</text>
+            <text x="18" y="61">workers</text>
+            <text x="18" y="87" class="system-lab__sketch-small">dedupe</text>
+            <text x="18" y="108" class="system-lab__sketch-small">windows</text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="sharedDatabase" transform="translate(880 82)">
+            <rect width="120" height="80" rx="10"></rect>
+            <text x="16" y="32">Primary DB</text>
+            <text x="16" y="54" class="system-lab__sketch-small" data-node-copy="sharedDatabase">
+              raw + reports
+            </text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="servingStores" transform="translate(880 220)">
+            <rect width="120" height="92" rx="10"></rect>
+            <text x="16" y="35">Serving</text>
+            <text x="16" y="58">stores</text>
+            <text x="16" y="78" class="system-lab__sketch-small">OLAP / billing</text>
+          </g>
+
+          <g class="system-lab__sketch-node" data-node="warehouse" transform="translate(880 400)">
+            <rect width="120" height="78" rx="10"></rect>
+            <text x="16" y="32">Warehouse</text>
+            <text x="16" y="54" class="system-lab__sketch-small">offline truth</text>
+          </g>
+        </svg>
+
+        <div class="system-lab__mobile-flow" aria-label="Calculated mobile architecture flow">
+          <div class="system-lab__mobile-stage">
+            <span>Clients</span>
+            <div class="system-lab__mobile-node" data-mobile-node="source">
+              <strong>Client</strong>
+              <small>ad server emits click/impression events</small>
+            </div>
+          </div>
+
+          <div class="system-lab__mobile-stage">
+            <span>Edge / API</span>
+            <div class="system-lab__mobile-node" data-mobile-node="loadBalancer">
+              <strong>Load balancer</strong>
+              <small>fanout and health checks once hosts scale out</small>
+            </div>
+            <div class="system-lab__mobile-node" data-mobile-node="collectors">
+              <strong>Collector service</strong>
+              <small>validate, dedupe keys, and accept events</small>
+            </div>
+          </div>
+
+          <div class="system-lab__mobile-stage">
+            <span>Event backbone</span>
+            <div class="system-lab__mobile-node" data-mobile-node="eventLog">
+              <strong>Durable event log</strong>
+              <small>buffer, replay, and decouple consumers</small>
+            </div>
+            <div class="system-lab__mobile-node" data-mobile-node="partitioning">
+              <strong>Partition key</strong>
+              <small>campaign or bucket decides ordering and hot spots</small>
+            </div>
+          </div>
+
+          <div class="system-lab__mobile-stage">
+            <span>Processing</span>
+            <div class="system-lab__mobile-node" data-mobile-node="streaming">
+              <strong>Stream workers</strong>
+              <small>windows, dedupe, counters, and late-event policy</small>
+            </div>
+          </div>
+
+          <div class="system-lab__mobile-stage">
+            <span>Storage + serving</span>
+            <div class="system-lab__mobile-node" data-mobile-node="sharedDatabase">
+              <strong>Primary DB</strong>
+              <small>simple raw store and reports while load is small</small>
+            </div>
+            <div class="system-lab__mobile-node" data-mobile-node="servingStores">
+              <strong>Serving stores</strong>
+              <small>OLAP, billing, dashboard, and risk views</small>
+            </div>
+            <div class="system-lab__mobile-node" data-mobile-node="warehouse">
+              <strong>Warehouse</strong>
+              <small>offline truth, retention, audit, and replay checks</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="system-lab__analysis-grid">
+        <section class="system-lab__panel">
+          <h3>Bottlenecks</h3>
+          <div class="system-lab__meters">
+            {
+              bottleneckMeters.map(([meterId, meterLabel]) => (
+                <div class="system-lab__meter">
+                  <div class="system-lab__meter-label">
+                    <span>{meterLabel}</span>
+                    <span data-meter-value={meterId}></span>
+                  </div>
+                  <span class="system-lab__meter-track" aria-hidden="true">
+                    <span class="system-lab__meter-fill" data-meter={meterId}></span>
+                  </span>
+                  <p data-meter-copy={meterId}></p>
+                </div>
+              ))
+            }
+          </div>
+        </section>
+
+        <section class="system-lab__panel">
+          <h3>Why this changes</h3>
+          <ul class="system-lab__reasons" data-reasons></ul>
+        </section>
+      </div>
+
+      <section class="system-lab__panel">
+        <h3>Decision tradeoffs</h3>
+        <div class="system-lab__decision-grid">
+          {
+            decisionCards.map(([cardId, cardTitle]) => (
+              <article class="system-lab__decision" data-decision={cardId}>
+                <span>{cardTitle}</span>
+                <p data-decision-copy={cardId}></p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="system-lab__panel system-lab__knowledge">
+        <div class="system-lab__knowledge-header">
+          <h3>Source-backed rules</h3>
+          <p>
+            These are the durable system-design claims behind the model. The exact slider
+            thresholds are deliberately labeled as teaching assumptions.
+          </p>
+        </div>
+
+        <div class="system-lab__rule-grid">
+          {
+            sourceBackedRules.map((rule) => (
+              <article class="system-lab__rule-card">
+                <span>Verified rule</span>
+                <h4>{rule.title}</h4>
+                <p>{rule.summary}</p>
+                <a href={rule.url} target="_blank" rel="noreferrer">
+                  {rule.source}
+                </a>
+              </article>
+            ))
+          }
+        </div>
+
+        <div class="system-lab__assumptions">
+          <h4>Teaching assumptions</h4>
+          <ul>
+            {teachingAssumptions.map((assumption) => <li>{assumption}</li>)}
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    import { initAdTrackingConstraintLab } from '../../scripts/system-design-lab/ad-tracking-constraint-lab';
+
+    initAdTrackingConstraintLab();
+  </script>
+</section>
