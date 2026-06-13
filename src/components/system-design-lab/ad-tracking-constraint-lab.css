@@ -416,10 +416,6 @@
   stroke-width: 2.2;
 }
 
-.system-lab__sketch-node[data-state='needed'] {
-  transform: translateY(-3px);
-}
-
 .system-lab__sketch-node[data-state='needed'] rect {
   fill: #f3f9fc;
   stroke: #2f78a5;

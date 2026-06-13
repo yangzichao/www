@@ -74,6 +74,14 @@ export const siteData: SiteData = {
     {
       type: 'Project',
       year: '2026',
+      title: 'Physics Simulation Lab',
+      description:
+        'Three browser-based simulations in one lab: double pendulum chaos, central-force orbital mechanics, and two-source wave interference with live controls and canvas rendering.',
+      url: '/tools/physics-simulations/',
+    },
+    {
+      type: 'Project',
+      year: '2026',
       title: 'Feynman Diagram Editor',
       description:
         'A browser-based take on JaxoDraw: draw Feynman diagrams with click-and-drag — fermion, photon, gluon, scalar and ghost propagators, arcs, loops and LaTeX labels — then export to axodraw2 LaTeX, SVG or PNG. Runs entirely in your browser.',

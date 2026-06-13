@@ -1,0 +1,388 @@
+/* Physics simulation lab at /tools/physics-simulations/. */
+
+.physics-lab {
+  --lab-ink: #17201d;
+  --lab-muted: #5d6863;
+  --lab-border: #d7ded8;
+  --lab-panel: #ffffff;
+  --lab-surface: #f6f8f4;
+  --lab-teal: #0f766e;
+  --lab-blue: #2563eb;
+  --lab-red: #dc2626;
+  --lab-amber: #d97706;
+
+  color: var(--lab-ink);
+}
+
+.physics-lab__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.physics-lab__home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--lab-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.physics-lab__home-link:hover {
+  color: var(--lab-ink);
+}
+
+.physics-lab__title-block {
+  max-width: 780px;
+}
+
+.physics-lab__eyebrow {
+  margin-bottom: 8px;
+  color: var(--lab-teal);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.physics-lab__title-block h1 {
+  margin-bottom: 10px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.physics-lab__title-block p:last-child {
+  color: var(--lab-muted);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.physics-lab__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.physics-lab__tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid var(--lab-border);
+  border-radius: var(--radius);
+  background: var(--lab-panel);
+  color: var(--lab-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    transform var(--transition);
+}
+
+.physics-lab__tab i {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: var(--lab-surface);
+  color: var(--lab-teal);
+  font-size: 1.2rem;
+}
+
+.physics-lab__tab span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.physics-lab__tab strong,
+.physics-lab__tab small {
+  overflow-wrap: anywhere;
+}
+
+.physics-lab__tab strong {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.physics-lab__tab small {
+  color: var(--lab-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.physics-lab__tab:hover {
+  border-color: #a8b4ad;
+  background: #fbfcfa;
+  transform: translateY(-1px);
+}
+
+.physics-lab__tab.is-active {
+  border-color: var(--lab-teal);
+  background: #eef8f5;
+}
+
+.physics-lab__workspace {
+  min-height: 620px;
+}
+
+.simulation-panel {
+  display: none;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.simulation-panel.is-active {
+  display: grid;
+}
+
+.simulation-panel__stage,
+.simulation-controls {
+  border: 1px solid var(--lab-border);
+  border-radius: var(--radius);
+  background: var(--lab-panel);
+}
+
+.simulation-panel__stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.simulation-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 900 / 520;
+  height: auto;
+  background: var(--lab-surface);
+  touch-action: none;
+}
+
+.simulation-readouts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--lab-border);
+  background: #fbfcfa;
+}
+
+.simulation-readouts span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-right: 1px solid var(--lab-border);
+}
+
+.simulation-readouts span:last-child {
+  border-right: 0;
+}
+
+.simulation-readouts small {
+  color: var(--lab-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.simulation-readouts strong {
+  min-height: 1.45em;
+  overflow-wrap: anywhere;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulation-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.simulation-controls__header {
+  display: grid;
+  gap: 4px;
+}
+
+.simulation-controls__header p {
+  color: var(--lab-teal);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.simulation-controls__header h2 {
+  font-size: 1.24rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.simulation-controls__actions,
+.simulation-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.simulation-presets {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.simulation-button,
+.simulation-presets button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--lab-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--lab-ink);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.simulation-button:hover,
+.simulation-presets button:hover {
+  border-color: #a8b4ad;
+  background: var(--lab-surface);
+  transform: translateY(-1px);
+}
+
+.simulation-button.is-primary {
+  border-color: var(--lab-teal);
+  background: var(--lab-teal);
+  color: #ffffff;
+}
+
+.simulation-button i {
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.simulation-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--lab-border);
+  border-radius: 8px;
+  background: #fbfcfa;
+  cursor: pointer;
+}
+
+.simulation-toggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--lab-teal);
+}
+
+.simulation-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.simulation-toggle strong {
+  font-size: 0.88rem;
+}
+
+.simulation-toggle small {
+  color: var(--lab-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.simulation-range {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.simulation-range > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--lab-ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.simulation-range output {
+  min-width: 74px;
+  color: var(--lab-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.simulation-range input[type='range'] {
+  width: 100%;
+  accent-color: var(--lab-teal);
+}
+
+@media (max-width: 900px) {
+  .physics-lab__tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .simulation-panel,
+  .simulation-panel.is-active {
+    grid-template-columns: 1fr;
+  }
+
+  .physics-lab__workspace {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .physics-lab__title-block h1 {
+    font-size: 1.7rem;
+  }
+
+  .physics-lab__tab {
+    min-height: 62px;
+  }
+
+  .simulation-readouts {
+    grid-template-columns: 1fr;
+  }
+
+  .simulation-readouts span {
+    border-right: 0;
+    border-bottom: 1px solid var(--lab-border);
+  }
+
+  .simulation-readouts span:last-child {
+    border-bottom: 0;
+  }
+
+  .simulation-controls__actions,
+  .simulation-presets {
+    grid-template-columns: 1fr;
+  }
+}
