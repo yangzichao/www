@@ -1,0 +1,268 @@
+---
+import './ad-tracking-constraint-lab.css';
+import type { SystemDesignLabDefinition } from '../../scripts/system-design-lab/lab-types';
+
+interface Props {
+  lab: SystemDesignLabDefinition;
+}
+
+const { lab } = Astro.props;
+const flowMarkerId = `system-lab-arrow-${lab.id}`;
+---
+
+<section class="system-lab" id={lab.id} data-system-design-constraint-lab data-lab-id={lab.id}>
+  <div class="system-lab__intro">
+    <p class="system-lab__eyebrow">{lab.eyebrow}</p>
+    <h1 class="system-lab__title">{lab.title}</h1>
+    <p class="system-lab__summary">{lab.summary}</p>
+    {
+      lab.articleHref && (
+        <div class="system-lab__intro-actions">
+          <a href={lab.articleHref}>Read the source article</a>
+        </div>
+      )
+    }
+  </div>
+
+  <section class="system-lab__scenarios" aria-label={`${lab.title} scenarios`}>
+    <div class="system-lab__scenarios-header">
+      <h2>Normal evolution scenarios</h2>
+      <p>Click left to right for the intended demo path. Each card changes the workload inputs.</p>
+    </div>
+    <div class="system-lab__scenario-grid">
+      {
+        lab.scenarios.map((scenario, scenarioIndex) => (
+          <button
+            class="system-lab__scenario"
+            type="button"
+            data-scenario-button
+            data-scenario-id={scenario.id}
+            aria-pressed={scenarioIndex === 0 ? 'true' : 'false'}
+          >
+            <span>{scenario.step}</span>
+            <strong>{scenario.title}</strong>
+            <small>{scenario.summary}</small>
+          </button>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="system-lab__workspace">
+    <form class="system-lab__controls" aria-label={`${lab.title} workload controls`}>
+      <div class="system-lab__controls-header">
+        <h2>Workload</h2>
+        <p>These are inputs, not preset architecture stages.</p>
+      </div>
+
+      {
+        lab.controls.map((control) => (
+          <label class="system-lab__control" for={`${lab.id}-${control.id}`}>
+            <span class="system-lab__control-label">
+              <span>{control.label}</span>
+              <output data-control-output={control.id}></output>
+            </span>
+            <input
+              id={`${lab.id}-${control.id}`}
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              data-control={control.id}
+            />
+            <span class="system-lab__control-help">{control.help}</span>
+          </label>
+        ))
+      }
+
+      {
+        lab.toggles.map((toggle) => (
+          <label class="system-lab__toggle">
+            <input type="checkbox" data-toggle-control={toggle.id} checked={toggle.defaultValue} />
+            <span>
+              <strong>{toggle.label}</strong>
+              <small>{toggle.help}</small>
+            </span>
+          </label>
+        ))
+      }
+    </form>
+
+    <div class="system-lab__main">
+      <div class="system-lab__verdict">
+        <p class="system-lab__eyebrow">Recommended shape</p>
+        <h2 data-architecture-title></h2>
+        <p data-architecture-summary></p>
+      </div>
+
+      <div class="system-lab__diagram" aria-label="Calculated architecture diagram">
+        <div class="system-lab__diagram-caption">
+          <span>Current architecture path</span>
+          <strong data-architecture-path></strong>
+        </div>
+
+        <svg
+          class="system-lab__sketch"
+          viewBox={lab.diagram.viewBox}
+          role="img"
+          aria-labelledby={`${lab.id}-sketch-title ${lab.id}-sketch-description`}
+          style={`--system-lab-flow-marker: url('#${flowMarkerId}')`}
+        >
+          <title id={`${lab.id}-sketch-title`}>{lab.diagram.title}</title>
+          <desc id={`${lab.id}-sketch-description`}>{lab.diagram.description}</desc>
+
+          <defs>
+            <marker
+              id={flowMarkerId}
+              viewBox="0 0 12 12"
+              refX="10"
+              refY="6"
+              markerWidth="8"
+              markerHeight="8"
+              orient="auto-start-reverse"
+            >
+              <path d="M2 2 L10 6 L2 10 Z"></path>
+            </marker>
+          </defs>
+
+          {
+            lab.diagram.zones.map((zone) => (
+              <g class={`system-lab__sketch-zone system-lab__sketch-zone--${zone.variant ?? zone.id}`}>
+                <rect x={zone.x} y={zone.y} width={zone.width} height={zone.height} rx="10"></rect>
+                <text x={zone.x + 18} y={zone.y + 30}>
+                  {zone.label}
+                </text>
+              </g>
+            ))
+          }
+
+          <g class="system-lab__sketch-flows">
+            {
+              lab.diagram.flows.map((flow) => (
+                <path
+                  class={`system-lab__sketch-flow system-lab__sketch-flow--${flow.variant ?? 'primary'}`}
+                  data-flow={flow.id}
+                  d={flow.path}
+                ></path>
+              ))
+            }
+          </g>
+
+          {
+            lab.diagram.nodes.map((node) => (
+              <g class="system-lab__sketch-node" data-node={node.id}>
+                <rect x={node.x} y={node.y} width={node.width} height={node.height} rx="10"></rect>
+                <text x={node.x + 16} y={node.y + 34} data-node-title={node.id}>
+                  {node.title}
+                </text>
+                <text
+                  x={node.x + 16}
+                  y={node.y + 56}
+                  class="system-lab__sketch-small"
+                  data-node-copy={node.id}
+                >
+                  {node.subtitle}
+                </text>
+              </g>
+            ))
+          }
+        </svg>
+
+        <div class="system-lab__mobile-flow" aria-label="Calculated mobile architecture flow">
+          {
+            lab.diagram.mobileStages.map((stage) => (
+              <div class="system-lab__mobile-stage">
+                <span>{stage.label}</span>
+                {stage.nodes.map((node) => (
+                  <div class="system-lab__mobile-node" data-mobile-node={node.id}>
+                    <strong>{node.title}</strong>
+                    <small>{node.summary}</small>
+                  </div>
+                ))}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="system-lab__analysis-grid">
+        <section class="system-lab__panel">
+          <h3>Bottlenecks</h3>
+          <div class="system-lab__meters">
+            {
+              lab.meters.map((meter) => (
+                <div class="system-lab__meter">
+                  <div class="system-lab__meter-label">
+                    <span>{meter.label}</span>
+                    <span data-meter-value={meter.id}></span>
+                  </div>
+                  <span class="system-lab__meter-track" aria-hidden="true">
+                    <span class="system-lab__meter-fill" data-meter={meter.id}></span>
+                  </span>
+                  <p data-meter-copy={meter.id}></p>
+                </div>
+              ))
+            }
+          </div>
+        </section>
+
+        <section class="system-lab__panel">
+          <h3>Why this changes</h3>
+          <ul class="system-lab__reasons" data-reasons></ul>
+        </section>
+      </div>
+
+      <section class="system-lab__panel">
+        <h3>Decision tradeoffs</h3>
+        <div class="system-lab__decision-grid">
+          {
+            lab.decisions.map((decision) => (
+              <article class="system-lab__decision" data-decision={decision.id}>
+                <span>{decision.title}</span>
+                <p data-decision-copy={decision.id}></p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="system-lab__panel system-lab__knowledge">
+        <div class="system-lab__knowledge-header">
+          <h3>Source-backed rules</h3>
+          <p>
+            These are the durable system-design claims behind the model. The exact slider
+            thresholds are deliberately labeled as teaching assumptions.
+          </p>
+        </div>
+
+        <div class="system-lab__rule-grid">
+          {
+            lab.sourceBackedRules.map((rule) => (
+              <article class="system-lab__rule-card">
+                <span>Verified rule</span>
+                <h4>{rule.title}</h4>
+                <p>{rule.summary}</p>
+                <a href={rule.url} target="_blank" rel="noreferrer">
+                  {rule.source}
+                </a>
+              </article>
+            ))
+          }
+        </div>
+
+        <div class="system-lab__assumptions">
+          <h4>Teaching assumptions</h4>
+          <ul>
+            {lab.teachingAssumptions.map((assumption) => <li>{assumption}</li>)}
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    import { initSystemDesignConstraintLabs } from '../../scripts/system-design-lab/system-design-constraint-lab';
+
+    initSystemDesignConstraintLabs();
+  </script>
+</section>
