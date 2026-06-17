@@ -16,6 +16,8 @@ export default defineConfig({
   // form, so a single canonical entry is enough.
   redirects: {
     '/research/11be-proton-emission/': '/blog/physics/11be-proton-emission/',
+    // The Feynman editor now lives in its own repo at this subdomain.
+    '/tools/feynman/': 'https://feynman.zichaoyang.com/',
   },
 
   vite: {
