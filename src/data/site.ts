@@ -74,6 +74,14 @@ export const siteData: SiteData = {
     {
       type: 'Project',
       year: '2026',
+      title: 'Quaternion Rotation Lab',
+      description:
+        'An interactive 3D teaching lab for quaternion rotations, SLERP, the SU(2) double cover, Pauli matrices, and Bloch-sphere motion.',
+      url: '/tools/quaternions/',
+    },
+    {
+      type: 'Project',
+      year: '2026',
       title: 'Physics Simulation Lab',
       description:
         'Three browser-based simulations in one lab: double pendulum chaos, central-force orbital mechanics, and two-source wave interference with live controls and canvas rendering.',

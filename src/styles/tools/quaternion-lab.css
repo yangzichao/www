@@ -1,0 +1,510 @@
+/* Quaternion teaching and 3D rotation lab at /tools/quaternions/. */
+
+.quaternion-lab {
+  --quat-ink: #181a17;
+  --quat-muted: #68716b;
+  --quat-border: #d9dfd8;
+  --quat-surface: #f7f8f4;
+  --quat-panel: #ffffff;
+  --quat-deep: #11140f;
+  --quat-teal: #0f766e;
+  --quat-blue: #2563eb;
+  --quat-amber: #c47f12;
+  --quat-magenta: #be185d;
+
+  color: var(--quat-ink);
+}
+
+.quaternion-lab code {
+  border-radius: 6px;
+  background: #eef2ed;
+  color: #22251f;
+  font-size: 0.92em;
+}
+
+.quaternion-lab__header {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.quaternion-lab__home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--quat-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.quaternion-lab__home-link:hover {
+  color: var(--quat-ink);
+}
+
+.quaternion-lab__title-block {
+  max-width: 820px;
+}
+
+.quaternion-lab__eyebrow,
+.quaternion-section-heading p {
+  margin-bottom: 8px;
+  color: var(--quat-teal);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.quaternion-lab__title-block h1 {
+  max-width: 780px;
+  margin-bottom: 12px;
+  font-size: 2.15rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.quaternion-lab__title-block p:last-child {
+  max-width: 780px;
+  color: var(--quat-muted);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.quaternion-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 22px;
+  align-items: stretch;
+  width: 100vw;
+  min-height: clamp(620px, 76vh, 780px);
+  margin: 26px calc(50% - 50vw) 34px;
+  padding: 24px max(24px, calc((100vw - 1080px) / 2 + 40px));
+  background: var(--quat-deep);
+  color: #f4f7ef;
+  overflow: hidden;
+}
+
+.quaternion-stage__visual {
+  position: relative;
+  min-width: 0;
+  min-height: 520px;
+  border: 1px solid rgba(244, 247, 239, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quaternion-stage__visual canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.quaternion-stage__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(244, 247, 239, 0.72);
+  font-weight: 700;
+}
+
+.quaternion-stage__control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: center;
+  max-height: calc(100% - 12px);
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(244, 247, 239, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--quat-ink);
+  overflow-y: auto;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.quaternion-control-panel__header {
+  display: grid;
+  gap: 6px;
+}
+
+.quaternion-control-panel__header p {
+  color: var(--quat-teal);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.quaternion-control-panel__header strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+.quaternion-readout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quaternion-readout-grid span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--quat-border);
+  border-radius: 8px;
+  background: var(--quat-surface);
+}
+
+.quaternion-readout-grid small {
+  color: var(--quat-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.quaternion-readout-grid strong {
+  min-height: 1.4em;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quaternion-button-row,
+.quaternion-presets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quaternion-button,
+.quaternion-segmented button,
+.quaternion-presets button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--quat-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--quat-ink);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    transform var(--transition);
+}
+
+.quaternion-button:hover,
+.quaternion-segmented button:hover,
+.quaternion-presets button:hover {
+  border-color: #abb6ad;
+  background: var(--quat-surface);
+  transform: translateY(-1px);
+}
+
+.quaternion-button.is-primary,
+.quaternion-segmented button.is-active {
+  border-color: var(--quat-teal);
+  background: var(--quat-teal);
+  color: #ffffff;
+}
+
+.quaternion-button i,
+.quaternion-segmented i {
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.quaternion-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quaternion-segmented span,
+.quaternion-button span,
+.quaternion-presets button {
+  overflow-wrap: anywhere;
+}
+
+.quaternion-range {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quaternion-range > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--quat-ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.quaternion-range output {
+  min-width: 82px;
+  color: var(--quat-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.quaternion-range input[type='range'] {
+  width: 100%;
+  accent-color: var(--quat-teal);
+}
+
+.quaternion-presets {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.quaternion-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--quat-border);
+  border-radius: 8px;
+  background: #fbfcfa;
+  cursor: pointer;
+}
+
+.quaternion-toggle input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--quat-teal);
+}
+
+.quaternion-toggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.quaternion-toggle strong {
+  font-size: 0.88rem;
+}
+
+.quaternion-toggle small {
+  color: var(--quat-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.quaternion-live-math {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr);
+  gap: 14px;
+  margin-bottom: 36px;
+}
+
+.quaternion-equation-block {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--quat-border);
+  border-radius: 8px;
+  background: var(--quat-panel);
+}
+
+.quaternion-equation-block p {
+  color: var(--quat-teal);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.quaternion-equation-block > code,
+.quaternion-matrix code {
+  display: block;
+  min-width: 0;
+  padding: 9px 10px;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.quaternion-matrix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quaternion-teaching,
+.quaternion-pauli-section,
+.quaternion-applications {
+  margin-top: 34px;
+}
+
+.quaternion-section-heading {
+  max-width: 760px;
+  margin-bottom: 16px;
+}
+
+.quaternion-section-heading h2,
+.quaternion-pauli-copy h2 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+}
+
+.quaternion-concept-grid,
+.quaternion-application-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quaternion-concept-card,
+.quaternion-application-card,
+.quaternion-pauli-table article {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--quat-border);
+  border-radius: 8px;
+  background: var(--quat-panel);
+}
+
+.quaternion-concept-card h3,
+.quaternion-application-card h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.quaternion-concept-card p,
+.quaternion-application-card p,
+.quaternion-pauli-copy p {
+  color: var(--quat-muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+
+.quaternion-concept-card code {
+  display: block;
+  align-self: end;
+  padding: 8px 9px;
+  overflow-wrap: anywhere;
+}
+
+.quaternion-pauli-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+  padding: 20px 0;
+  border-top: 1px solid var(--quat-border);
+  border-bottom: 1px solid var(--quat-border);
+}
+
+.quaternion-pauli-copy {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+}
+
+.quaternion-pauli-copy code {
+  padding: 2px 5px;
+}
+
+.quaternion-pauli-table {
+  display: grid;
+  gap: 10px;
+}
+
+.quaternion-pauli-table strong {
+  color: var(--quat-magenta);
+  font-size: 0.88rem;
+}
+
+.quaternion-pauli-table code {
+  display: block;
+  padding: 9px 10px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1040px) {
+  .quaternion-concept-grid,
+  .quaternion-application-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .quaternion-stage {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .quaternion-stage__visual {
+    min-height: 460px;
+  }
+
+  .quaternion-stage__control-panel {
+    align-self: stretch;
+    max-height: none;
+  }
+
+  .quaternion-live-math,
+  .quaternion-pauli-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .quaternion-lab__title-block h1 {
+    font-size: 1.72rem;
+  }
+
+  .quaternion-stage {
+    padding: 18px;
+  }
+
+  .quaternion-stage__visual {
+    min-height: 390px;
+  }
+
+  .quaternion-readout-grid,
+  .quaternion-button-row,
+  .quaternion-concept-grid,
+  .quaternion-application-grid,
+  .quaternion-matrix {
+    grid-template-columns: 1fr;
+  }
+
+  .quaternion-segmented,
+  .quaternion-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quaternion-button,
+  .quaternion-segmented button,
+  .quaternion-presets button {
+    transition: none;
+  }
+}

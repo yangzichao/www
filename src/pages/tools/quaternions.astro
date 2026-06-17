@@ -1,0 +1,346 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/tools/quaternion-lab.css';
+
+const focusModes = [
+  {
+    id: 'full',
+    icon: 'ph-circles-three-plus',
+    label: 'Full',
+  },
+  {
+    id: 'body',
+    icon: 'ph-cube',
+    label: 'SO(3)',
+  },
+  {
+    id: 'spinor',
+    icon: 'ph-spiral',
+    label: 'SU(2)',
+  },
+  {
+    id: 'bloch',
+    icon: 'ph-atom',
+    label: 'Bloch',
+  },
+];
+
+const axisPresets = [
+  { id: 'x', label: 'X' },
+  { id: 'y', label: 'Y' },
+  { id: 'z', label: 'Z' },
+  { id: 'diagonal', label: 'Diag' },
+];
+
+const conceptCards = [
+  {
+    title: '1. A unit quaternion is a rotation handle',
+    body:
+      'Write q = w + xi + yj + zk. When |q| = 1, the vector part points along a rotation axis and the scalar part stores the half angle.',
+    formula: 'q = cos(theta/2) + u sin(theta/2)',
+  },
+  {
+    title: '2. Rotate vectors by conjugation',
+    body:
+      'A 3D vector v becomes a pure quaternion p = 0 + vx i + vy j + vz k. The rotated vector is the vector part of q p q^-1.',
+    formula: "p' = q p q^-1",
+  },
+  {
+    title: '3. Composition is multiplication',
+    body:
+      'Doing rotation A and then rotation B is not ordinary addition of angles. It is quaternion multiplication, so order matters.',
+    formula: 'q_total = q_B q_A',
+  },
+  {
+    title: '4. q and -q describe the same 3D attitude',
+    body:
+      'The cube returns after 360 degrees, but the spinor sign flips. The SU(2) object needs 720 degrees to return to its starting sign.',
+    formula: 'SO(3) = SU(2) / {+I, -I}',
+  },
+];
+
+const applicationCards = [
+  {
+    title: 'Graphics and games',
+    body:
+      'Camera orientation, character rigs, and object animation use quaternions because they avoid gimbal lock and interpolate cleanly with SLERP.',
+  },
+  {
+    title: 'Robotics and navigation',
+    body:
+      'Drones, phones, and robot arms fuse IMU data into orientation quaternions, then convert them into control-frame rotations.',
+  },
+  {
+    title: 'Quantum mechanics',
+    body:
+      'Pauli matrices generate SU(2). A single-qubit gate or spin-1/2 rotation is exp(-i theta n.sigma / 2), the matrix twin of a unit quaternion.',
+  },
+  {
+    title: 'Physics visualization',
+    body:
+      'Bloch-sphere motion, angular momentum, and rigid-body attitudes can be shown with the same axis-angle and double-cover ideas.',
+  },
+];
+---
+
+<BaseLayout
+  title="Quaternion Rotation Lab - Zichao Yang"
+  description="An interactive 3D teaching page for quaternions, 3D rotations, Pauli matrices, SU(2), and the Bloch sphere."
+>
+  <section class="quaternion-lab" data-quaternion-lab>
+    <header class="quaternion-lab__header">
+      <a href="/" class="quaternion-lab__home-link">
+        <i class="ph ph-arrow-left" aria-hidden="true"></i>
+        <span>Home</span>
+      </a>
+
+      <div class="quaternion-lab__title-block">
+        <p class="quaternion-lab__eyebrow">Quaternion Rotation Lab</p>
+        <h1>One object, two covers, three ways to see rotation.</h1>
+        <p>
+          A visual lab for the unit quaternion
+          <code>q = w + xi + yj + zk</code>, its 3D rotation
+          <code>p' = qpq^-1</code>, and the Pauli-matrix form of the same
+          SU(2) transformation.
+        </p>
+      </div>
+    </header>
+
+    <section class="quaternion-stage" aria-label="Quaternion 3D simulator">
+      <div class="quaternion-stage__visual" data-quaternion-scene>
+        <div class="quaternion-stage__fallback">Loading 3D quaternion scene...</div>
+      </div>
+
+      <aside class="quaternion-stage__control-panel" aria-label="Quaternion controls">
+        <div class="quaternion-control-panel__header">
+          <p>Live Quaternion</p>
+          <strong data-quaternion-readout="quaternion">q = (1.000, 0.000, 0.000, 0.000)</strong>
+        </div>
+
+        <div class="quaternion-readout-grid" aria-label="Rotation readouts">
+          <span>
+            <small>Axis</small>
+            <strong data-quaternion-readout="axis">(0.00, 1.00, 0.00)</strong>
+          </span>
+          <span>
+            <small>Spinor phase</small>
+            <strong data-quaternion-readout="spinorPhase">0 deg</strong>
+          </span>
+        </div>
+
+        <div class="quaternion-button-row">
+          <button class="quaternion-button is-primary" type="button" data-quaternion-action="toggle">
+            <i class="ph ph-pause" aria-hidden="true"></i>
+            <span>Pause</span>
+          </button>
+          <button class="quaternion-button" type="button" data-quaternion-action="reset">
+            <i class="ph ph-arrow-counter-clockwise" aria-hidden="true"></i>
+            <span>Reset</span>
+          </button>
+        </div>
+
+        <div class="quaternion-segmented" role="group" aria-label="3D focus mode">
+          {
+            focusModes.map((mode, index) => (
+              <button
+                type="button"
+                class={index === 0 ? 'is-active' : ''}
+                data-quaternion-focus={mode.id}
+                aria-pressed={index === 0 ? 'true' : 'false'}
+              >
+                <i class={`ph ${mode.icon}`} aria-hidden="true"></i>
+                <span>{mode.label}</span>
+              </button>
+            ))
+          }
+        </div>
+
+        <label class="quaternion-range">
+          <span>
+            <strong>Rotation angle</strong>
+            <output data-quaternion-output="angle">72 deg</output>
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="720"
+            step="1"
+            value="72"
+            data-quaternion-control="angle"
+          />
+        </label>
+
+        <label class="quaternion-range">
+          <span>
+            <strong>Axis x</strong>
+            <output data-quaternion-output="axisX">0.35</output>
+          </span>
+          <input
+            type="range"
+            min="-1"
+            max="1"
+            step="0.01"
+            value="0.35"
+            data-quaternion-control="axisX"
+          />
+        </label>
+
+        <label class="quaternion-range">
+          <span>
+            <strong>Axis y</strong>
+            <output data-quaternion-output="axisY">0.72</output>
+          </span>
+          <input
+            type="range"
+            min="-1"
+            max="1"
+            step="0.01"
+            value="0.72"
+            data-quaternion-control="axisY"
+          />
+        </label>
+
+        <label class="quaternion-range">
+          <span>
+            <strong>Axis z</strong>
+            <output data-quaternion-output="axisZ">0.59</output>
+          </span>
+          <input
+            type="range"
+            min="-1"
+            max="1"
+            step="0.01"
+            value="0.59"
+            data-quaternion-control="axisZ"
+          />
+        </label>
+
+        <label class="quaternion-range">
+          <span>
+            <strong>Animation speed</strong>
+            <output data-quaternion-output="speed">26 deg/s</output>
+          </span>
+          <input
+            type="range"
+            min="0"
+            max="90"
+            step="1"
+            value="26"
+            data-quaternion-control="speed"
+          />
+        </label>
+
+        <div class="quaternion-presets" aria-label="Axis presets">
+          {
+            axisPresets.map((preset) => (
+              <button type="button" data-quaternion-axis-preset={preset.id}>{preset.label}</button>
+            ))
+          }
+        </div>
+
+        <label class="quaternion-toggle">
+          <input type="checkbox" data-quaternion-control="showGhosts" checked />
+          <span>
+            <strong>Show SLERP ghosts</strong>
+            <small>Intermediate orientations from identity to q.</small>
+          </span>
+        </label>
+      </aside>
+    </section>
+
+    <section class="quaternion-live-math" aria-label="Live quaternion math">
+      <article class="quaternion-equation-block">
+        <p>Axis-angle form</p>
+        <code data-quaternion-readout="axisAngleFormula">
+          q = cos(36 deg) + (0.35i + 0.72j + 0.59k) sin(36 deg)
+        </code>
+      </article>
+
+      <article class="quaternion-equation-block">
+        <p>Pauli-matrix form</p>
+        <div class="quaternion-matrix" aria-label="SU(2) matrix generated from quaternion">
+          <code data-pauli-entry="m00">1.000 + 0.000i</code>
+          <code data-pauli-entry="m01">0.000 + 0.000i</code>
+          <code data-pauli-entry="m10">0.000 + 0.000i</code>
+          <code data-pauli-entry="m11">1.000 + 0.000i</code>
+        </div>
+      </article>
+    </section>
+
+    <section class="quaternion-teaching" aria-label="Quaternion teaching notes">
+      <div class="quaternion-section-heading">
+        <p>Teaching Path</p>
+        <h2>From quaternion numbers to Pauli matrices.</h2>
+      </div>
+
+      <div class="quaternion-concept-grid">
+        {
+          conceptCards.map((card) => (
+            <article class="quaternion-concept-card">
+              <h3>{card.title}</h3>
+              <p>{card.body}</p>
+              <code>{card.formula}</code>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="quaternion-pauli-section" aria-label="Quaternion and Pauli matrix connection">
+      <div class="quaternion-pauli-copy">
+        <p class="quaternion-lab__eyebrow">The Pauli Bridge</p>
+        <h2>Unit quaternions and SU(2) use the same four real degrees of freedom.</h2>
+        <p>
+          Pack a unit quaternion into a complex matrix with
+          <code>U(q) = wI - i(x sigma_x + y sigma_y + z sigma_z)</code>.
+          Because <code>w^2 + x^2 + y^2 + z^2 = 1</code>, this matrix is unitary
+          and has determinant one. That is exactly SU(2).
+        </p>
+        <p>
+          This is why a 3D rotation can be described either as a quaternion
+          acting on vectors, or as a Pauli-matrix exponential acting on a spinor:
+          <code>U = exp(-i theta n.sigma / 2)</code>. The half angle is the
+          shared clue.
+        </p>
+      </div>
+
+      <div class="quaternion-pauli-table" aria-label="Pauli matrices">
+        <article>
+          <strong>sigma_x</strong>
+          <code>[[0, 1], [1, 0]]</code>
+        </article>
+        <article>
+          <strong>sigma_y</strong>
+          <code>[[0, -i], [i, 0]]</code>
+        </article>
+        <article>
+          <strong>sigma_z</strong>
+          <code>[[1, 0], [0, -1]]</code>
+        </article>
+      </div>
+    </section>
+
+    <section class="quaternion-applications" aria-label="Quaternion applications">
+      <div class="quaternion-section-heading">
+        <p>Applications</p>
+        <h2>Where the same math shows up.</h2>
+      </div>
+
+      <div class="quaternion-application-grid">
+        {
+          applicationCards.map((card) => (
+            <article class="quaternion-application-card">
+              <h3>{card.title}</h3>
+              <p>{card.body}</p>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+  </section>
+
+  <script>
+    import { initQuaternionLab } from '../../scripts/quaternion-lab/quaternion-lab-main';
+    initQuaternionLab();
+  </script>
+</BaseLayout>
