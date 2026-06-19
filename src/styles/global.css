@@ -46,6 +46,7 @@ body {
 }
 
 .container {
+  box-sizing: border-box;
   max-width: 1080px;
   margin: 0 auto;
   padding: 80px 40px;
