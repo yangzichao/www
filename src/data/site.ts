@@ -77,7 +77,8 @@ export const siteData: SiteData = {
       title: 'Geoduck Dig',
       description:
         'A browser mini-game about PNW low-tide geoduck digging: read siphon shows, choose hand tools, avoid horse clam decoys, manage cave-ins, and refill holes.',
-      url: '/tools/geoduck-dig/',
+      // Moved to the dedicated lab subdomain (yangzichao/lab).
+      url: 'https://lab.zichaoyang.com/geoduck-dig/',
     },
     {
       type: 'Project',
