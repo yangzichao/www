@@ -77,7 +77,8 @@ export const siteData: SiteData = {
       title: 'Quaternion Rotation Lab',
       description:
         'An interactive 3D teaching lab for quaternion rotations, SLERP, the SU(2) double cover, Pauli matrices, and Bloch-sphere motion.',
-      url: '/tools/quaternions/',
+      // Moved to the dedicated lab subdomain (yangzichao/lab).
+      url: 'https://lab.zichaoyang.com/quaternions/',
     },
     {
       type: 'Project',
@@ -85,7 +86,8 @@ export const siteData: SiteData = {
       title: 'Physics Simulation Lab',
       description:
         'Three browser-based simulations in one lab: double pendulum chaos, central-force orbital mechanics, and two-source wave interference with live controls and canvas rendering.',
-      url: '/tools/physics-simulations/',
+      // Moved to the dedicated lab subdomain (yangzichao/lab).
+      url: 'https://lab.zichaoyang.com/physics-simulations/',
     },
     {
       type: 'Project',
