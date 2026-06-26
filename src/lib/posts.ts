@@ -19,6 +19,7 @@ const UNCATEGORIZED = 'misc';
 /** Pretty labels for known folders; everything else is title-cased. */
 const CATEGORY_LABELS: Record<string, string> = {
   ai: 'AI',
+  growth: 'Growth',
   'system-design': 'System Design',
   physics: 'Physics',
   life: 'Life',
@@ -31,7 +32,7 @@ const CATEGORY_LABELS: Record<string, string> = {
  * reshuffling whenever a newer post lands in a different folder; the
  * catch-all bucket stays last, and unknown folders slot in just above it.
  */
-const CATEGORY_ORDER: string[] = ['system-design', 'ai', 'physics', 'life', 'meta', UNCATEGORIZED];
+const CATEGORY_ORDER: string[] = ['system-design', 'ai', 'growth', 'physics', 'life', 'meta', UNCATEGORIZED];
 
 function categoryRank(slug: string): number {
   const index = CATEGORY_ORDER.indexOf(slug);
