@@ -19,7 +19,6 @@ export default defineConfig({
     // The Feynman editor now lives in its own repo at this subdomain.
     '/tools/feynman/': 'https://feynman.zichaoyang.com/',
     // The interactive labs moved to their own repo at lab.zichaoyang.com.
-    '/tools/geoduck-dig/': 'https://lab.zichaoyang.com/geoduck-dig/',
     '/tools/quaternions/': 'https://lab.zichaoyang.com/quaternions/',
     '/tools/physics-simulations/': 'https://lab.zichaoyang.com/physics-simulations/',
     '/system-design-lab/': 'https://lab.zichaoyang.com/system-design-lab/',

@@ -74,15 +74,6 @@ export const siteData: SiteData = {
     {
       type: 'Project',
       year: '2026',
-      title: 'Geoduck Dig',
-      description:
-        'A browser mini-game about PNW low-tide geoduck digging: read siphon shows, choose hand tools, avoid horse clam decoys, manage cave-ins, and refill holes.',
-      // Moved to the dedicated lab subdomain (yangzichao/lab).
-      url: 'https://lab.zichaoyang.com/geoduck-dig/',
-    },
-    {
-      type: 'Project',
-      year: '2026',
       title: 'Quaternion Rotation Lab',
       description:
         'An interactive 3D teaching lab for quaternion rotations, SLERP, the SU(2) double cover, Pauli matrices, and Bloch-sphere motion.',
