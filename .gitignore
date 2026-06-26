@@ -34,3 +34,6 @@ logs
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+# Local VSCode multi-root workspace config
+www.code-workspace
