@@ -1,10 +1,10 @@
-export type SocialLink = {
+type SocialLink = {
   icon: string;
   url: string;
   label: string;
 };
 
-export type Resume = {
+type Resume = {
   url: string;
   text: string;
   visible: boolean;
@@ -19,7 +19,7 @@ export type Profile = {
   resume: Resume;
 };
 
-export type WorkItemType = 'Project' | 'Paper';
+type WorkItemType = 'Project' | 'Paper';
 
 export type WorkItem = {
   type: WorkItemType;
@@ -30,27 +30,9 @@ export type WorkItem = {
   url: string;
 };
 
-export type Status = {
-  title: string;
-  text: string;
-  indicatorText: string;
-};
-
-export type ThoughtLink = {
-  title: string;
-  url: string;
-};
-
-export type FooterConfig = {
-  text: string;
-};
-
-export type SiteData = {
+type SiteData = {
   profile: Profile;
   items: WorkItem[];
-  status: Status;
-  thoughts: ThoughtLink[];
-  footer: FooterConfig;
 };
 
 export const siteData: SiteData = {
@@ -116,17 +98,4 @@ export const siteData: SiteData = {
       url: '/blog/physics/11be-proton-emission/',
     },
   ],
-  status: {
-    title: 'Current Focus',
-    text: 'Explaining complex systems through simple UI.',
-    indicatorText: 'Open to collaboration',
-  },
-  // TODO: 占位,thoughts/blog 模块待启用(目前 UI 未渲染)
-  thoughts: [
-    { title: 'The future of statically generated sites', url: '#' },
-    { title: 'Why I switched to Rust', url: '#' },
-  ],
-  footer: {
-    text: 'Built with curiosity.',
-  },
 };

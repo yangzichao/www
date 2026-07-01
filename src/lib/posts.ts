@@ -44,7 +44,7 @@ export function categoryOfId(id: string): string {
   return id.includes('/') ? id.split('/')[0] : UNCATEGORIZED;
 }
 
-export function categoryOf(post: Post): string {
+function categoryOf(post: Post): string {
   return categoryOfId(post.id);
 }
 

@@ -7,15 +7,6 @@ export async function getThoughts(): Promise<Thought[]> {
   return all.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 }
 
-export function formatThoughtDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
 export function formatThoughtMonth(date: Date): string {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
