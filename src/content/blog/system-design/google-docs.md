@@ -8,6 +8,8 @@ tags: [system-design, interview, learning, collaborative-editing]
 
 这道题不要一上来就想数据库、缓存、Kafka。Google Docs 最难的地方不是“把一篇文档存起来”，而是实时协同编辑（**real-time collaborative editing**）：几个人同时改同一篇文档时，大家最后看到的内容不能乱。
 
+> 配套实验：[打开 Google Docs Lab](https://lab.zichaoyang.com/system-design/google-docs/)。先改变并发编辑者、离线窗口和被动浏览者，再回来理解 ordering path 为什么必须保持单一。
+
 先看一个很小的例子。现在文档里只有一个词：
 
 ```text

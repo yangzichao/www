@@ -8,6 +8,8 @@ tags: [system-design, interview, learning]
 
 > 这篇笔记是边讨论边写的，会持续更新。
 
+> 配套实验：[打开 Online Judge Lab](https://lab.zichaoyang.com/system-design/online-judge/)。调整 submission 速率、worker 时间和语言数，观察 queue depth 与 sandbox worker 如何成为主约束。
+
 ## 问题定义
 
 设计 LeetCode 的判题后端：用户提交代码，系统编译、运行、对比测试用例，返回判题结果。
