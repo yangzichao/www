@@ -1,114 +1,429 @@
 ---
 title: "系统设计：Design an ML Training Pipeline"
 date: 2026-07-11
-description: 从一次不可复现的训练出发，理解 dataset/model versioning、DAG orchestration、资源调度、实验追踪与发布门禁。
+description: 从“同一个 notebook 再也跑不出同一个模型”出发，搭出版本化训练 DAG，并讲清 dataset lineage、幂等 stage、experiment tracking、registry 和持续训练。
 draft: false
-tags: [system-design, interview, learning, ml-training, ml-system]
+tags: [system-design, interview, learning, ml-training, mlops]
 ---
 
-ML Training Pipeline 最先要解决的不是“多加 GPU”，而是**同一个模型能否被解释、复现和安全发布**。
+一个 notebook 可以很快训练出第一个模型。三个月后，团队往往会遇到更难的问题：这个模型到底用了哪批数据？为什么同事跑同一份 notebook 得到不同指标？线上版本出问题时，能不能重新生成上一版 artifact？
 
-一次实验得到 92% accuracy，但没人记录使用了哪份数据、哪版特征代码和哪些超参数。下周指标降了，团队既无法复现，也无法判断差异来自数据还是代码。这个失败说明训练产物必须带 lineage。
+ML training pipeline 的价值不是把 notebook 换成一张漂亮 DAG，而是把一次实验变成一个**有确定输入、确定产物、可重试、可比较、可审计的运行对象**。
 
-> 对应实验：[打开 ML Training Pipeline Lab](https://lab.zichaoyang.com/system-design/ml-training-pipeline/)。增加 job 数、dataset 大小与 GPU 数，观察 scheduler 和 artifact lineage 的作用。
+> 配套实验：[打开 ML Training Pipeline Lab](https://lab.zichaoyang.com/system-design/ml-training-pipeline/)。先从一个 notebook 开始，再增加 dataset version 和并发 job；观察瓶颈为什么从训练代码转向编排与治理。
 
-## 需求边界（Requirements）
+## 一个“代码没变”的模型为什么变了
 
-功能上提交 run、执行可重试步骤、追踪 artifact/metric、评估并注册模型。非功能上要求可复现 lineage、资源公平、失败恢复和发布门禁；time-to-result 比 HTTP latency 更重要。
+研究员周一运行：
 
-## 0. 先搭一个可复现训练脚本 MVP Scaffold
-
-第一版是一条命令：读取固定 dataset snapshot，训练，评估，写 checkpoint 和 `run.json`。`run.json` 至少记录 git commit、参数、随机种子、输入 snapshot、环境 image digest、指标和 artifact checksum。先在一台机器上重复两次得到可解释结果，再做分布式调度。
-
-然后把脚本拆成 `validate -> preprocess -> train -> evaluate -> register` 五个可单独重试的 step。最初用 Makefile 或简单 runner 即可，不必先引入大型 orchestrator。
-
-## 1. API：训练是异步 Run
-
-```http
-POST /v1/training-runs
-{"project":"fraud","codeRef":"git:abc123","dataset":"fraud@2026-07-12",
- "config":{"learningRate":0.001},"resources":{"gpu":4}}
-
-202 Accepted
-{"runId":"run-88","state":"queued"}
+```python
+data = read_table("warehouse.transactions")
+model.fit(data)
 ```
 
-还需要 cancel、status、logs、artifacts 与 retry API。相同 client run key 不重复创建昂贵 job。
+周五重新运行同一格代码，仓库里已经多了四天数据，部分旧记录也被修正。即使 git commit、随机种子和超参数都相同，输入集合已经不是原来那一份。
 
-## 2. 数据模型（Data Model）
+若模型表现变化，我们无法判断是代码、数据、依赖还是随机性造成的。更严重的是，周一模型可能已经上线，却没有任何 manifest 能证明它训练时看过什么。
+
+因此第一条原则是：**训练 job 不能读取“某张不断变化的表”，必须读取一个不可变 dataset snapshot 或 manifest。**
+
+## 先把四个对象讲清楚
+
+**Run**
+
+一次完整训练尝试，绑定 code、data、config、environment 和初始 model。Run ID 是所有 metrics 与 artifact 的根。
+
+**Stage**
+
+可独立重试和缓存的一步，例如 validation、feature transform、training、evaluation。Stage 应有明确输入输出，而不是靠共享目录传递隐式状态。
+
+**Artifact**
+
+由 stage 产生的不可变对象，例如 dataset manifest、feature matrix、model weights、metrics report。
+
+**Lineage**
+
+从 artifact 反向追踪它由哪个 run、哪些输入和哪版代码产生，也能正向查询一批问题数据影响了哪些模型。
+
+Model registry 只是管理模型 artifact 生命周期；experiment tracker 记录 run 参数和指标；orchestrator 决定 stage 何时运行。把三者叫成一个“大 MLOps 数据库”会让职责模糊。
+
+## 题目边界
+
+本文平台支持：
+
+1. 用户提交版本化 pipeline spec；
+2. Orchestrator 按 DAG 执行 validation、transform、train、evaluate；
+3. 每个 run 记录参数、指标、日志和 artifact lineage；
+4. 通过门禁的模型进入 registry；
+5. 可以由 schedule、新数据或代码变更触发 retraining；
+6. 失败 stage 能从安全边界重试。
+
+第一版不设计 feature store、在线 serving 和底层 GPU collective。它们是相邻系统，通过 artifact 和 deployment contract 对接。
+
+非功能要求：
+
+- Run 可复现，所有输入 immutable；
+- Stage 幂等，重试不生成含义不明的重复 artifact；
+- 训练集与模型受权限和保留策略保护；
+- CPU、GPU 和内存资源可调度并有租户 quota；
+- 失败能定位到 stage 和具体 input shard；
+- 只有通过 evaluation 与审批的模型才能进入生产 stage。
+
+## 第一版：先把 notebook 变成一个可重放命令
+
+不要急着部署 Airflow 或 Kubeflow。先把 notebook 中依赖顺序整理成一个 CLI：
+
+```bash
+train-model \
+  --dataset-manifest s3://ml-data/fraud/v17/manifest.json \
+  --config configs/fraud-xgb-v3.yaml \
+  --code-revision 4f20a19 \
+  --output-uri s3://ml-artifacts/runs/run-41/
+```
+
+Run manifest：
+
+```yaml
+run_id: run-41
+pipeline_version: fraud-training@8
+code_revision: 4f20a19
+container_image: fraud-trainer@sha256:...
+dataset_manifest: fraud-data@v17
+base_model: null
+seed: 42
+parameters:
+  max_depth: 8
+  learning_rate: 0.05
+```
+
+命令完成后写一个不可变结果：
 
 ```text
-Run(run_id PK, project, code_ref, config, dataset_version, image_digest, state, created_at)
-Step(run_id, step_name, attempt, state, input_artifacts, output_artifacts, resource_request)
-Artifact(artifact_id PK, content_hash, object_url, type, metadata)
-Metric(run_id, step, name, value, slice, recorded_at)
-ModelRegistration(model_name, version, run_id, artifact_id, stage)
+RunResult(
+  run_id,
+  state,
+  model_artifact_uri,
+  model_artifact_hash,
+  metrics_uri,
+  started_at,
+  completed_at
+)
 ```
 
-Artifact content-addressed、不可变；Run/Step 是控制状态。不要把大 checkpoint 塞数据库。
+如果这一步都无法从干净环境重跑，加入 scheduler 只会自动化不可复现过程。
 
-## 3. 单机端到端流程
+## 第二版：拆成四个有契约的 Stage
 
-Runner 创建 Run，锁定 input versions，依次执行 step。每步先写 running lease，输出到临时 object key，校验后登记 artifact 并置 success。Crash 后 lease 过期，只重试失败 step；相同 inputs+code+config 可命中 cache，但 cache key 必须完整。
+```text
+validate data
+-> transform features
+-> train model
+-> evaluate candidate
+```
 
-## 4. 容量估算：GPU 与数据入口都要算
+每个 stage 的输入输出写进 spec：
 
-每天 1000 个 job、平均 8 GPU 跑 4 小时，需要 32k GPU-hours/day，持续平均约 1333 GPU；考虑峰值和故障可能配 2000。若每 run 扫 10TB，直接重复读取是 10PB/day，object storage 和网络会先成为瓶颈，需要 shared preprocessing artifact、shard 与本地 cache。
+```yaml
+stages:
+  - id: validate
+    image: data-validator@sha256:...
+    inputs: [dataset_manifest]
+    outputs: [validation_report]
 
-## 5. Latency Budget：训练关注 queue time 与 time-to-result
+  - id: transform
+    image: feature-builder@sha256:...
+    inputs: [dataset_manifest, validation_report]
+    outputs: [train_matrix, transform_contract]
 
-在线 p99 不适用。核心 SLO 是排队时间、step runtime、GPU utilization 和失败恢复时间。高优线上 hotfix 可以抢占低优 sweep；但 gang job 必须一起分配 GPU，半组资源无法开跑。
+  - id: train
+    image: fraud-trainer@sha256:...
+    inputs: [train_matrix, training_config]
+    outputs: [model, train_metrics]
 
-## 6. Correctness and Reliability
+  - id: evaluate
+    image: evaluator@sha256:...
+    inputs: [model, evaluation_dataset]
+    outputs: [evaluation_report]
+```
 
-每 step 幂等，artifact 发布原子。Checkpoint 保存 model/optimizer/RNG/dataloader position。Preemptible worker 被回收后从最近 checkpoint 恢复。Dataset validation 和 evaluation gate 失败不得注册 production model。Lineage 能从部署版本追到 run、代码、数据与配置。
+Stage output key 可由下面这些输入的 hash 决定：
 
-## 7. Trade-offs：吞吐、公平和复现
+```text
+stage code + container + input artifact hashes + parameters
+```
 
-- 大量并行 sweep 加快探索，却可能饿死生产 retraining，需要 quota/priority。
-- Aggressive cache 省计算，但不完整 key 会复用错误结果。
-- Spot GPU 便宜但增加中断与 checkpoint 开销。
-- 自动注册快，人工审批稳；高风险模型通常保留 gate。
+相同输入重试时，若之前产物完整且通过 checksum，可以复用；任一输入改变，就产生新 artifact。这样 cache 是可解释的，不是“目录里好像有个文件就跳过”。
 
-## 核心对象
+## API：提交的是 Pipeline Spec，不是任意 shell
 
-- **Dataset snapshot**：不可变的数据版本，而不是会变化的表名。
-- **Run**：代码 commit、配置、输入版本、资源和指标的一次完整记录。
-- **Artifact**：checkpoint、模型、评估报告等内容寻址产物。
-- **DAG**：ingest、validate、train、evaluate、register 的依赖关系。
+```http
+POST /v1/pipeline-runs
 
-## 主链路
+{
+  "pipelineVersion":"fraud-training@8",
+  "parameters":{
+    "dataset":"fraud-data@v17",
+    "trainingConfig":"xgb@v3"
+  },
+  "trigger":{
+    "type":"manual",
+    "requestedBy":"alice"
+  }
+}
+```
+
+```http
+202 Accepted
+
+{"runId":"run-41","state":"queued"}
+```
+
+查询与控制：
+
+```http
+GET  /v1/pipeline-runs/run-41
+GET  /v1/pipeline-runs/run-41/stages
+POST /v1/pipeline-runs/run-41/cancel
+POST /v1/pipeline-runs/run-41/stages/train/retry
+```
+
+只允许重试失败 stage 的前提，是它的上游 artifact 仍然 immutable 且可访问。若用户修改参数，应创建新 run，而不是把旧 run 的历史改掉。
+
+## 数据模型
+
+```text
+PipelineDefinition(
+  pipeline_name, version, spec_uri, spec_hash,
+  owner, state, created_at
+)
+
+PipelineRun(
+  run_id, pipeline_name, pipeline_version,
+  state, trigger_type, trigger_ref,
+  submitted_by, created_at, completed_at
+)
+
+StageRun(
+  run_id, stage_id, attempt,
+  input_hash, state, allocation_id,
+  started_at, completed_at, failure_reason
+)
+
+Artifact(
+  artifact_id, type, uri, content_hash,
+  schema_hash, producer_run, producer_stage,
+  created_at, retention_class
+)
+
+ArtifactEdge(
+  input_artifact_id, output_artifact_id,
+  run_id, stage_id
+)
+
+ModelVersion(
+  model_name, version, artifact_id,
+  evaluation_report_id, stage,
+  approved_by, created_at
+)
+```
+
+`ArtifactEdge` 形成 lineage graph。查询“这个 production model 依赖哪些 dataset”沿边向上走；查询“坏掉的 source snapshot 影响哪些模型”沿边向下走。
+
+## 高层架构：编排状态和大数据传输分离
 
 ```mermaid
 flowchart LR
-  D[(Versioned data)] --> V[Validate]
-  V --> T[Train jobs]
-  T --> E[Evaluate]
-  E --> G{Quality gate}
-  G --> R[(Model registry)]
-  O[Orchestrator] --> V
-  O --> T
+  U[ML author / CI] --> API[Pipeline API]
+  API --> O[Orchestrator]
+  O --> Q[(Task queue)]
+  Q --> W[CPU / GPU workers]
+  W --> A[(Artifact store)]
+  W --> M[Metrics + logs]
+  O --> S[(Run state store)]
+  A --> L[Lineage catalog]
+  W --> R[(Model registry)]
+  D[(Versioned data)] --> W
+  R --> CD[Deployment pipeline]
 ```
 
-Orchestrator 管依赖和重试；scheduler 管 CPU/GPU 配额、优先级和 placement。两者不要混为一谈。训练 job 通过 manifest 读取 versioned data，产出 artifact 和 metrics；quality gate 通过后才注册模型。
+Orchestrator 只传 artifact metadata 和 URI，不把 TB 级 feature matrix 经过自己的内存。Worker 从 object storage 或 warehouse 直接读取。
 
-## 架构演化
+Run state store 保存状态机；task queue 提供至少一次投递；worker 通过 lease 执行 stage。Stage 自身必须幂等，因为 queue 可能重复交付。
 
-1. 少量实验时脚本足够，但必须记录输入和结果。
-2. 多步骤、多团队后 DAG 让依赖、缓存和失败恢复显式化。
-3. GPU 成为共享稀缺资源后，需要 queue、quota、priority 和 gang scheduling。
-4. 大 dataset 推动 shard、parallel loader 与本地 cache，避免 GPU 等数据。
-5. 自动 retraining 出现后，data validation、offline evaluation 和 approval gate 防止坏模型自动上线。
+## Data validation 应该挡住什么
 
-## 常见难点
+训练开始前至少检查：
 
-- 重试必须幂等；相同 run ID 不应重复注册多个模型。
-- 缓存中间结果时，cache key 必须包含代码、数据和参数版本。
-- 指标可比不代表数据分布相同，要保存 slice metrics 与 dataset statistics。
-- Spot GPU 降成本但会被回收，需要 checkpoint 与可恢复训练。
+- Schema：字段缺失、类型变化、枚举新增；
+- Volume：row count 是否异常下降或暴涨；
+- Quality：null、duplicate、范围、时间覆盖；
+- Leakage：label 或未来字段是否进入 feature；
+- Split：train、validation、test 是否按 entity/time 正确隔离；
+- Policy：PII、license 和数据保留是否允许该用途。
 
-## 面试表达
+Validation report 是 artifact，并且是 train stage 的必需输入。不要只发 Slack 告警后继续训练；违反 hard gate 的 run 必须停止。
 
-> I would make every run reproducible through immutable data, code, configuration, and artifact lineage, then use a DAG orchestrator and resource scheduler to scale execution safely.
+软变化可以记录 warning，例如某特征分布轻微漂移；硬变化如 label 列缺失则 fail。Gate policy 同样需要版本化。
 
-先讲 reproducibility，再讲规模。否则答案很容易退化成“Kubernetes 加 Airflow”的工具清单。
+## Experiment tracking：记录什么才有用
+
+最少记录：
+
+- 参数和随机种子；
+- code revision、container digest 和依赖；
+- input artifact IDs；
+- 每个 epoch/step 的 metrics；
+- 系统指标，如 GPU memory、throughput 和 stage duration；
+- 输出 model、plots、evaluation report。
+
+Tracker 不是训练事实来源。Immutable run manifest 和 artifact hash 才能证明输入；tracker 更适合查询、比较和可视化。
+
+高频 step metrics 不应每条同步写主数据库。Worker 批量上报到 metrics pipeline，Run 表只存摘要和链接。
+
+## Model Registry：不是文件列表，而是发布状态机
+
+```text
+CANDIDATE -> VALIDATED -> STAGING -> PRODUCTION -> RETIRED
+```
+
+一次 promotion 命令应验证：
+
+1. Model artifact checksum 正确；
+2. Evaluation report 来自允许的 dataset version；
+3. 指标超过 gate，且关键切片无 regression；
+4. Feature contract 与 serving 环境兼容；
+5. 必要审批完成；
+6. 当前 production version 可回滚。
+
+Registry 不直接覆盖 `model/latest.bin`。Deployment pin immutable model version；`PRODUCTION` 是可变指针和审计事件。
+
+## 容量估算：分别算 Job、Data、Compute 和 Metadata
+
+假设每天 10,000 个 pipeline run，平均 6 个 stage：
+
+```text
+10,000 × 6 = 60,000 stage runs/day
+```
+
+Orchestrator 平均不到 1 task/s，但高峰和 retry 可能高很多。它通常不是主要瓶颈；真正资源在 data scan 和训练。
+
+若每个 run 扫 200GB：
+
+```text
+10,000 × 200GB = 2PB logical reads/day
+```
+
+Stage cache、共享 feature artifact 和数据本地性可能比扩 Orchestrator 更省钱。
+
+如果 10% run 使用 8 GPU、平均 2 小时：
+
+```text
+1,000 × 8 × 2 = 16,000 GPU-hours/day
+```
+
+平均需要约 667 张 GPU 持续运行，再加高峰、维护和 headroom。Scheduler 要按队列等待和利用率扩容，不是按 API QPS。
+
+Artifact storage 也会迅速增长。若每个 run 平均产生 10GB，日增 100TB。必须按 artifact 类型定义 retention：失败 run 的临时矩阵、长期保留的 production lineage、可重算 cache 不应同一策略。
+
+## 调度：CPU 与 GPU 只是开始
+
+Stage spec 还要声明 memory、local disk、dataset locality、GPU type、数量、是否 gang schedule、preemptibility 和 deadline。
+
+Validation 通常 CPU/IO-heavy；transform 可能用大内存 Spark；training 用 GPU；evaluation 可能再次需要 GPU。把整个 DAG 绑在一台“大机器”上会让多数阶段浪费资源。
+
+多租户使用 quota + priority。Production hotfix 可以抢占探索实验，但 worker 必须先 checkpoint。若 stage 不支持安全 checkpoint，就不应标成 preemptible。
+
+## 故障恢复与 Exactly-once Artifact
+
+Queue 只能现实地提供 at-least-once task delivery。我们追求的是每个逻辑 stage 只发布一份有效 artifact：
+
+1. Worker 获取 `(run_id, stage_id, attempt)` lease；
+2. 输出写到 attempt 临时路径；
+3. 完成后计算 checksum、schema 和 row count；
+4. 用 compare-and-swap 提交 artifact manifest；
+5. 只有 winning attempt 的 artifact 进入 lineage；
+6. 其他 attempt 的临时数据异步清理。
+
+外部副作用如“注册模型”也要使用 run/stage idempotency key。Worker timeout 后重试，不能注册两个语义相同却 version 不明的模型。
+
+## 持续训练：触发快不等于应该自动上线
+
+触发来源可以是：
+
+- 固定 schedule；
+- 新数据达到阈值；
+- 线上 drift 或性能下降；
+- Feature/code 变更；
+- 人工请求。
+
+这些触发只创建新 run。是否 promotion 仍取决于 evaluation gate。数据每天更新，不代表模型每天都应上线。
+
+为了防止重复触发，可用 `(pipeline_version, dataset_version, config_version)` 作为逻辑 key。相同输入已经有成功 run 时，复用结果或要求显式 `force`。
+
+## 观测与运营
+
+- Run 成功、失败、取消和 queue wait；
+- Stage duration、retry、cache hit 和资源使用；
+- GPU/CPU utilization、data read throughput 和 idle allocation；
+- Artifact 写入失败、校验错误、storage growth；
+- Data validation gate 与 drift；
+- 模型 evaluation、promotion、rollback 和 production age；
+- Lineage completeness：有没有 artifact 缺 owner 或 source。
+
+指标按 pipeline、owner、stage 和 failure reason 切片。一个总体 95% 成功率，可能掩盖某条关键生产 pipeline 连续失败。
+
+## 关键取舍
+
+**更细的 Stage** 允许缓存和局部重试，却增加调度、artifact 和 lineage 开销。
+
+**更强的 reproducibility** 要保存更多 data/version/environment 信息，也增加存储和流程约束；生产模型通常值得。
+
+**自动 retraining** 缩短模型老化时间，也可能在坏数据到达时自动放大事故。Validation 和 release gate 必须先于自动化。
+
+**Artifact cache** 节省计算，但 cache key 少一个输入版本就会复用错误结果。宁可保守 miss，也不要错误 hit。
+
+**抢占低优先级训练** 提高集群利用率，代价是 checkpoint 开销和完成时间波动。
+
+## 用 Lab 跟着架构演化
+
+**实验一：从 notebook 到 scheduled DAG**
+
+先增加每日 job 数，不增加模型。观察问题如何先从代码变成可重复执行、排队和失败恢复。
+
+**实验二：增加 dataset 大小**
+
+观察 data scan 和 artifact storage，而不是只看 GPU。尝试复用 transform artifact，比较成本。
+
+**实验三：增加 experiment 与自动 retraining**
+
+问自己 registry、evaluation gate 和 retention 在什么时候成为必要组件。自动触发不是自动发布。
+
+## 面试表达：先把一次 Run 说完整
+
+可以这样开场：
+
+> I would first turn a notebook into a reproducible run with immutable code, data, configuration, environment, and output artifacts. Only after that contract is solid would I split it into an orchestrated DAG for caching, retries, resource scheduling, and continuous retraining.
+
+推荐演化顺序：
+
+```text
+replayable CLI run
+-> typed stages and artifacts
+-> scheduler + retries
+-> experiment tracking and lineage
+-> model registry and gates
+-> automated retraining triggers
+```
+
+讲完后再问：
+
+> I can go deeper into artifact idempotency, GPU scheduling, data validation, or registry and promotion semantics.
+
+这比一上来列 Airflow、Spark、MLflow 更专业，因为工具出现之前，每个组件已经有一个真实要解决的问题。
+
+## 参考资料
+
+- [TFX: A TensorFlow-Based Production-Scale Machine Learning Platform](https://research.google/pubs/tfx-a-tensorflow-based-production-scale-machine-learning-platform/)
+- [Hidden Technical Debt in Machine Learning Systems](https://papers.nips.cc/paper/5656-hidden-technical-debt-in-machine-learning-systems)
+- [The ML Test Score: A Rubric for ML Production Readiness](https://research.google/pubs/the-ml-test-score-a-rubric-for-ml-production-readiness-and-technical-debt-reduction/)
+- [MLflow Model Registry](https://mlflow.org/docs/latest/ml/model-registry/)

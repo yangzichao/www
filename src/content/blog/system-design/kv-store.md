@@ -1,117 +1,407 @@
 ---
 title: "系统设计：Design a Distributed Key-Value Store"
 date: 2026-07-11
-description: 从一台机器的一次 put/get 出发，理解 consistent hashing、replication、quorum、read repair 与 CAP 取舍。
+description: 从一台机器上的 WAL 与 hash index 开始，推导一致性哈希、N/R/W quorum、版本冲突、hinted handoff、read repair 与 anti-entropy。
 draft: false
-tags: [system-design, interview, learning, distributed-systems]
+tags: [system-design, interview, learning, key-value-store, distributed-systems]
 ---
 
-分布式 KV Store 的核心不是“用了 consistent hashing”，而是：数据有多个副本时，一次读写需要多少副本同意，以及网络分区时系统愿意牺牲什么。
+Key-value store 的接口可能只有 `put(key, value)` 和 `get(key)`，但真正的设计藏在这些动词没有说出来的地方：写成功是什么意思？读到旧值是否允许？两台机器同时接受不同值时，谁赢？节点恢复后怎样补齐缺失数据？
 
-先从单节点开始：`put(k, v)` 写入，`get(k)` 读取。它简单、一致，但机器故障就不可用，容量也有上限。分布式组件都是对这两个约束的回应。
+这道题不该从一致性哈希开始。先在一台机器上把“写入不会因崩溃丢失”做对，再让容量与可用性推动我们走向分片和复制。
 
-> 对应实验：[打开 Key-Value Store Lab](https://lab.zichaoyang.com/system-design/kv-store/)。调节 replication factor `N`、read quorum `R`、write quorum `W`，直接观察 latency、availability 与 consistency 的交换。
+> 配套实验：[打开 Key-Value Store Lab](https://lab.zichaoyang.com/system-design/kv-store/)。先设置 `N=3, R=1, W=1`，再分别提高 R 和 W；用读写 latency 与可用性验证 quorum 公式，而不是死记。
 
-## 需求边界（Requirements）
+## 一个简单接口里隐藏的语义
 
-功能上提供 byte-oriented put/get/delete、TTL 和 conditional write；不提供 join/range analytics。非功能上要求单节点可恢复、分布式后可调 consistency/durability，并明确网络分区时优先 availability 还是最新值。
-
-## 0. 先搭一个单节点 KV MVP Scaffold
-
-先实现 `put/get/delete`，只接收 byte key 和 byte value。内存 memtable 接写入，同时 append 到 WAL；memtable 达到阈值后 flush 成 immutable sorted segment；读取按 memtable、最新 segment 到旧 segment 查找；后台 compact segment。第一版不做 replication 和分片，但必须能 crash recovery。
-
-搭建顺序：定义 API 语义；写 append-only WAL；实现内存 map；启动时 replay WAL；加入 immutable segment 与 sparse index；最后做 compaction 和 tombstone。没有可靠单节点，就没有可靠分布式版本。
-
-## 1. API：先定义 consistency contract
-
-```http
-PUT /v1/kv/dXNlcjo0Mg==
-If-Match: 17
-{"value":"...","ttlSeconds":3600}
-
-200 OK
-ETag: 18
-
-GET /v1/kv/dXNlcjo0Mg==?consistency=quorum
-```
-
-除了 value，还返回 version/context，客户端才能做 conditional write 或冲突合并。限制 key/value 大小，避免单个巨大 value 拖垮 replication。
-
-## 2. 数据模型（Data Model）
-
-存储记录可表示为：
+客户端执行：
 
 ```text
-Record {
-  key,
-  value_or_tombstone,
-  logical_version,
-  expires_at,
-  checksum
+PUT cart:u-9 = {item: "book", quantity: 1}
+```
+
+服务返回 `200 OK` 后，机器立即断电。重启后这个值还在吗？如果不在，`OK` 的含义就有问题。
+
+再假设手机和电脑离线修改同一个购物车：
+
+```text
+phone:   quantity = 2
+laptop:  add item "pen"
+```
+
+二者稍后分别写入不同副本。简单的“最后时间戳获胜”可能把其中一次修改完全覆盖。KV store 可以选择不理解业务，只把冲突版本都返回给客户端；也可以定义 LWW。关键是 API 必须公开语义，而不是让冲突随机消失。
+
+## 题目边界
+
+本文设计一个 Dynamo 风格、支持高可用读写的通用 KV store：
+
+1. `put/get/delete`，value 大小有限制；
+2. 可选 conditional write，例如 compare-and-set；
+3. Key 按 hash 分片，数据复制到多个节点；
+4. 通过 `N/R/W` 调节一致性与可用性；
+5. 节点故障时继续服务，并在恢复后修复副本；
+6. 暴露版本冲突，不承诺跨 key 事务。
+
+第一版不做 SQL 查询、二级索引、范围扫描和任意事务。它是 key-addressed storage。
+
+非功能目标：
+
+- 单 key 读写 p99 在几到几十毫秒；
+- 节点/磁盘故障后，已确认 durable write 不丢；
+- 水平扩容时只迁移部分 key；
+- 热 key 不让整个 shard 失效；
+- 一致性级别是显式 contract；
+- Repair、compaction 和 rebalancing 不压垮前台流量。
+
+## 第一版：单机 Append Log + 内存 Hash Index
+
+最小实现不需要 B-tree。写入先追加到日志，再更新内存索引：
+
+```text
+record = [key_length][value_length][version][checksum][key][value]
+```
+
+```python
+def put(key, value):
+    offset = append_to_log(key, value, next_version(key))
+    fsync_if_required()
+    index[key] = offset
+
+def get(key):
+    offset = index.get(key)
+    return read_record_at(offset)
+```
+
+重启时顺序扫描 log，验证 checksum，重建 hash index。尾部半写 record 被丢弃。
+
+这一版已经逼出两个 durability 选择：
+
+- 每次 `fsync` 后 ack：更可靠，写 latency 高；
+- 每隔几毫秒 group commit：吞吐高，但进程/机器故障时可能丢最后一个窗口。
+
+如果 API 声称 durable，ack 必须发生在 WAL 达到承诺的持久层之后。只写进进程 buffer 不能叫 durable。
+
+## API：Value、Version 和条件写
+
+```http
+PUT /v1/kv/cart%3Au-9
+If-Match: "v17"
+
+{"item":"book","quantity":2}
+```
+
+```http
+200 OK
+ETag: "v18"
+```
+
+读取：
+
+```http
+GET /v1/kv/cart%3Au-9?consistency=quorum
+```
+
+```json
+{
+  "key":"cart:u-9",
+  "value":{"item":"book","quantity":2},
+  "version":"v18"
 }
 ```
 
-分布式阶段额外维护 `TokenRange -> ReplicaSet`、node membership 和 hinted write。Value 本身 schema-free，不代表存储系统没有 metadata。
+如果存在并发 siblings，API 可以返回：
 
-## 3. 单机端到端流程
+```json
+{
+  "key":"cart:u-9",
+  "conflict":true,
+  "siblings":[
+    {"version":"clock-a","value":{"quantity":2}},
+    {"version":"clock-b","value":{"items":["book","pen"]}}
+  ]
+}
+```
 
-Put 先 append WAL 并 fsync 到约定 durability，再更新 memtable 和返回 version。Get 合并 memtable 与 segment 中同 key 的最新记录。Delete 写 tombstone，不能立刻从所有 segment 擦除。Compaction 丢弃被覆盖且超过安全时间的旧版本。
+Compare-and-set 适合单 key coordination，但在高冲突 key 上会频繁失败。跨多个 key 的业务原子性不应假装存在。
 
-## 4. 容量估算：数据量和吞吐决定分片
+## 单机数据如何持续增长
 
-假设 1000 亿 key、平均 value 1KB，裸数据约 100TB；replication factor 3 后至少 300TB，算上 compaction 空间和索引应预留更高。峰值 100 万 ops/s、平均网络 payload 1KB，单方向约 1GB/s，复制后写带宽继续放大。
+Append-only log 会保留旧版本。后台 compaction 读取多个 segment，只输出每个 key 的最新可见版本和未过期 tombstone，再原子替换旧文件。
 
-这说明节点数同时受磁盘容量、IOPS、网络和恢复时间约束，不能只做 `总数据/单盘大小`。
+```text
+Segment(
+  segment_id,
+  min_key_hash,
+  max_key_hash,
+  size,
+  state,
+  checksum
+)
+```
 
-## 5. Latency Budget：quorum 等待谁
+删除写入 tombstone，而不是立即移除。若直接删掉本地值，尚未收到删除的旧副本以后可能在 repair 时把数据“复活”。Tombstone 要保留超过最大故障/修复窗口，之后才能安全回收。
 
-同 region 可设 p99 read 10ms、write 20ms。Coordinator 并行请求 N 个 replica，只等待最快 R/W 个；慢副本不应串行拖住请求。跨 region quorum 会把 WAN RTT 直接加入 p99，因此 consistency policy 必须按产品需求选择。
+大规模实现常采用 LSM tree：内存 memtable 排序，flush 成 SSTable，读取查询 memtable 和多层文件，后台 compaction 合并。Bloom filter 避免为不存在的 key 读取每个 SSTable。
 
-## 6. Correctness and Reliability
+## 容量不够：按 Key Hash 分片
 
-WAL checksum 防部分写，replica record 带 version/vector clock 或 HLC。节点故障时 hinted handoff 临时保存；读到多个版本时按业务合并或返回 siblings；read repair 与 anti-entropy 只负责最终修复，不能替代请求时的 consistency contract。
+对 key 计算 hash，映射到 token ring。每个节点负责一组 token range。
 
-## 7. Trade-offs：从需求选 R/W
+直接 `hash(key) % node_count` 在节点数变化时会让几乎所有 key 重映射。一致性哈希把 key 和虚拟节点放到环上；增加节点只迁移相邻范围。
 
-- `R=1,W=N` 读快写慢，适合读重且要求已确认写稳定的场景。
-- `R=N,W=1` 写快读慢，且节点故障影响读。
-- `R+W>N` 提高读到最新 acknowledged write 的机会，但 partition 时可用性下降。
-- LSM 写吞吐高但读放大/compaction 明显；B-tree 点读稳定但随机写更多。
+Virtual nodes 让一台物理节点拥有许多小 range，改善负载均衡和恢复并行度。代价是 membership 与 repair metadata 变多。
 
-## 概念阶梯
+```text
+PartitionMap(
+  epoch,
+  token_range,
+  replica_nodes,
+  state
+)
+```
 
-- **Consistent hashing**：把 key 和 node 放到同一个 hash ring。扩缩容时只搬动相邻区间，不重分全部数据。
-- **Replication factor N**：每个 key 保存 N 份，换取容错，代价是 N 倍存储和写放大。
-- **Quorum R/W**：一次读等待 R 个副本，一次写等待 W 个副本。当 `R + W > N` 时，读写集合必有交集，但仍需版本信息判断最新值。
+客户端可以先到任意 coordinator，由它读取带 epoch 的 partition map 并路由。Map 过旧时，目标节点返回 redirect/new epoch，避免静默写到错误 ownership。
 
-## 主路径
+## 数据复制：N、W、R 分别是什么
+
+- `N`：每个 key 存多少个 replica；
+- `W`：写成功前至少等多少 replica 确认；
+- `R`：读返回前至少查询多少 replica。
+
+例如 `N=3, W=2, R=2`：写等两个副本，读查两个副本。因为：
+
+$$
+R + W > N
+$$
+
+读集合与最近成功写集合理论上至少相交一个副本，因此能看见一个新版本。若还要求并发写集合相交：
+
+$$
+W > N/2
+$$
+
+但 quorum 公式不是魔法强一致。Sloppy quorum、网络分区、冲突解决、时钟和 membership epoch 都会影响语义。它只是帮助我们理解读写副本集合。
+
+常见配置：
+
+| 配置 | 特性 |
+|---|---|
+| `N=3,W=1,R=1` | 最低延迟、最高可用，但容易读旧 |
+| `N=3,W=2,R=2` | Quorum，延迟和一致性折中 |
+| `N=3,W=3,R=1` | 写慢且故障时不可写，读快 |
+| `N=3,W=1,R=3` | 写快，读要等所有健康副本 |
+
+系统可以允许客户端按请求选择 consistency，但不能让所有组合都无限开放；平台要测试并明确每种模式的 SLA。
+
+## 写路径与读路径
 
 ```mermaid
 flowchart LR
-  C[Client] --> K[Coordinator]
-  K --> H[Hash ring]
-  H --> A[(Replica A)]
-  H --> B[(Replica B)]
-  H --> C2[(Replica C)]
+  C[Client] --> CO[Coordinator]
+  CO --> P[Partition map]
+  CO --> A[Replica A]
+  CO --> B[Replica B]
+  CO --> D[Replica C]
+  A --> WA[(WAL + LSM)]
+  B --> WB[(WAL + LSM)]
+  D --> WC[(WAL + LSM)]
+  A --> R[Repair stream]
+  B --> R
+  D --> R
 ```
 
-Coordinator 根据 key 找到 preference list，并行请求副本。写入带逻辑版本；读取收集多个版本，返回可解析的新值，并异步修复落后副本。
+写：Coordinator 生成/验证版本，向 N 个 preference replicas 并行发送，收到 W 个 durable ack 后返回。剩余副本继续异步补齐。
 
-## 一组具体数字
+读：向 N 个副本并行请求，收集至少 R 个响应，比较版本，返回可合并的新版本或 siblings。发现旧副本时异步 read repair。
 
-设 `N=3`。`W=2, R=2` 让读写 quorum 重叠，通常更一致，但任意操作要等待两个节点。`W=1, R=1` 延迟低、可用性高，却可能读到旧值。对购物车这类可合并数据可接受；对余额扣款通常不可接受。
+Coordinator 不长期拥有 key，只负责一次请求。这样 API 层可水平扩展；真正的数据 ownership 在 replicas。
 
-这就是 CAP 的实际样子：不是在白板上选两个字母，而是在发生 partition 时决定继续接受可能冲突的写，还是拒绝请求以保护单一顺序。
+## 版本冲突：LWW 不是没有冲突
 
-## 故障恢复机制
+**Last-write-wins**
 
-- **Hinted handoff**：目标副本不可用时暂存写入，恢复后补交。
-- **Read repair**：读取发现旧副本时顺手修复。
-- **Anti-entropy**：后台用 Merkle tree 等结构比较数据区间，长期消除漂移。
-- **Gossip**：传播 membership 和健康信息，不承担强一致共识。
+按 timestamp 或逻辑版本选一个值。实现简单，但并发更新会静默丢失。如果依赖客户端 wall clock，时钟偏差甚至会让旧写长期压过新写。
 
-## 面试表达
+**Vector clock / version vector**
 
-> I would start from the required consistency semantics, then choose replication and quorum settings. The same storage engine can behave very differently under `R=1, W=1` versus overlapping quorums.
+每个版本记录因果历史。若 A 的 clock 全部不小于 B 且至少一项更大，A 因果上更新；若互不包含，则并发冲突，返回 siblings。
 
-面试中不要先背 Dynamo 名词。先问 value 大小、读写比、是否允许 stale read、冲突能否合并，再推导 sharding、replication 和 quorum。
+```text
+v1 = {nodeA: 3, nodeB: 1}
+v2 = {nodeA: 2, nodeB: 2}
+```
+
+这两个版本并发，store 无法理解购物车怎样合并。客户端可以做 union；用户 profile 可能按字段选择；余额则根本不适合在这个 AP KV 语义上直接 LWW。
+
+系统设计要诚实：通用 KV store 只能检测/呈现冲突，真正 merge 往往属于数据类型或业务层。
+
+## 节点故障时怎样继续写
+
+若 `N=3,W=2`，一个 replica 不可用仍可写。Coordinator 为失败节点保存 hint，或者把临时副本写到 ring 上下一台健康节点，这叫 hinted handoff / sloppy quorum。
+
+```text
+Hint(
+  target_node,
+  token_range,
+  key,
+  version,
+  value_ref,
+  expires_at
+)
+```
+
+目标恢复后，临时节点回放 hint。Sloppy quorum 提高可用性，却削弱“R+W>N 保证相交”的简单推理，因为写可能落在非首选节点。读协调器要知道 hint 或查询更多节点。
+
+Hint 不能永久代替 repair。长时间故障、临时节点也故障或 hint 过期时，需要 anti-entropy。
+
+## Anti-entropy：Merkle Tree 找出副本差异
+
+后台按 token range 计算 Merkle tree。两个 replica 先比较 root hash；不同才递归到更小 range，最终只传输差异 key，而不是全量扫描网络。
+
+Repair 有资源预算：限制磁盘读、网络和 compaction 并发。节点刚恢复时若立即全速 repair，可能把前台流量再次打垮。
+
+监控每个 range 的 repair age。系统“当前可读写”不等于副本健康；repair backlog 长期增长意味着下一次故障可能越过 durability 边界。
+
+## 容量估算
+
+假设：
+
+```text
+10B keys
+average key + value + metadata = 1KB
+replication N = 3
+```
+
+原始数据约 10TB，复制后 30TB；加 LSM space amplification、compaction headroom 和备份可能需要 60TB 以上。
+
+高峰 2M reads/s、500K writes/s。每次 quorum 读向 3 个 replica 发请求，内部 read RPC 可接近 6M/s；每次写复制 3 份，内部 write 约 1.5M/s。
+
+若一台节点安全承受 20K disk operations/s，不能简单用业务 QPS 除；要把 replication、read repair、compaction 和 cache hit 算进去。
+
+Memory index 假设每 key 32 bytes：
+
+```text
+10B × 32B = 320GB
+```
+
+分布到节点并保留 headroom。LSM 的 sparse index 和 Bloom filter 可减少常驻元数据，但 false positive 会增加磁盘读。
+
+## Hot key 和大 value
+
+Hash sharding只能均匀分布大量 key，无法拆一个 hot key。对只读 hot key，可以：
+
+- 在 coordinator/local cache 复制 value；
+- 增加 read replicas；
+- 请求合并，避免 cache miss stampede。
+
+高频写 hot key 仍需要一个顺序或业务侧分片。把计数器拆为多个 shard 再聚合会放松精确性；严格余额不能这么做。
+
+限制 value size，例如 1MB。大 blob 放 object storage，KV 只存 URI 和 hash。否则 compaction、replication 和 repair 都会被少数大 value 拖慢。
+
+## 延迟预算与尾延迟
+
+Quorum 操作的 latency 由第 W 快写副本或第 R 快读副本决定，不必等待所有 N；但后台仍要处理慢副本。
+
+读 p99 示例：
+
+| 阶段 | 预算 |
+|---|---:|
+| Coordinator 路由 | 2 ms |
+| Replica 并行读取 | 10 ms |
+| 版本比较/反序列化 | 2 ms |
+| 网络与余量 | 6 ms |
+
+Hedged read 可以在一个 replica 变慢时向另一个发送副本请求，改善 tail，但增加内部流量。只在接近 deadline 且系统有 headroom 时使用，不能无条件把所有读翻倍。
+
+## 故障和正确性
+
+**Coordinator crash**
+
+客户端带 request ID 重试。Put 若已经写入部分 replicas，新 coordinator 使用同一 version 或更高因果版本，避免产生无意义 siblings。
+
+**网络分区**
+
+若允许两侧写，就接受冲突并在恢复后合并；若要求单 key 线性一致，应选择 leader/quorum consensus，而不是假装 Dynamo quorum 自动提供。
+
+**磁盘损坏**
+
+Record 和 segment checksum 检测，坏副本从健康 replica repair。Replication 不能替代独立备份，因为软件 bug 和误删会复制到所有副本。
+
+**Membership 变化**
+
+Partition map 带 epoch。Rebalance 期间旧 owner 和新 owner 有明确 handoff 状态；不能先删旧数据再确认新副本完整。
+
+**Tombstone 过早回收**
+
+离线副本回来后会复活旧值。Tombstone grace 必须大于最大允许故障和 repair 窗口，并监控逾期副本。
+
+## 观测
+
+- Client read/write p50/p95/p99、consistency mode、conflict rate；
+- Replica RPC、timeout、slow node、quorum failure；
+- WAL fsync、memtable flush、compaction backlog、read amplification；
+- Cache/Bloom hit、disk IOPS、space amplification；
+- Hinted handoff backlog、oldest hint；
+- Repair age、Merkle mismatch、under-replicated ranges；
+- Rebalance progress、partition skew、hot key；
+- Tombstone count 和 expired-but-not-collected 数据。
+
+只看 API uptime 会遗漏副本健康持续恶化。Durability 是后台 repair 与前台 quorum 共同维持的。
+
+## 关键取舍
+
+**更大的 W** 让确认写覆盖更多副本，却提高延迟并降低故障时写可用性。
+
+**更大的 R** 降低读旧概率，也增加读 fan-out 和 latency。
+
+**Sloppy quorum** 提高分区期间可用性，却让简单 quorum guarantee 变弱。
+
+**LWW** 简单、value 单一，但可能丢并发更新；**siblings/vector clocks** 保留信息，却把 merge 复杂度交给业务。
+
+**更多 compaction** 降低读取放大和空间，代价是后台 I/O；太少则 SSTable 与 tombstone 堆积。
+
+**虚拟节点更多** 改善平衡与恢复并行，也增加 metadata 和 range 管理。
+
+## 用 Lab 验证 N/R/W
+
+**实验一：`N=3,R=1,W=1`**
+
+观察最低读写 latency，然后制造一个 replica 落后。读到旧值不是意外，而是配置选择。
+
+**实验二：`N=3,R=2,W=2`**
+
+观察 quorum latency 和单节点故障下的可用性。解释为什么 R+W>N 有帮助，又为什么 sloppy quorum 会让结论更复杂。
+
+**实验三：提高 R 或 W 到 3**
+
+制造一个慢节点。看 tail latency 如何被最慢副本控制，并讨论是否值得换取更强语义。
+
+## 面试表达：从一台机器的 Ack 开始
+
+可以这样开场：
+
+> I would first define what a successful put means. On one node, I would append to a checksummed WAL before acknowledging, keep a memory index for reads, and compact immutable segments in the background. Then I would shard by key hash and replicate each partition.
+
+演化顺序：
+
+```text
+single-node WAL + index
+-> immutable segments and compaction
+-> consistent-hash partitioning
+-> N/R/W replication
+-> conflict versions
+-> hinted handoff and anti-entropy
+```
+
+最后给深入方向：
+
+> I can go deeper into quorum semantics, conflict resolution, LSM compaction, or failure repair and rebalancing.
+
+这样讲，分布式组件都是从单机已经定义清楚的 durability 和版本语义中长出来的。
+
+## 参考资料
+
+- [Dynamo: Amazon's Highly Available Key-value Store](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf)
+- [Bigtable: A Distributed Storage System for Structured Data](https://research.google/pubs/bigtable-a-distributed-storage-system-for-structured-data/)
+- [Consistent Hashing and Random Trees](https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf)
+- [The Log-Structured Merge-Tree](https://www.cs.umb.edu/~poneil/lsmtree.pdf)
