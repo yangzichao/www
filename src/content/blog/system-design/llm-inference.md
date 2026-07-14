@@ -10,6 +10,67 @@ LLM Inference 与普通模型 serving 最大的不同，是生成过程 autoregr
 
 > 对应实验：[打开 LLM Inference Lab](https://lab.zichaoyang.com/system-design/llm-inference/)。增加 prompt/output 长度、request rate 与模型大小，观察 memory 和 time-to-first-token 的变化。
 
+## 需求边界（Requirements）
+
+功能上支持流式生成、取消、usage 与多模型版本；首版不做复杂 agent。非功能上分别约束 TTFT、inter-token latency、tokens/s 和 KV memory，过载必须 admission/load shedding，租户数据与 cache 隔离。
+
+## 0. 先搭单 GPU 生成服务 MVP Scaffold
+
+第一版加载一个能放进单卡的模型，一次只处理一个请求：tokenize prompt，prefill，循环 decode，逐 token 通过 SSE 返回，遇到 EOS、`max_tokens` 或 deadline 停止。先记录 TTFT、每 token latency、输出 token 数和 GPU memory，不做 batching。
+
+然后加一个有界 FIFO queue 和 admission rule：prompt 太长、预计 KV memory 超预算或 queue 已满就明确拒绝。没有 admission control，任何后续 batching 都会在过载时崩溃。
+
+## 1. API：流式结果和取消是基本语义
+
+```http
+POST /v1/generations
+Accept: text/event-stream
+
+{"model":"70b-chat","prompt":"...","maxTokens":512,"requestId":"g-8"}
+
+event: token
+data: {"text":"Hello"}
+
+event: done
+data: {"finishReason":"stop","usage":{"promptTokens":120,"outputTokens":42}}
+```
+
+客户端断开或 `DELETE /v1/generations/g-8` 触发取消；scheduler 应停止后续 decode，已经进入当前 GPU kernel 的工作可能无法立刻收回。
+
+## 2. 数据模型（Data Model）
+
+```text
+RequestState(request_id, model, prompt_tokens, generated_tokens, deadline,
+             kv_pages, priority, state, worker_id)
+ModelDeployment(model_version, weight_shards, tokenizer_version, parallelism, limits)
+UsageRecord(request_id, tenant_id, input_tokens, output_tokens, model_version, latency)
+```
+
+Prompt/response 是否持久化由隐私策略决定；usage 和版本必须保留以计费与排障。
+
+## 3. 单机端到端流程
+
+Gateway 鉴权并 tokenize、估算 token；admission 检查 weights 后剩余显存；prefill 分配 KV pages；decode loop 每步生成 token 并 stream；完成后立即释放 pages。先用这个版本测单请求 memory 曲线，再引入 continuous batching scheduler。
+
+## 4. 容量估算：按 token 和 KV memory 算
+
+70B BF16 weights 约 140GB，单张 80GB 卡放不下，至少需要 tensor parallel 或量化。若单请求 KV cache 在 8k context 下约数 GB，几十个并发请求就可能吃完剩余显存。100 requests/s、平均输出 500 token 等于 50k decode tokens/s；这是核心 throughput 单位。
+
+## 5. Latency Budget：TTFT 与 inter-token 分开
+
+目标可以是 TTFT p99 1 秒、inter-token p99 50ms。TTFT 包含 queue 和 prefill；decode latency 受 active batch、collective 和 memory bandwidth 控制。长 prompt 与短交互共用 queue 会 head-of-line blocking，因此规模化后拆 prefill/decode pool。
+
+## 6. Correctness and Reliability
+
+生成虽可随机，协议状态仍需正确：tokenizer/model 版本绑定，usage 可核对，取消释放 KV，worker crash 返回明确 incomplete。已经 stream 部分 token 的请求不能悄悄从头重放。过载时按预计 token memory load shed，不只按 request 数。
+
+## 7. Trade-offs：吞吐不是免费增大 batch
+
+- Continuous batch 提高 GPU 利用率，但 active sequence 越多每步越慢。
+- Quantization 降 memory 和成本，可能损失质量或需要特定 kernel。
+- Tensor parallel 让模型放得下，却每 token 做 collective。
+- Prefix cache 节省重复 prefill，但占 KV memory 且需租户隔离。
+
 ## 先讲清两个阶段
 
 - **Prefill**：一次处理全部 prompt，计算密集，决定 time-to-first-token。

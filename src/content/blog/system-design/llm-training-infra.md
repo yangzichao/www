@@ -10,6 +10,66 @@ LLM 训练基础设施的第一条约束是 memory，第二条是通信，第三
 
 > 对应实验：[打开 LLM Training Infrastructure Lab](https://lab.zichaoyang.com/system-design/llm-training-infra/)。改变参数量、GPU 数、互联带宽和 checkpoint 间隔，观察瓶颈迁移。
 
+## 需求边界（Requirements）
+
+功能上启动/恢复 pretraining run、分配 mesh、stream dataset、checkpoint 和监控。非功能上优化有效 tokens/s、收敛正确性和故障恢复；模型状态必须放得下，slow rank 与数据饥饿不能长期浪费整组 GPU。
+
+## 0. 先搭单 GPU Trainer MVP Scaffold
+
+先用能装进单卡的小模型和固定 tokenized shard：DataLoader 读取 batch，forward，loss，backward，optimizer step，每 N 步写 checkpoint。日志记录 tokens/s、loss、GPU memory、data wait 和 step time。单卡 run 能从 checkpoint 精确恢复后，再加 data parallel。
+
+最小 checkpoint 不只保存 weights，还包括 optimizer、scheduler、global step、RNG state 和 dataloader cursor；否则“恢复”会改变训练轨迹或重复数据。
+
+## 1. API：训练控制面只管理 Run
+
+```http
+POST /v1/pretraining-runs
+{"modelConfig":"70b-v3","dataset":"corpus-2026-07","tokens":2000000000000,
+ "mesh":{"gpus":1024,"tensor":8,"pipeline":4},"checkpointMinutes":20}
+
+202 Accepted
+{"runId":"pretrain-9","state":"queued"}
+```
+
+控制面还需要 pause/cancel/resume 和 checkpoint 查询。高频 training step 不经过 API；它发生在已分配的 worker mesh 内。
+
+## 2. 数据模型（Data Model）
+
+```text
+TrainingRun(run_id PK, model_config, dataset_version, code_ref, mesh, state)
+WorkerGroup(run_id, rank, node_id, topology, heartbeat, state)
+Checkpoint(run_id, global_step, object_prefix, manifest, checksum, complete)
+DatasetShard(dataset_version, shard_id, token_count, object_url, checksum)
+TrainingMetric(run_id, step, name, value, rank_scope, recorded_at)
+```
+
+Checkpoint 先写所有 shard，再写 complete manifest；没有 manifest 的半成品不能恢复。
+
+## 3. 单机端到端流程
+
+Launcher 校验 config 和 dataset，分配一张 GPU，下载 shard，训练 loop 定期把 checkpoint 写临时 prefix，校验后发布 manifest。进程 crash 时控制面启动新 worker，从最新 complete checkpoint 恢复并继续 dataloader cursor。这个闭环是分布式版本的基础。
+
+## 4. 容量估算：先做 memory math
+
+100B 参数 BF16 weights 约 200GB。Adam 训练粗略还需 gradients、master weights 和两份 optimizer state，可能达到每参数 16 bytes，即约 1.6TB，尚未计算 activation。若每卡可用 70GB，光模型状态理论下限已超过 23 卡；实际还需通信 buffer 和 activation，必须更大 mesh 与 ZeRO/sharding。
+
+2T token、每秒 100 万 token 的有效吞吐也要约 23 天；利用率每下降 10%，都直接变成昂贵 GPU 时间。
+
+## 5. Latency Budget：关注 step time 而非请求 p99
+
+把 step 分成 data load、forward、backward、collective、optimizer。目标是 overlap I/O/communication 与 compute，并监控最慢 rank。一次 all-reduce 被慢节点拖长 200ms，乘数百万 step 会变成巨大训练时间。
+
+## 6. Correctness and Reliability
+
+所有 rank 对 global step、dataset partition 和 checkpoint manifest 一致。Collective timeout 后整组重启，不让部分 rank 继续。Checkpoint 原子发布并周期验证可读。数据 shard checksum 防 silent corruption；loss spike、NaN 和 straggler 自动触发诊断或停跑。
+
+## 7. Trade-offs：memory、通信和重算
+
+- Data parallel throughput 好但复制完整模型；tensor/pipeline 解决容量，却增加 collective/bubble。
+- Activation checkpointing 省 memory，但 backward 多做计算。
+- Checkpoint 频繁少丢工作，却吃 object-store 带宽并暂停 step。
+- 更大 global batch 提高吞吐，可能改变优化行为，需要学习率与收敛验证。
+
 ## 最小 memory 账
 
 100B 参数用 BF16 weights 约 200GB；训练还要 gradients、master weights 和 optimizer states，实际远超一张 80GB GPU。模型“能推理”不等于“能训练”。

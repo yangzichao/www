@@ -10,6 +10,21 @@ tags: [system-design, interview, learning, collaborative-editing]
 
 > 配套实验：[打开 Google Docs Lab](https://lab.zichaoyang.com/system-design/google-docs/)。先改变并发编辑者、离线窗口和被动浏览者，再回来理解 ordering path 为什么必须保持单一。
 
+## 0. 先搭单用户编辑器 MVP Scaffold
+
+不要从 OT 或 CRDT 开始。第一版只支持单用户：浏览器维护本地文本，输入立即更新；每 500ms 把 `{docId, baseVersion, operations[]}` 发给 server；server 在一个数据库事务里校验 version、追加 operation、更新 document snapshot/version，再返回 ack。断线后客户端保留未确认 operation 并重试。
+
+第二版让两位用户连到同一台 WebSocket server。每篇文档在内存中有一个 room，room 按收到顺序给 operation 分配连续 version，durable append 后广播。此时先要求客户端只能基于最新 version 编辑；故意制造并发失败，观察 stale base，才引入 transform。
+
+最小实现顺序：
+
+1. 定义 insert/delete operation 和 deterministic apply 函数。
+2. 建 document、operation log、snapshot 三类存储。
+3. 实现单用户 version compare-and-swap。
+4. 加 WebSocket room 和 durable-before-ack。
+5. 加 pending queue、断线重放和 operation ID 去重。
+6. 最后用 `cat -> scats` 测试 OT transform/merge。
+
 先看一个很小的例子。现在文档里只有一个词：
 
 ```text
@@ -233,6 +248,19 @@ requirements -> estimation -> data model -> API -> architecture -> OT deep dive
 这里也有取舍。快照越频繁，恢复越快，但写入和存储成本更高；快照越少，存储省一点，但故障恢复和打开老文档会更慢。
 
 ---
+
+## 2.5 Latency Budget：本地立即显示，远端随后收敛
+
+用户自己的按键必须在 16ms 左右本地渲染，不能等待网络。远端协作者看到修改可目标 p99 200ms：客户端 batch 20ms，gateway/room 路由 30ms，transform 与 durable append 40ms，fan-out 50ms，网络和余量 60ms。Presence 可以更松、更容易丢；正文 ack 不能为了快而跳过 durability。
+
+Hot document 的危险不是单次 transform 算得慢，而是 room queue 排队。要监控每篇文档的 pending operation、append latency、fan-out lag 和 reconnect replay 数量。只扩 gateway 无法缩短一个 hot document 的单一 ordering queue。
+
+## 2.6 关键 Trade-offs：先说明产品语义
+
+- 本地 optimistic apply 让输入流畅，却需要 ack/transform 纠正本地 pending operation。
+- Durable-before-ack 防止“已确认编辑”丢失，但多一次日志写延迟。
+- 每文档单一 owner 简化顺序，却形成 hot-document 上限；读取和 fan-out 应围绕它扩展，而非拆成多个 writer。
+- OT 保留位置操作且服务端排序清楚；CRDT 离线合并自然，但 identifier、tombstone 和 metadata 更重。
 
 ## 3. 数据模型（Data Model）：正文只是结果，operation 才是核心
 

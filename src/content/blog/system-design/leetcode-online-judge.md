@@ -14,6 +14,21 @@ tags: [system-design, interview, learning]
 
 设计 LeetCode 的判题后端：用户提交代码，系统编译、运行、对比测试用例，返回判题结果。
 
+## 0. 先搭单机 Judge MVP Scaffold
+
+第一版只支持 Python、一台 API server 和一个 worker process。题目与测试用例预先放本地目录；用户提交后 API 写 `Submission(status=queued)`，worker 轮询任务，在临时目录创建代码文件，用受限 OS 用户和进程级 timeout 执行，对比 stdout，写最终 verdict。先不做容器集群和多语言。
+
+搭建顺序：
+
+1. 定义 submission/verdict 状态机。
+2. 写一个只运行固定 trusted sample 的 runner。
+3. 加 wall-clock timeout、CPU/memory/process/file limits 和无网络用户。
+4. API 改成异步提交与 polling。
+5. 任务使用 lease，worker crash 后可重跑。
+6. 再把每种语言封进固定 digest 的 sandbox image。
+
+仅靠 `subprocess` 不是生产安全 sandbox，但这个 MVP 能先验证 API、状态机、测试执行和 retry；安全边界随后替换为 container/microVM，而不是把业务流程重写一遍。
+
 ## Functional Requirements
 
 - 有题目（problem）和对应的测试用例（本质上就是 unit test）
@@ -33,7 +48,17 @@ tags: [system-design, interview, learning]
 
 ## Capacity Estimation
 
-跳过。每个提交是独立的，天然支持水平扩展（scale out），流量本身没有特别值得分析的地方。不像有 fan-out 或 hot-key 问题的系统。
+容量估算不能跳过，因为它决定 worker 数和 queue SLO。假设峰值每分钟 10 万次 submission，即约 1667/s；平均一次完整判题占 2 worker-seconds，则稳定处理至少需要约 3334 个并发 worker slot。为了应对长尾、故障和部署，可预留 30%，约 4300 个 slot。
+
+若平均每次读取 20MB 测试数据，入口到 worker 的读取带宽约 33GB/s。测试用例必须放 object storage/只读镜像并在 worker node 做本地 cache，不能每次从 metadata DB 拉 blob。每天 1 亿 submission、每条 metadata 1KB 是 100GB/天；源码和详细日志进入 object storage，数据库只留引用。
+
+这道题的扩展确实容易按任务水平增加 worker，但 autoscaling 不是答案本身：启动新 sandbox 需要时间，queue 在 contest burst 中会先积压，因此需要 warm pool 和 backpressure。
+
+## Latency Budget：用户等的是 queue 加执行
+
+正式 submission 可目标 p95 5 秒：API acceptance 100ms，queue wait 1 秒，image/fixture 准备 500ms，compile+tests 3 秒，结果写入 200ms，余量 200ms。不同语言和题目有不同上限，调度时按预计成本分 queue，避免 60 秒重题阻塞 100ms run-code。
+
+监控 acceptance latency、queue age、sandbox startup、compile、per-test execution 和 result publication。只看 API p99 会误以为系统健康，而用户可能在队列里等一分钟。
 
 ## API Design
 
@@ -333,3 +358,17 @@ SubmissionStats
 - 不需要每次 AC 都扫描历史记录
 
 面试里主动说这个的价值：识别出"精确 vs 够用"的权衡，说明你不会为了实时性付出不必要的代价。
+
+## Correctness and Reliability：任务可以重跑，结果不能混乱
+
+Submission 状态按 `queued -> running -> terminal` 单向推进，worker 通过 lease 领取；lease 到期可重跑。Result 写入使用 submission ID 和 attempt fencing token，旧 worker 即使晚回来也不能覆盖新 attempt。测试 fixture、compiler image 和 checker 都绑定不可变版本，确保同一 submission 可复现。
+
+Sandbox 默认无网络、只读 root filesystem、临时目录限额、CPU/memory/process/file descriptor/output size 全部有限制。Worker node 视为可牺牲资源，定期销毁重建；审计记录 image digest、syscall violation 和 resource usage。Queue 或 result store 故障时，API 仍可返回明确的 queued/unknown，不伪造 verdict。
+
+## 面试表达：先跑通，再扩 worker
+
+可以这样开场：
+
+> I would first build one asynchronous judge worker with a strict sandbox, a leased job, immutable test fixtures, and a durable result. Then I would scale the worker pool based on queueing time and execution cost rather than API traffic.
+
+高层主链路是 `Submit API -> Queue -> Sandboxed Worker -> Result Store -> Polling`。讲清每一步责任后，再给面试官选择 sandbox isolation、worker scheduling、contest burst、multi-language warm pool 或 result storage。不要从 Kubernetes 开始，因为它没有回答一份不可信代码如何正确、安全、可重试地跑完。

@@ -12,6 +12,63 @@ tags: [system-design, interview, learning, recommendation, ml-system]
 
 > 对应实验：[打开 Recommendation System Lab](https://lab.zichaoyang.com/system-design/recommendation-system/)。逐步打开 two-tower ANN、real-time feature，并收紧 ranking latency。
 
+## 需求边界（Requirements）
+
+功能上为指定 surface 返回候选、记录曝光反馈并支持实验；首版不追求全产品统一模型。非功能上 p99 约 100ms、模型故障可降级、删除/安全过滤强制正确，并同时优化长期质量和 serving 成本。
+
+## 0. 先搭 Popularity Baseline MVP Scaffold
+
+第一版不训练模型。每天按最近 24 小时的有效观看数生成 `global_top_100` 和 `category_top_100`；在线 API 根据用户选择的类别合并、过滤已看和不可用 item，返回前 20。这个 baseline 可运行、可解释，也是后续模型必须在线击败的对照组。
+
+第二步再加简单 item-to-item co-visitation：用户刚看完 A，就从离线统计的 `A -> related items` 取候选。只有 baseline 的质量和延迟被量化后，才值得上 embedding。
+
+## 1. API：返回结果也要记录 provenance
+
+```http
+POST /v1/recommendations
+{"userId":"u-42","surface":"home","limit":20,"context":{"sessionId":"s-8"}}
+
+200 OK
+{"requestId":"r-9","items":[{"itemId":"v-7","source":"ann","score":0.82}],"modelVersion":"ranker-18"}
+```
+
+曝光日志必须携带 request/model/candidate source，之后的点击才能正确归因到一次推荐实验。
+
+## 2. 数据模型（Data Model）
+
+```text
+Interaction(event_id, user_id, item_id, type, occurred_at, request_id, position)
+Item(item_id PK, status, category, creator_id, metadata_version)
+CandidateList(key, item_ids, generated_at, version)
+Embedding(entity_id, model_version, vector, updated_at)
+RecommendationLog(request_id PK, user_id, model_version, experiment, item_ids)
+```
+
+Online response 不是 source of truth，但必须可追踪。训练样本从曝光与后续行为 join，不能只收集点击，否则没有负例与 position bias 信息。
+
+## 3. 单机端到端流程
+
+MVP 启动时加载 popularity/co-visitation 列表。请求读取用户近期已看集合，组合多个候选源，dedup/filter，按手工权重排序，记录曝光并返回。先测 candidate coverage、CTR、watch time 和 p99，再把某一阶段替换成模型。
+
+## 4. 容量估算：漏斗每一层都要算
+
+假设 1 亿 DAU、每人每天 20 次请求，平均约 23k QPS，峰值 5 倍约 116k QPS。Catalog 10 亿 item，768 维 FP16 embedding 约 1.5KB，仅 item vector 就约 1.5TB，必须 ANN 分片。每请求 retrieve 1000 个、rank 500 个，每秒会产生约 5800 万 candidate scoring，ranker 才是主要计算账。
+
+## 5. Latency Budget：100ms 的多阶段漏斗
+
+可分配 retrieval 20ms、feature fetch 20ms、ranking 35ms、policy/filter 10ms、网络与余量 15ms。每段都要 deadline propagation；feature store 超时时使用 cached/default feature 或降级 popularity，不能让整页空白。
+
+## 6. Correctness and Reliability
+
+候选 index、feature 和 model 都带版本，日志记录实际使用版本。模型服务故障时回退到规则榜单。训练使用 point-in-time feature，避免未来泄漏。内容删除和政策过滤必须在最终返回前同步执行，即使旧 ANN index 仍包含该 item。
+
+## 7. Trade-offs：先扩大 recall，再花钱排序
+
+- 更多 candidate 提高 recall，却线性增加 feature/ranking 成本。
+- 实时 feature 更贴近 session，但引入 stream 延迟和状态恢复。
+- 大 ranker 质量高但 p99/成本高，可用轻模型粗排再重模型精排。
+- Exploitation 提高短期指标，exploration 帮助新 item 与长期学习。
+
 ## 概念阶梯
 
 - **Candidate generation / retrieval**：追求 recall，快速找出可能相关的几百个 item。

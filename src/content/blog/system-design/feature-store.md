@@ -12,6 +12,61 @@ Feature Store 不是“专门放 feature 的数据库”。它要解决的是：
 
 > 对应实验：[打开 Feature Store Lab](https://lab.zichaoyang.com/system-design/feature-store/)。打开 point-in-time correctness 与 streaming features，观察 parity 成本。
 
+## 需求边界（Requirements）
+
+功能上注册定义、生成 offline history、提供 online latest value 和训练 join。非功能上重点是 point-in-time correctness、training-serving parity、online 低延迟与可回放；不是所有 feature 都要求实时。
+
+## 0. 先搭离线 Feature Table MVP Scaffold
+
+第一版选一个 feature，例如 `user_purchase_count_30d`。用一条 SQL/dbt job 每天从交易表计算，写入按日期分区的 Parquet；训练脚本显式读取某个 snapshot。Serving 暂时在应用内按同一份 SQL 结果加载最新值。先证明定义可复现，再拆 online store。
+
+脚手架至少包含 feature definition、owner、entity key、类型、默认值、数据源、生成时间和版本。没有这些 metadata，“共享 feature”只会变成无法信任的列名集合。
+
+## 1. API：控制面与 serving 面分离
+
+```http
+POST /v1/features:batchGet
+{"entities":[{"type":"user","id":"42"}],"features":["purchase_count_30d","risk_velocity_10m"]}
+
+200 OK
+{"values":{"purchase_count_30d":8},"featureSetVersion":"checkout-v7","asOf":"..."}
+```
+
+Feature registry 则提供定义注册、schema compatibility 和 lineage 查询。Online serving API 不接受任意 SQL，只允许已发布 feature set。
+
+## 2. 数据模型（Data Model）
+
+```text
+FeatureDefinition(name PK, entity_type, dtype, transform_ref, owner, version, ttl)
+OfflineFeature(entity_id, feature_name, event_time, value, definition_version)
+OnlineFeature(entity_id, feature_set, values, updated_at, source_offset)
+MaterializationJob(job_id, definition_version, input_snapshot, output_snapshot, state)
+```
+
+Offline 必须保留历史值；online 只保留最新 serving value。两边通过 definition version 和 source offset 对齐。
+
+## 3. 单机端到端流程
+
+Batch job 读取固定 input snapshot，计算并写 immutable output partition，验证 null/range/distribution 后发布。训练做 point-in-time join。Serving materializer 把最新值写本地/Redis key，模型请求按 entity 批量取 feature。先对同一批 entity 比较 offline 与 online 输出，建立 parity test。
+
+## 4. 容量估算：宽度、实体和新鲜度一起算
+
+1 亿 user、1000 个 feature、平均每值含编码 12 bytes，最新 online state 约 1.2TB，三副本 3.6TB。若 10 万预测 QPS、每次取 200 feature，虽然是一次 row lookup，网络 payload 仍可达数百 MB/s。训练 10 亿 label row 做历史 join，offline scan 才是另一条 PB 级成本。
+
+## 5. Latency Budget：Feature lookup 只是模型链的一段
+
+若总 inference p99 100ms，feature fetch 通常只能占 10 到 20ms。BatchGet 要避免每 feature 一次 RPC，按 entity/feature set 存宽行。过期 feature 返回 freshness metadata，由模型或业务决定降级，而不是静默装作最新。
+
+## 6. Correctness and Reliability
+
+Point-in-time join 保证 label 时刻只看到过去。Streaming materializer checkpoint source offset，重启后可 replay。Online write 带 event time/version，迟到事件不能覆盖更新值。Schema/type 变化要兼容验证，坏 materialization 不发布。
+
+## 7. Trade-offs：Parity 是主要成本
+
+- 一份通用 transform DSL 可减少 skew，但限制表达能力；双份 Python/SQL 灵活却容易漂移。
+- 宽行一次读取快，但任一 feature 更新会写整组；细粒度 key 更新灵活，读取 fan-out 更大。
+- 秒级 streaming 新鲜，但运维和重放复杂；多数慢变 feature 保持 batch 更经济。
+
 ## 三个核心概念
 
 - **Offline store**：保存历史 feature，服务大规模训练扫描和时间点 join。

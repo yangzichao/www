@@ -18,6 +18,92 @@ POST /links { longUrl } -> code = aZ3k9
 
 > 对应实验：[打开 URL Shortener Lab](https://lab.zichaoyang.com/system-design/url-shortener/)。先切换 Hot-link 占比和 Region 数，再回来读架构取舍。
 
+## 需求边界（Requirements）
+
+功能上支持创建、跳转、可选过期和拥有者删除；首版不做全文搜索与复杂分析。非功能优先级是 redirect p99、mapping durability 和 code 唯一性；创建稍慢可以接受，错误跳转不可接受。
+
+## 0. 先搭一个能工作的版本（MVP Scaffold）
+
+第一版只做两件事：创建短链、按 short code 跳转。先明确不做自定义 alias、过期时间、点击报表和多 region。部署形态是一台应用加一个 PostgreSQL；只要它能正确处理重复请求、code 碰撞和不存在的链接，就已经是合格基线。
+
+手把手搭建顺序如下：
+
+1. 建 `links` 表，并给 `short_code` 加唯一索引。
+2. 实现 create endpoint：校验 URL，生成 code，插入数据库。
+3. 实现 redirect endpoint：按 code 点查，返回 `302`。
+4. 给 create 请求加 idempotency key，避免客户端超时重试时创建两个链接。
+5. 记录 redirect 的应用指标，但先不记录每次点击明细。
+
+## 1. API：先把产品语义定下来
+
+```http
+POST /v1/links
+Idempotency-Key: create-7f21
+Content-Type: application/json
+
+{"longUrl":"https://example.com/a","expiresAt":null}
+
+201 Created
+{"code":"aZ3k9","shortUrl":"https://sho.rt/aZ3k9"}
+```
+
+```http
+GET /aZ3k9
+
+302 Found
+Location: https://example.com/a
+Cache-Control: public, max-age=300
+```
+
+创建失败要区分非法 URL、idempotency key 冲突和 code 空间耗尽。Redirect 对不存在或过期 code 返回 `404/410`，不要把数据库错误伪装成不存在。
+
+## 2. 数据模型（Data Model）
+
+```sql
+CREATE TABLE links (
+  short_code   VARCHAR(12) PRIMARY KEY,
+  long_url     TEXT NOT NULL,
+  owner_id     BIGINT,
+  created_at   TIMESTAMPTZ NOT NULL,
+  expires_at   TIMESTAMPTZ,
+  version      BIGINT NOT NULL DEFAULT 1
+);
+
+CREATE TABLE idempotency_keys (
+  owner_id      BIGINT NOT NULL,
+  request_key   TEXT NOT NULL,
+  request_hash  TEXT NOT NULL,
+  short_code    VARCHAR(12) NOT NULL,
+  PRIMARY KEY (owner_id, request_key)
+);
+```
+
+Redirect 的 access pattern 只有 `short_code -> long_url`，所以 primary key 正好服务主查询。不要为了“以后可能搜索”先建立很多二级索引，它们会放大写入和存储。
+
+## 3. 单机端到端流程
+
+Create 在一个事务中检查 idempotency key、生成 code、插入 link、保存响应映射。若唯一约束冲突就重新生成；同一个 idempotency key 携带不同 URL 时返回 `409`。Redirect 只执行一次主键查询，检查过期时间后返回 Location。此时先测出单机基线，再谈扩展。
+
+## 4. 容量估算：让数字暴露瓶颈
+
+假设每天创建 1000 万条、读写比 `100:1`、平均 URL 500 bytes：写入约 `116/s`，redirect 平均约 `11.6k/s`，峰值按 5 倍约 `58k/s`。五年约 182 亿条映射，裸 URL 数据接近 9TB，算上索引、副本和 metadata 会更高。
+
+这组数字推出两个结论：先被压垮的是 redirect 读取和热门 key，不是 create API；长期 storage 才要求分片。容量估算必须导向组件，否则只是算术表演。
+
+## 5. Latency Budget：100ms 花在哪里
+
+目标可设 redirect p99 小于 100ms：edge/TLS 40ms，应用路由 5ms，cache 5ms，数据库 fallback 20ms，余量 30ms。若每次同步记录 analytics 再花 30ms，主路径已经失去余量，所以点击明细必须旁路异步发送。
+
+## 6. Correctness and Reliability
+
+数据库是 mapping 的 source of truth。Cache miss 可以回源，cache 故障时系统应降级为数据库读取并限流；数据库不可用时不能返回错误目标。创建路径依赖唯一约束，而不是只相信概率。删除或改目标时递增 version 并失效 cache，防止旧值长期存在。
+
+## 7. 关键 Trade-offs
+
+- `301` 缓存更强，但修改和统计更困难；`302` 控制力更强，origin 压力更高。
+- 随机 code 无中心协调，但有碰撞重试；sequence 编码无碰撞，却暴露规模并引入 ID 分配。
+- 完整 edge replication 读最快，但失效复杂；只缓存 hot set 更便宜，却有回源延迟。
+
 ## 先讲清三个概念
 
 - **Short code**：长 URL 的短 key。6 位 base62 有 `62^6` 种组合，但“空间够大”不等于“生成时绝不碰撞”。
