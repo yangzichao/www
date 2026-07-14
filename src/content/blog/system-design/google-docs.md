@@ -10,21 +10,6 @@ tags: [system-design, interview, learning, collaborative-editing]
 
 > 配套实验：[打开 Google Docs Lab](https://lab.zichaoyang.com/system-design/google-docs/)。先改变并发编辑者、离线窗口和被动浏览者，再回来理解 ordering path 为什么必须保持单一。
 
-## 0. 先搭单用户编辑器 MVP Scaffold
-
-不要从 OT 或 CRDT 开始。第一版只支持单用户：浏览器维护本地文本，输入立即更新；每 500ms 把 `{docId, baseVersion, operations[]}` 发给 server；server 在一个数据库事务里校验 version、追加 operation、更新 document snapshot/version，再返回 ack。断线后客户端保留未确认 operation 并重试。
-
-第二版让两位用户连到同一台 WebSocket server。每篇文档在内存中有一个 room，room 按收到顺序给 operation 分配连续 version，durable append 后广播。此时先要求客户端只能基于最新 version 编辑；故意制造并发失败，观察 stale base，才引入 transform。
-
-最小实现顺序：
-
-1. 定义 insert/delete operation 和 deterministic apply 函数。
-2. 建 document、operation log、snapshot 三类存储。
-3. 实现单用户 version compare-and-swap。
-4. 加 WebSocket room 和 durable-before-ack。
-5. 加 pending queue、断线重放和 operation ID 去重。
-6. 最后用 `cat -> scats` 测试 OT transform/merge。
-
 先看一个很小的例子。现在文档里只有一个词：
 
 ```text
@@ -208,6 +193,134 @@ requirements -> estimation -> data model -> API -> architecture -> OT deep dive
 
 ---
 
+## 动手搭一个“还不会处理并发”的版本
+
+现在读者已经知道 `operation`、`baseVersion` 和 `ack` 是什么，可以开始写第一版。先不要实现 OT，也不要引入 CRDT。我们的目标是让一个用户的编辑能够可靠保存，并且让失败暴露得足够清楚。
+
+### 第一步：定义最小 Operation
+
+先只支持纯文本的插入和删除：
+
+```ts
+type TextOperation =
+  | { type: 'insert'; position: number; text: string }
+  | { type: 'delete'; position: number; length: number };
+```
+
+写一个完全确定的 `apply` 函数。同样的正文和 operation，在任何机器上都必须得到同样结果：
+
+```ts
+function applyOperation(document: string, operation: TextOperation): string {
+  if (operation.type === 'insert') {
+    return (
+      document.slice(0, operation.position) +
+      operation.text +
+      document.slice(operation.position)
+    );
+  }
+
+  return (
+    document.slice(0, operation.position) +
+    document.slice(operation.position + operation.length)
+  );
+}
+```
+
+这里先补上边界检查：position 不能为负，delete 不能越过文档末尾，单条 operation 也要限制文本大小。不要让非法操作进入日志后才发现无法重放。
+
+### 第二步：单用户 Version Compare-and-swap
+
+浏览器维护：
+
+```text
+confirmedVersion
+confirmedDocument
+pendingOperations[]
+```
+
+用户打字时，本地立即应用 operation，所以输入没有网络等待。客户端每隔很短时间批量发送：
+
+```json
+{
+  "docId":"doc_123",
+  "clientOpId":"device-7:881",
+  "baseVersion":42,
+  "operations":[
+    {"type":"insert","position":3,"text":"s"}
+  ]
+}
+```
+
+服务端在一个事务中完成：
+
+```text
+读取 Document.current_version
+-> 必须等于 baseVersion
+-> 依次 apply operations
+-> 追加 Operation rows
+-> 更新 snapshot/current_version
+-> commit
+-> 返回 ack
+```
+
+`clientOpId` 有唯一约束。服务端 commit 成功但 ack 丢失时，客户端重发同一个 ID，得到原来的 version，而不是再插入一个 `s`。
+
+这时可以故意杀掉服务端：commit 前崩溃，客户端没有 ack，安全重试；commit 后崩溃，幂等 ID 找回原结果。先把这条语义验证清楚，再进入多人协作。
+
+### 第三步：加入两个人，但暂时拒绝 Stale Base
+
+让 Alice 和 Bob 连接同一台 WebSocket server。内存中每篇文档有一个 room，room 串行处理收到的命令，并在 durable commit 后广播权威 operation。
+
+第一版遇到 `baseVersion < currentVersion` 时不要假装会合并，直接返回：
+
+```json
+{
+  "type":"stale_base",
+  "currentVersion":43,
+  "missingOperations":[...]
+}
+```
+
+客户端拉到缺失操作后重建本地文档。这个版本用户体验不好，但它让并发问题变得可观察。
+
+现在重放文章开头的 `cat`：Alice 和 Bob 都从 version 0 发操作。Alice 先成功，Bob 收到 stale base。你会亲眼看到 Bob 原来的 position 已经不再表达“结尾”。这时引入 transform 是为了解决一个已经出现的失败，不是为了展示算法名词。
+
+### 第四步：加入 Pending Queue，再实现 Transform
+
+现实客户端在上一条操作还没 ack 时，用户已经继续打字。因此需要区分：
+
+```text
+confirmed operations：服务端已排序
+pending operations：本地已应用、服务端未确认
+remote operation：刚从服务端收到
+```
+
+收到 remote operation 时，客户端不能直接应用到屏幕文本；它要先与 pending operations 做 transform，同时也调整 pending positions。服务端则把 stale incoming operation 与 `baseVersion` 之后的权威日志做 transform。
+
+这一步用 property tests 比只写几个 example 更可靠。至少验证：
+
+```text
+apply(apply(doc, A), transform(B against A))
+==
+apply(apply(doc, B), transform(A against B))
+```
+
+还要覆盖 insert/insert 同位置、insert/delete 重叠、delete/delete 重叠和稳定 tie-break。只有所有客户端使用同一个 transform 规则，副本才会收敛。
+
+这条动手路径的顺序很重要：
+
+```text
+deterministic operation
+-> single-user durable version
+-> two-user stale-base failure
+-> pending queue
+-> OT transform
+```
+
+如果直接安装一套 CRDT library，读者也许能做出 demo，却很难解释系统究竟解决了什么。
+
+---
+
 ## 2. 容量估算（Capacity Estimation）：数字不用精确，但要能推出设计
 
 估算不是为了算出一个漂亮答案，而是为了知道哪里会成为瓶颈。
@@ -246,21 +359,6 @@ requirements -> estimation -> data model -> API -> architecture -> OT deep dive
 - periodic snapshot，每隔一段时间保存一份文档快照，避免从第一条操作开始重放。
 
 这里也有取舍。快照越频繁，恢复越快，但写入和存储成本更高；快照越少，存储省一点，但故障恢复和打开老文档会更慢。
-
----
-
-## 2.5 Latency Budget：本地立即显示，远端随后收敛
-
-用户自己的按键必须在 16ms 左右本地渲染，不能等待网络。远端协作者看到修改可目标 p99 200ms：客户端 batch 20ms，gateway/room 路由 30ms，transform 与 durable append 40ms，fan-out 50ms，网络和余量 60ms。Presence 可以更松、更容易丢；正文 ack 不能为了快而跳过 durability。
-
-Hot document 的危险不是单次 transform 算得慢，而是 room queue 排队。要监控每篇文档的 pending operation、append latency、fan-out lag 和 reconnect replay 数量。只扩 gateway 无法缩短一个 hot document 的单一 ordering queue。
-
-## 2.6 关键 Trade-offs：先说明产品语义
-
-- 本地 optimistic apply 让输入流畅，却需要 ack/transform 纠正本地 pending operation。
-- Durable-before-ack 防止“已确认编辑”丢失，但多一次日志写延迟。
-- 每文档单一 owner 简化顺序，却形成 hot-document 上限；读取和 fan-out 应围绕它扩展，而非拆成多个 writer。
-- OT 保留位置操作且服务端排序清楚；CRDT 离线合并自然，但 identifier、tombstone 和 metadata 更重。
 
 ## 3. 数据模型（Data Model）：正文只是结果，operation 才是核心
 
@@ -437,6 +535,32 @@ sequenceDiagram
 如果 room 内存里处理完就 ack，延迟最低，但 room 在落库前崩了，可能会丢掉已经确认给用户的操作。更稳妥的方案是：至少等 operation log 或队列写入成功后再 ack，也就是等一次 durable append。这样延迟会多一点，但用户收到 ack 的操作不会轻易丢。
 
 面试里可以这样说：编辑体验上客户端先乐观更新，所以用户不会等 ack 才看到字；可靠性上，服务端 ack 应该在操作进入可恢复日志之后再发。
+
+### 给主链路一份延迟预算
+
+自己的输入不应等待服务端。浏览器在下一帧内完成本地渲染，网络路径只决定 ack 和其他协作者多久看到这次修改。
+
+可以给远端协作设一份示例 p99 预算：
+
+| 阶段 | 预算 |
+|---|---:|
+| 客户端短暂 batch | 20 ms |
+| Gateway 路由到 room | 30 ms |
+| 权限、transform、durable append | 50 ms |
+| Room fan-out 到接收 gateway | 40 ms |
+| 网络、客户端应用和余量 | 60 ms |
+| **合计** | **200 ms** |
+
+这张表的价值不是承诺所有网络都能做到 200ms，而是帮助定位问题。Ack 慢但 room queue 正常，可能是日志 append；只有某一篇文档慢，通常是 hot-document queue 或某个超大 operation；所有文档都慢，才去看 gateway、网络和 shared log。
+
+Presence 的预算可以更松，也允许丢帧。正文 operation 不应为了追求相同的低延迟而跳过 durability。两种数据共享 WebSocket，不等于共享可靠性语义。
+
+### 这一条链路里的四个取舍
+
+- 本地 optimistic apply 让输入流畅，却要求客户端维护 pending queue，并在 ack/remote op 到来时调整它。
+- Durable-before-ack 防止“已经确认”的编辑丢失，代价是一次日志写延迟。
+- 每文档单一 owner 让排序清楚，也形成 hot-document 上限。Gateway 和 fan-out 可以水平扩，单篇文档的权威排序不能随意拆成多个 writer。
+- OT 保留位置式操作，适合服务端排序；CRDT 更自然地支持离线与多主合并，但 identifier、tombstone 和 metadata 更重。
 
 ---
 

@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "check:system-design-tutorials": "node scripts/content/verify-system-design-tutorials.mjs"
+    "check:system-design-articles": "node scripts/content/check-system-design-article-baseline.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
