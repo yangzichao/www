@@ -498,6 +498,88 @@ engineer -> [job_12, job_34, job_91]
 
 代价是系统从一份数据变成 source of truth + derived index，后面才需要讨论 outbox 和 freshness。
 
+### 用 Cache Miss 路径决定要不要 Elasticsearch
+
+Cache 不能替代搜索后端的能力判断。是否引入 Elasticsearch，要看 **cache miss / cold query**，而不是看一个被热门 query 美化过的平均 latency：
+
+1. 如果 PostgreSQL 在没有外部 result cache 的压测中，keyword + filters 的 peak p95 仍满足 SLO，而且不需要 typo、synonyms、facets，就不需要 Elasticsearch；
+2. 如果一条 common keyword 在 filters 后仍留下几十万 candidates，单次 miss 已经很慢，那么即使 cache hit rate 很高，也应该解决底层 retrieval 与 ranking；
+3. 如果功能明确需要复杂 relevance、typo tolerance、highlight 或 facet aggregation，引入 Search Service 的理由来自功能边界，不来自 QPS；
+4. 如果单次查询不贵，但 `backend_search_qps = incoming_qps × (1 - measured_cache_hit_rate)` 已经让 PostgreSQL 与事务路径争抢 CPU/I/O，才从 workload isolation 和独立 scale-out 角度引入 Search Service。
+
+因此这里没有“达到 10M rows 就必须迁移”的固定门槛。真正的边界是：
+
+```text
+cold-query latency
++ candidates scored per miss
++ backend miss QPS
++ required search features
++ workload isolation
+```
+
+## Result Cache 不是默认 Layer
+
+Job Board 的 query space 很大：keyword、location、salary、company、sort 和 cursor 都会改变 cache key。大量 long-tail query 只出现一次，把 Redis 永久画在 Search API 后面通常没有意义。
+
+外部 Cache 主要服务两个有证据的场景。
+
+### 场景一：热门 First-page Result Cache
+
+只有真实流量表明某些 normalized query 被大量重复时，才缓存它们的第一屏结果：
+
+```text
+key = normalized(keyword, location, salary bucket, company, sort, first page)
+value = Top 20 job IDs + ranking metadata
+TTL = 30 seconds
+```
+
+不要尝试在一个 Job 更新时删除所有可能包含它的 query keys；一个职位可能命中成千上万个 keyword/filter 组合。更简单的策略是短 TTL、容量上限和 LRU eviction。缓存中的 closed Job 可以短暂出现在列表中，但 Application API 仍回 PostgreSQL 校验 `status = active`。
+
+一个具体容量例子：
+
+```text
+incoming Search QPS                 = 5,000
+measured popular-result hit rate    = 40%
+cache hits                          = 2,000 QPS
+backend Search Service QPS          = 3,000 QPS
+primary shards touched per request  = 6
+cluster shard operations            = 3,000 × 6 = 18,000 / second
+```
+
+如果这些 shard copies 大致分布在 6 个 data nodes，每个节点在计算 headroom、replica、fetch、merge 和 concurrent indexing 之前，平均承担约 3,000 shard operations/s。这个数字不是厂商 benchmark，而是一个可以拿真实 shard latency 验证的容量模型。
+
+30 秒 TTL 也不是免费优化。如果 Search Index 自身约落后 1 秒，那么 cache hit 的最坏可见 stale 约为：
+
+```text
+visible staleness <= index lag + cache TTL
+                  ≈ 1s + 30s
+                  ≈ 31s
+```
+
+只有产品接受这个 freshness，40% hit 才是真正的收益，而不是隐藏要求冲突。
+
+### 场景二：Search Session Cache
+
+Search Session 解决的不是热门 query QPS，而是稳定分页。第一次搜索完成后，可以短暂 materialize 一个 bounded result window：
+
+```text
+search_session_id -> {
+  ranking_time,
+  top_1_000_job_ids,
+  expires_at = now + 5 minutes
+}
+```
+
+后续 cursor pages 从同一个集合取数据，因此数据库没有变化时结果稳定；即使期间有新 Job，也不会插进用户当前翻页过程。代价是 session storage 和有意接受的结果陈旧。第一屏仍然必须执行真实 search，所以 Search Session Cache 不能用来证明 PostgreSQL 或 Elasticsearch 的 cold path 足够快。
+
+### Elasticsearch 自带 Cache，但不是完整 Result Cache
+
+Elasticsearch 的 filesystem cache 会保存热 index pages；filter context 中高频结构化 filters 也可能进入 node query cache。但 shard request cache 默认只缓存 `size = 0` 的 totals、aggregations 和 suggestions，不会默认缓存带 Top 20 hits 的完整搜索响应。因此文章中的 Result Cache 指 Search API 明确管理的 Redis 类外部 cache，不要把几种 cache 混成一个 component。
+
+最后的原则是：
+
+> **没有实测重复性，就不加 Result Cache；需要稳定翻页，就 cache bounded search session；要不要 Elasticsearch，永远看 cache miss 路径。**
+
 ## Search Ranking：保持传统和可解释
 
 这不是推荐系统。第一版 ranking 只需要回答：“哪些结果最符合当前 query？”
@@ -805,5 +887,8 @@ ORDER BY text_score DESC,
 - [PostgreSQL: pg_trgm](https://www.postgresql.org/docs/current/pgtrgm.html)
 - [Elasticsearch: Full-text search and filters](https://www.elastic.co/guide/en/elasticsearch/reference/current/full-text-filter-tutorial.html)
 - [Elasticsearch: Index aliases](https://www.elastic.co/guide/en/elasticsearch/reference/current/aliases.html)
+- [Elasticsearch: Query and filter context](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-filter-context)
+- [Elasticsearch: Shard request cache](https://www.elastic.co/guide/en/elasticsearch/reference/current/shard-request-cache.html)
+- [Elasticsearch: Tune for search speed](https://www.elastic.co/docs/deploy-manage/production-guidance/optimize-performance/search-speed)
 - [Debezium: CDC Architecture](https://debezium.io/documentation/reference/architecture.html)
 - [Debezium: Outbox Event Router](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html)
