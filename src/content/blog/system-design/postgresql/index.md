@@ -19,4 +19,5 @@ tags: [postgresql, database, internals]
 
 ## 文章列表
 
-*(持续更新)*
+- [PostgreSQL 搜索与索引：从混合搜索理解 B-tree、GIN、GiST 与 Partial Index](/blog/system-design/postgresql/search-and-indexing/)
+- [PostgreSQL 分区：什么是分区，什么时候用](/blog/system-design/postgresql/partitioning-vs-sharding/)

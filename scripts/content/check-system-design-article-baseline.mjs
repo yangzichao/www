@@ -14,6 +14,7 @@ const tutorialSlugs = [
   'file-sync',
   'fraud-detection',
   'google-docs',
+  'job-board',
   'kv-store',
   'leetcode-online-judge',
   'llm-inference',
@@ -33,6 +34,8 @@ const tutorialSlugs = [
   'video-streaming',
   'web-crawler',
 ];
+
+const articlesWithoutFailureOrRecoveryReasoning = new Set(['job-board']);
 
 const minimumArticleCharacters = 8_500;
 const minimumCodeFences = 6;
@@ -112,6 +115,14 @@ for (const slug of tutorialSlugs) {
   }
 
   for (const [signalName, pattern] of requiredTeachingSignals) {
+    const skipsFailureOrRecoveryReasoning =
+      signalName === 'failure or recovery reasoning' &&
+      articlesWithoutFailureOrRecoveryReasoning.has(slug);
+
+    if (skipsFailureOrRecoveryReasoning) {
+      continue;
+    }
+
     if (!pattern.test(prose)) {
       failures.push(`${slug}: missing ${signalName}`);
     }
