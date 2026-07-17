@@ -407,6 +407,314 @@ remaining_time ≈ remaining_recovery_bytes / observed_bytes_per_second
 
 完成的判断不是“新节点已经出现在 `_cat/nodes`”，而是 cluster 达到预期 health、没有非预期的 unassigned 或 relocating shards，并且各节点负载进入稳定状态。
 
+## Elasticsearch 怎样保证 Consistency
+
+“Elasticsearch 是否 consistent”没有一个简单的是或否。需要把它拆成三层：
+
+```text
+PostgreSQL <-> Elasticsearch
+Elasticsearch primary <-> replica
+Write acknowledged <-> visible to search
+```
+
+### PostgreSQL 和 Elasticsearch 之间：Eventual Consistency
+
+这两个系统没有共享 transaction。PostgreSQL commit 成功，并不意味着 Elasticsearch 在同一时刻已经更新。因此这层只能由 indexing pipeline 提供最终一致性：
+
+```text
+PostgreSQL transaction commits
+-> event is durably retained
+-> worker retries until Elasticsearch succeeds
+-> reconciliation repairs anything missed
+```
+
+Outbox 或 CDC 负责“不丢 change”，Kafka 负责持久保存和重新投递，worker 负责幂等写入。即使如此，用户仍然可能在短时间内搜索到旧结果；这是架构明确接受的 consistency window。
+
+要避免 Kafka 乱序或重试让旧数据覆盖新数据，PostgreSQL entity 应该带一个单调递增的 `source_version`。写 Elasticsearch 时比较版本：
+
+```text
+incoming source_version > stored source_version
+  -> accept update
+
+incoming source_version <= stored source_version
+  -> ignore as duplicate or stale event
+```
+
+因此这层的保证不是“永远同时更新”，而是：只要 pipeline 最终恢复，Elasticsearch 会收敛到 PostgreSQL 的最新版本。
+
+### Elasticsearch 集群内部：Primary-backup Replication
+
+每个 document 根据 ID routing 到一个 primary shard。一次写入的基本路径是：
+
+```mermaid
+sequenceDiagram
+  participant C as Client / Indexing worker
+  participant P as Primary shard
+  participant R1 as In-sync replica 1
+  participant R2 as In-sync replica 2
+  C->>P: index job:123 version 18
+  P->>P: validate and apply operation
+  P->>R1: replicate operation
+  P->>R2: replicate operation
+  R1-->>P: success
+  R2-->>P: success
+  P-->>C: acknowledged
+```
+
+Primary shard 为操作确定顺序，再把操作转发到 replication group 中的 in-sync replicas。如果某个 replica 失败，Elasticsearch 不会继续把这个落后的副本当作安全的最新副本；集群会更新 in-sync 集合，并在以后重新恢复缺失的 shard copy。
+
+默认 `index.translog.durability=request` 时，Elasticsearch 只有在 primary 和所有当前已分配 replicas 的 translog 完成 `fsync` 后才向客户端报告写入成功。这保护的是已经 acknowledge 的写入在进程、操作系统或硬件故障后的持久性。
+
+但是要注意，默认的 active shard requirement 通常只要求 primary 可用。假如 replicas 当前没有分配，写入仍可能只落在 primary 上。对于必须先确认多个 shard copies 可用才开始的关键写入，可以使用：
+
+```http
+POST jobs/_doc/123?wait_for_active_shards=all
+```
+
+这提高了冗余要求，也降低了 replica 故障期间的写入可用性。Consistency、durability 和 availability 在这里存在明确 trade-off。
+
+`wait_for_active_shards` 是写入开始前的可用副本检查，不是一个跨副本 quorum transaction。写入过程中副本仍可能失败，因此关键调用还应该检查响应中的 `_shards.successful` 和 `_shards.failed`。
+
+### Scale-out 时为什么不会读到“复制一半”的 Shard
+
+新增节点后的 shard relocation 不是先把流量切到一个空 shard，再慢慢复制：
+
+```text
+1. Target shard state = INITIALIZING
+2. Copy existing Lucene segment files
+3. Replay operations that arrived during copying
+4. Target catches up with the source
+5. Mark target shard STARTED / in-sync
+6. Update routing and remove the old copy
+```
+
+目标 shard 在恢复完成前不会作为正常的 active copy 承担请求。恢复期间原 shard 继续服务，写入期间产生的增量操作也会被同步到目标。这就是扩容可以在线完成而不暴露半份数据的原因。
+
+如果 source node 在 relocation 中途失败，Elasticsearch 会从其他有效 replica 恢复或重新执行 allocation。若整个 replication group 只剩下唯一一份数据，而这份数据也丢失，系统当然无法凭空保证数据安全；replica 和跨可用区分配仍然是必要条件。
+
+### 写成功不等于立刻能被 Search 看见
+
+Elasticsearch 接受并持久化 document 后，普通 `_search` 仍要等 refresh 才能看到它：
+
+```text
+Write acknowledged
+-> document durable in shard/translog
+-> refresh creates a searchable segment
+-> document visible to _search
+```
+
+所以一次搜索刚创建的 document 得到空结果，并不代表 replica 丢失了写入。它可能只是尚未 refresh。
+
+如果知道 document ID，Get API 默认是 realtime，不受 refresh interval 影响：
+
+```http
+GET jobs/_doc/123
+```
+
+如果业务流程必须在写入响应前保证后续 search 可见，可以对小范围请求使用：
+
+```http
+POST jobs/_doc/123?refresh=wait_for
+```
+
+不要对所有高吞吐写入强制 `refresh=true`，否则会产生大量小 segment，降低 indexing 和 search 性能。
+
+### 并发更新怎样避免 Lost Update
+
+Elasticsearch 为每次 document 修改分配 `_seq_no`，并使用 `_primary_term` 区分 primary 的不同任期。应用执行 read-modify-write 时，可以把读到的两个值带回更新请求：
+
+```http
+PUT jobs/_doc/123?if_seq_no=42&if_primary_term=7
+```
+
+如果 document 已经被别人修改，请求会得到 `409 VersionConflictException`，而不是静默覆盖新版本。这是 optimistic concurrency control。
+
+但 PostgreSQL indexing pipeline 更应该使用 PostgreSQL 自己的 `source_version` 来判断事件新旧，因为 Elasticsearch 的 `_seq_no` 只描述 Elasticsearch 内部修改顺序，不知道 PostgreSQL 中哪一个业务版本更权威。
+
+### Elasticsearch 不提供哪些 Consistency
+
+Elasticsearch 的保证主要是单 document、单 shard 复制语义。它不是一个跨多 document 的关系型 transaction 系统：
+
+- 一次 Bulk API 中，每个 item 独立成功或失败，不是 all-or-nothing；
+- 两个 documents 的更新不能依赖普通 index API 原子提交；
+- 一次跨多个 shards 的 search 可能观察到略微不同时间点的 refreshed segments；
+- 长分页过程中数据继续变化，结果可能移动或重复；需要稳定视图时使用 Point in Time；
+- PostgreSQL 与 Elasticsearch 之间永远没有分布式 ACID transaction。
+
+因此实际系统通常采用下面的 consistency contract：
+
+```text
+Authoritative write and exact current state:
+  PostgreSQL
+
+Search discovery and ranking:
+  Elasticsearch, eventually consistent
+
+Single-document replication and durability:
+  Elasticsearch primary + in-sync replicas + translog
+
+Stable long-running search pagination:
+  Point in Time
+```
+
+## Fault Tolerance：每一层怎样处理故障
+
+Fault tolerance 不是让组件永远不坏，而是提前定义：故障发生后谁接管、工作保存在哪里、是否允许重复，以及怎样恢复到正确状态。
+
+```mermaid
+flowchart LR
+  P[(PostgreSQL)] --> O[Outbox / CDC]
+  O --> K[(Kafka)]
+  K --> W[Indexing workers]
+  W --> E[(Elasticsearch cluster)]
+  E --> S[Search API]
+
+  K -.->|Replay after worker crash| W
+  E -.->|Replica promotion| E
+  P -.->|Rebuild source| E
+```
+
+### Worker 在处理中崩溃
+
+Worker 应该在 Elasticsearch bulk write 成功以后，才提交 Kafka offset：
+
+```text
+Consume event
+-> write Elasticsearch
+-> commit Kafka offset
+```
+
+如果 worker 在 Elasticsearch 成功以后、提交 offset 以前崩溃，同一批事件会被再次消费。因此实际语义通常是 at-least-once，不是 exactly-once。
+
+重复投递本身不是问题，前提是写入幂等：
+
+- document ID 固定，例如 `job:123`；
+- 相同版本重复 upsert 得到同一结果；
+- `source_version` 阻止旧事件覆盖新 document；
+- delete event 重复执行也保持 document 不存在。
+
+### Elasticsearch 暂时不可用
+
+Elasticsearch 不应该位于 PostgreSQL 核心写入的同步依赖路径中：
+
+```text
+PostgreSQL remains writable
+-> outbox / Kafka retains changes
+-> indexing lag grows
+-> Elasticsearch recovers
+-> workers consume backlog and catch up
+```
+
+这里真正的安全边界是 retention。Kafka 必须保存足够长的 change history，outbox 也不能在 Elasticsearch acknowledge 前删除事件。如果故障超过 retention，就不能继续假设 incremental pipeline 完整，应该从 PostgreSQL 执行 reconciliation 或 full rebuild。
+
+### Bulk request 部分失败
+
+Elasticsearch Bulk API 不是 all-or-nothing。HTTP request 成功也不代表每个 item 都成功，worker 必须逐项检查 response：
+
+```text
+successful items -> complete
+429 / transient failures -> exponential backoff + jitter
+mapping / validation errors -> dead-letter queue + alert
+```
+
+`429 TOO_MANY_REQUESTS` 通常代表 Elasticsearch 正在施加 backpressure。立即无上限重试只会继续增加压力；应该缩小 batch、限制并发，并使用指数退避。确定性的 mapping error 即使重试一百次也不会成功，应该进入 dead-letter queue 等待修复。
+
+### Primary shard 所在节点失败
+
+只要 replication group 还有有效 replica，master 会选择一个 in-sync replica 提升为新 primary。正在执行的写请求会等待并重试到新 primary。
+
+客户端也可能只收到 timeout，不知道请求究竟是在失败前还是失败后成功了。这叫 ambiguous outcome。客户端不应该把 timeout 直接理解成“肯定没写入”，而应该使用相同 document ID 和版本安全重试。
+
+```text
+Primary node fails
+-> master promotes an in-sync replica
+-> routing table updates
+-> request retries
+-> Elasticsearch creates a new replica elsewhere
+```
+
+如果 index 没有 replica，或者 primary 和所有 replicas 同时丢失，该 shard 就没有可提升的副本。Elasticsearch 无法从不存在的数据中恢复。
+
+### Replica shard 失败
+
+如果一个 in-sync replica 没能处理即将 acknowledge 的操作，primary 会要求 master 先把它移出 in-sync set；只有 master 确认后，primary 才能完成这次写入。随后 Elasticsearch 在其他节点创建新的 shard copy。
+
+这段时间 cluster 可能处于 yellow：primary 仍然可用，搜索和写入可以继续，但冗余下降。若此时 primary 再失败，风险会明显增加。
+
+```text
+green  = all primaries and required replicas assigned
+yellow = all primaries available, some replicas missing
+red    = at least one primary unavailable
+```
+
+### Relocation 中途失败
+
+Scale-out 时，目标 shard 在 recovery 完成前只是 `INITIALIZING` copy。目标节点中途失败时，未完成的 copy 可以丢弃并重新恢复；原来的 active shard 仍然是有效来源。
+
+只有目标 shard 追平并进入 in-sync set 后，routing 才会切换。因此 shard relocation 使用的是“先复制、验证、再切换”，不是“先切换、失败再回滚”。
+
+### Network partition 与 Master 故障
+
+生产集群通常使用三个分散部署的 master-eligible nodes。集群需要多数派才能选举和发布新的 cluster state：
+
+```text
+3 master-eligible nodes
+-> any 2 can form a majority
+-> tolerate loss of 1
+```
+
+网络分区后，少数派不能自己形成另一个合法 master。旧 primary 如果已经被多数派一侧替换，它之后发送的操作会被 replicas 拒绝。这避免两个分区都长期接受互相冲突的写入。
+
+但 quorum 保护的是 cluster coordination，不会自动保证业务容量。如果多数派一侧没有某个 shard 的有效 copy，该数据仍然不可用。
+
+### 整个 Availability Zone 失败
+
+Primary 和 replica 不能只放在不同节点却仍在同一个机架或可用区。应该使用 shard allocation awareness，让同一 shard 的 copies 分布到不同 failure domains。
+
+同时要为故障后的剩余容量做准备。一个两可用区集群要承受任意一区故障，单个可用区最好能够承担必要的查询和写入负载；否则数据虽然仍然可用，延迟却可能失控。
+
+### 磁盘接近写满
+
+Elasticsearch 的 disk allocator 使用 low、high 和 flood-stage watermarks：
+
+- 超过 low watermark 的节点不再接收更多 shard allocation；
+- 超过 high watermark 时，Elasticsearch 尝试把 shards 移走；
+- 到达 flood stage 时，相关 indices 会被设置 write block，防止磁盘完全写满。
+
+因此磁盘故障的解决方式不是不断重试 indexing，而是释放空间或增加容量。Worker 应保留事件、降低重试频率，并让告警直接暴露 watermark 和 write block。
+
+### Replica 不是 Backup
+
+Replica 会忠实复制 delete、错误更新和损坏的业务输入。如果应用误删一个 index，replicas 不会保存删除前版本。
+
+对于这套架构，业务搜索数据可以从 PostgreSQL 重建；Elasticsearch snapshots 仍然适合恢复 cluster state、templates、security configuration，或者在全量 reindex 很慢时缩短恢复时间。Snapshot 必须存放在集群外部的 repository 中。
+
+### 最终的故障恢复 Contract
+
+可以把整套设计压缩成下面几条：
+
+```text
+PostgreSQL failure:
+  handled by PostgreSQL HA and backup strategy
+
+Worker failure:
+  Kafka replay + idempotent processing
+
+Elasticsearch transient failure:
+  bounded retry + exponential backoff
+
+Elasticsearch node failure:
+  in-sync replica promotion + shard recovery
+
+Elasticsearch cluster loss:
+  rebuild from PostgreSQL or restore snapshot
+
+Silent synchronization drift:
+  reconciliation job + lag and mismatch alerts
+```
+
+系统不需要追求一次也不重复，而应该追求：change 不丢失、重复无害、旧版本不能覆盖新版本、积压可观测，而且最终能够从 Source of Truth 重建。
+
 ## 生产实现不能漏掉的六件事
 
 ### 1. 幂等 upsert
@@ -487,3 +795,12 @@ flowchart LR
 - [Elastic: Index recovery settings](https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/index-recovery-settings)
 - [Elastic: CAT recovery API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cat-recovery)
 - [Elastic: General index settings](https://www.elastic.co/docs/reference/elasticsearch/index-settings/index-modules)
+- [Elastic: Reading and writing documents](https://www.elastic.co/docs/deploy-manage/distributed-architecture/reading-and-writing-documents)
+- [Elastic: Translog settings](https://www.elastic.co/docs/reference/elasticsearch/index-settings/translog)
+- [Elastic: Optimistic concurrency control](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/optimistic-concurrency-control)
+- [Elastic: Get a document](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-get)
+- [Elastic: The refresh parameter](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/refresh-parameter)
+- [Elastic: Shard allocation awareness](https://www.elastic.co/docs/deploy-manage/distributed-architecture/shard-allocation-relocation-recovery/shard-allocation-awareness)
+- [Elastic: Resilience in larger clusters](https://www.elastic.co/docs/deploy-manage/production-guidance/availability-and-resilience/resilience-in-larger-clusters)
+- [Elastic: Rejected requests](https://www.elastic.co/docs/troubleshoot/elasticsearch/rejected-requests)
+- [Elastic: Restore from snapshot](https://www.elastic.co/docs/troubleshoot/elasticsearch/restore-from-snapshot)
