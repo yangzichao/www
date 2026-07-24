@@ -33,6 +33,7 @@ const tutorialSlugs = [
   'url-shortener',
   'video-streaming',
   'web-crawler',
+  'youtube-like-counter',
 ];
 
 const articlesWithoutFailureOrRecoveryReasoning = new Set(['job-board']);
