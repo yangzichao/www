@@ -256,6 +256,24 @@ WHERE status = 'SCHEDULED';
 
 PostgreSQL 也原生支持 `PARTITION BY RANGE (execute_at)` 的物理时间分区，但这是另一层优化。只有当表已经很大，并且需要按天或按月快速归档、删除或维护索引时才使用；分区需要提前创建和轮换，重新调度还可能让记录跨分区移动。合理的组合通常是：**按天/月做粗粒度物理分区，在分区内部继续使用分钟级逻辑 time-bucket index**，而不是建立海量分钟分区。
 
+### 行锁不会成为瓶颈吗
+
+`FOR UPDATE SKIP LOCKED` 适合第一阶段，因为锁只覆盖一个有上限的小 batch，并在 `SCHEDULED -> READY` 提交后立即释放；任务执行期间绝不能继续持有数据库锁。但当大量 Scheduler 同时从同一段 `execute_at` index 领取任务时，索引头部仍会成为 hot spot。
+
+规模上来后，可以预先定义固定数量的逻辑 shards：
+
+```text
+bucket_start = floor(execute_at / 1 minute)
+shard_id     = hash(execution_id) mod 1024
+logical partition = (bucket_start, shard_id)
+```
+
+任务写入后，其 `shard_id` 保持稳定。Scheduler 实例不再同时竞争所有到期记录，而是通过带过期时间的 ownership lease 领取一组逻辑 shards，只扫描自己负责的 `(bucket_start, shard_id)`。它可以把这些 shard 中未来几十秒的任务加载进内存 priority queue 或 timing wheel，到期后再批量转成 `READY`。实例故障时 lease 过期，其他实例接管；数据库仍是 durable source of truth。
+
+这与 consistent hashing 的目标相似，都是分散负载，但这里通常不需要直接使用 consistent hash。更简单的做法是让任务固定映射到大量逻辑 shard，再让数量不断变化的 Scheduler 实例动态租赁这些 shard。Scheduler 从 10 台扩到 20 台时，只重新分配 lease，任务不需要重新计算 shard 或移动数据。只有当任务必须直接映射到物理节点，并且希望节点变化时尽量少迁移数据，consistent hashing 才更合适。
+
+因此扩展路径是：**小规模用索引与短事务行锁；中大规模用固定逻辑 shard 与 ownership lease 消除热点；Worker backlog 明显时再用 Queue 隔离调度与执行。**
+
 ## Worker Pull 还是 Scheduler Push
 
 这里有两种有效模型。“Worker 领取任务”指 **Pull**：没有谁主动给 Worker 发任务。Scheduler 只把到期 Execution 改成 `READY`；空闲 Worker 查询 READY records，并通过原子 compare-and-set 或 lease claim 其中一个。
