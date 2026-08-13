@@ -232,6 +232,30 @@ Cron 仍需明确：
 
 如果系统很小、只有 Cron 一个调用方，集成式设计更简单；当可靠 timer 被多个上层服务复用时，拆出 one-time primitive 才真正值得。
 
+## Scheduler 怎样从 Execution Store 找到到期任务
+
+第一版不需要真正拆分数据库表。PostgreSQL 中最简单的做法，是给尚未触发的 Execution 建立一个按时间排序的 partial index：
+
+```sql
+CREATE INDEX scheduled_executions_due_idx
+ON executions (execute_at)
+WHERE status = 'SCHEDULED';
+```
+
+Scheduler 使用这个索引读取 `execute_at <= now()` 的少量记录，并通过 `FOR UPDATE SKIP LOCKED` 或等价的 lease 机制竞争领取。这样是查询索引，不是周期性扫描整张表；轮询间隔也可以根据最近一条 `execute_at` 动态调整。
+
+当 future jobs 达到 millions 或 billions 时，再增加一个内部字段 `bucket_start`，例如把 `execute_at` 向下取整到分钟：
+
+```sql
+CREATE INDEX scheduled_executions_bucket_idx
+ON executions (bucket_start, execute_at)
+WHERE status = 'SCHEDULED';
+```
+
+这就是本文所说的 **time bucket**：它是普通字段与索引组成的逻辑分桶，不是特殊 Queue，也不是为每一分钟创建一张表。Scheduler shards 可以按 bucket 或 `bucket + hash shard` 分工，只检查当前及尚未处理的过期 bucket；真正到秒级触发前，仍用 `execute_at` 做最后判断。`bucket_start` 最好在写入时计算，作为内部检索字段，不改变外部 API。
+
+PostgreSQL 也原生支持 `PARTITION BY RANGE (execute_at)` 的物理时间分区，但这是另一层优化。只有当表已经很大，并且需要按天或按月快速归档、删除或维护索引时才使用；分区需要提前创建和轮换，重新调度还可能让记录跨分区移动。合理的组合通常是：**按天/月做粗粒度物理分区，在分区内部继续使用分钟级逻辑 time-bucket index**，而不是建立海量分钟分区。
+
 ## Worker Pull 还是 Scheduler Push
 
 这里有两种有效模型。“Worker 领取任务”指 **Pull**：没有谁主动给 Worker 发任务。Scheduler 只把到期 Execution 改成 `READY`；空闲 Worker 查询 READY records，并通过原子 compare-and-set 或 lease claim 其中一个。
