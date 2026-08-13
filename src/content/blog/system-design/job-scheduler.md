@@ -295,6 +295,35 @@ Scheduler -> choose Worker -> assign lease -> RPC dispatch
 
 Push 可以更快地响应，并能显式考虑 locality、资源、priority 或 sticky placement；但 Scheduler 必须掌握 Worker membership、health 和 capacity，还要处理“assignment 已提交但 RPC 响应丢失”这种不确定状态。Tie-breaker 很直接：**同质 Worker + 普通秒级任务选 Pull；需要资源匹配、数据本地性或极低 dispatch latency 时才选 Push。**
 
+## Execution 与 Attempt 状态机
+
+Execution 表示用户提交的那次任务，Attempt 表示 Worker 的一次实际执行。两者必须分开：Worker 崩溃后可以产生新的 Attempt，但不能因此创建一个新的业务 Execution。
+
+```text
+Execution:
+SCHEDULED -> READY -> RUNNING -> SUCCEEDED
+                         |  \
+                         |   -> RETRY_WAIT -> READY
+                         -> FAILED
+
+SCHEDULED / READY / RETRY_WAIT -> CANCELLED
+
+Attempt:
+RUNNING -> SUCCEEDED | FAILED | TIMED_OUT | ABANDONED
+```
+
+Scheduler 只负责 `SCHEDULED -> READY`。Worker 领取时，在一个短事务中创建 Attempt、写入 `lease_owner`、`lease_expires_at` 和单调递增的 `fencing_token`，并把 Execution 改为 `RUNNING`。成功时只有当前 token 对应的 Worker 能提交结果；可重试失败进入 `RETRY_WAIT`，到达 `next_attempt_at` 后重新变成 `READY`；超过次数或遇到不可重试错误才进入 `FAILED`。这些条件状态更新既是并发控制，也是 at-least-once 下防止旧 Worker 覆盖新结果的边界。
+
+## Failover：组件崩溃后怎样恢复
+
+**Scheduler 崩溃：** Execution 一直保存在数据库中，内存 priority queue 只是缓存。Scheduler 定期续租自己负责的 logical shards；实例消失后 lease 到期，其他 Scheduler 接管，并从持久化 watermark 之前稍早的位置重扫到期 bucket。尚未转成 `READY` 的任务会被重新发现；已经转成 `READY` 的任务不再依赖原 Scheduler。
+
+**Worker 崩溃：** Worker 执行期间续租 Attempt。心跳停止后，reaper 将过期 Attempt 标记为 `TIMED_OUT` 或 `ABANDONED`，再根据 retry policy 把 Execution 放回 `READY`。原 Worker 如果只是网络隔离后恢复，它持有的旧 fencing token 已失效，不能提交结果。外部副作用仍可能发生两次，因此 handler 还必须使用 `execution_id` 或业务 idempotency key 保证幂等。
+
+**数据库崩溃：** Scheduler 与 Worker 的领取、状态转换都只访问当前 primary，read replica 只能用于非关键查询。主库故障时，未提交事务自动回滚；提交结果是否会在新 primary 上保留，取决于复制方式。若任务不能丢，应使用同步复制或有共识保证的高可用数据库，并接受写入延迟；异步 replica 会带来非零 RPO。客户端还要把超时视为“提交结果未知”，用 idempotency key 和条件状态更新安全重试，而不能直接假定事务失败。
+
+因此系统的基本保证是 **durable state + expiring lease + fencing token + idempotent retry**。Failover 可能造成延迟或重复执行，但不应造成任务永久丢失；这里提供的是 at-least-once，而不是不切实际的 exactly-once。
+
 ## Queue 是可选组件，不是默认答案
 
 第一版不需要独立 Message Queue。Execution Store 可以同时承担 durable scheduling state 与 ready-work handoff：
