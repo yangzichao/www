@@ -27,31 +27,62 @@ Job Scheduler 很容易被讲成一句话：
 
 > **设计一个分布式的 time-based Job Scheduler：可靠保存一次性和周期性计划，在预定时间生成 Execution，再通过 Queue 至少一次地交给 Worker。**
 
-默认 scope 可以明确为：
+从产品功能看，它支持 One-time 与 Recurring/Cron；从内部组件边界看，却有两种合理方案：
 
 ```text
-In scope
-- one-time schedule
-- recurring / cron schedule
-- pause, resume, update, cancel
-- execution history
-- retry with backoff
-- at-least-once dispatch
-- independent, short-running jobs
-- homogeneous workers
+Integrated
+Job Scheduler 自己保存 Cron rule，并生成每次 Execution
 
-Out of scope
+Composable
+底层只调度一次 Execution；Cron Service 负责把 recurrence 展开成单次 Execution
+```
+
+本文选择第二种，先把最难复用的可靠性问题收敛成一个基础组件：
+
+> **One-time Execution Scheduler 只负责在 `execute_at` 到达时，可靠地把一次 Execution 交给执行系统。**
+
+Cron Service、Retry coordinator，甚至 DAG Orchestrator，都可以通过同一个 Client SDK 使用它：
+
+```text
+Direct Client ───────────────┐
+Cron Service ── Client SDK ──┼──> One-time Execution Scheduler ──> Executor
+DAG Orchestrator ────────────┘
+```
+
+这里的 Cron Service 必须是 durable service，不能只有一个进程内 library。Client SDK 只负责调用与重试；Cron rule、timezone、misfire 和 overlap policy 必须在服务端持久保存。
+
+## Requirements
+
+### Functional Requirements
+
+- Client 可以提交一次 Execution，并指定 `execute_at`；
+- Client 可以用 `execution_id` 查看状态与结果引用；
+- Client 可以取消尚未开始的 Execution；
+- 到期的 Execution 会被交给 Executor；
+- Cron Service 可以创建、更新、暂停和取消 Cron rule，并通过 Client SDK 生成单次 Execution。
+
+### Non-functional Requirements
+
+- 已确认的 Execution 不能静默丢失；
+- 正常情况下达到秒级调度精度；
+- 使用 at-least-once delivery，允许重复投递；
+- 相同 `idempotency_key` 的重复提交只创建一个 Execution；
+- Scheduler 节点故障后可以恢复，并能水平扩展到到期流量峰值。
+
+### Out of Scope
+
+```text
 - DAG dependencies
 - large batch fan-out / fan-in
 - GPU or topology-aware placement
 - checkpoint-based recovery for multi-hour jobs
 ```
 
-这种收束不是假装其他 Scheduler 不存在，而是在有限面试时间里选择大家最常期待的主问题。
+这些系统以后可以使用底层 one-time component，但不属于当前实现。
 
 可以用一句话和面试官确认：
 
-> “I’ll assume we are designing a distributed time-based scheduler for independent, short-running jobs. It supports one-time and recurring schedules, retries failed executions, and dispatches at least once to homogeneous workers. I’ll treat DAG dependencies and resource-aware placement as extensions.”
+> “I’ll expose one-time and recurring scheduling, but make reliable one-time execution the core primitive. A durable Cron Service will materialize each occurrence through the same client used by direct callers. DAG dependencies and resource placement stay out of scope.”
 
 确认 scope 以后，再用三个问题检查后续约束有没有把题目推向另一类系统：
 
@@ -63,7 +94,31 @@ Placement: Job 可以被任意 Worker 执行吗？
 
 这三个问题决定 High-Level Architecture 的形状，但它们不是三种并列的 Job 类型。
 
-## 先区分 Definition File、Scheduled Job 与 Execution
+## API：核心只接受一次 Execution
+
+```http
+POST /executions
+Idempotency-Key: cron-42:2026-08-13T02:00:00Z
+
+{
+  "definitionUri": "registry://jobs/generate-report",
+  "definitionVersion": 3,
+  "inputs": {
+    "datasetUri": "s3://datasets/orders",
+    "reportDate": "2026-08-12"
+  },
+  "executeAt": "2026-08-13T02:00:00Z"
+}
+```
+
+```http
+GET /executions/{executionId}
+DELETE /executions/{executionId}
+```
+
+`POST` 提交单次执行，`GET` 查看状态与输出引用，`DELETE` 只取消尚未开始的执行。Cron Service 也调用同一个 `POST`；它用 `cron_job_id + occurrence_time` 生成稳定的 idempotency key，避免重试时重复创建。
+
+## Data Model：Definition File 与 Execution
 
 Scheduler 不应该把可执行代码或某一种 runtime 写死在自己的数据库里。更干净的边界是：执行平台提供一份版本化的 **Job Definition File**，Scheduler 只引用它。
 
@@ -86,154 +141,78 @@ execution:
   command: ["generate"]
 ```
 
-Scheduler 不需要理解 `execution` 里的具体实现。创建 Job 时，它只校验 Definition File 存在、输入符合声明，并保存引用：
+Scheduler 不需要理解 `execution` 里的具体实现。它只校验 Definition File 存在、输入符合声明，并保存一次 Execution：
 
 ```text
-Scheduled Job
-- job_id
+Execution
+- execution_id
 - definition_uri
 - definition_version
+- input_snapshot
+- execute_at
+- idempotency_key
+- status
+- output_reference
+```
+
+Definition File 回答“这是什么任务、需要什么输入、产生什么输出”；Execution 回答“使用哪个版本和输入、在什么时候运行，以及结果在哪里”。创建 Execution 时必须固定 Definition 版本并保存输入快照，保证后续重试可复现。
+
+Cron Service 自己保存另一份很小的模型：
+
+```text
+Cron Job
+- cron_job_id
+- definition_uri + version
 - input_values
-- schedule
+- cron_expression + timezone
 - next_run_at
 - status
 ```
 
-Definition File 回答“这是什么任务、需要什么输入、产生什么输出”；Scheduled Job 回答“用哪些输入、在什么时候触发”。
+到达 `next_run_at` 后，Cron Service 通过 Client SDK 创建 Execution，再计算下一次时间。核心 Scheduler 不需要保存或解释 Cron expression。
 
-每天凌晨 2 点生成账单会持续产生不同的 **Job Execution**：
-
-```text
-Execution A
-definition_version = 3
-scheduled_at = 2026-08-12 02:00
-status = SUCCEEDED
-output_reference = s3://reports/2026-08-12.pdf
-
-Execution B
-definition_version = 3
-scheduled_at = 2026-08-13 02:00
-status = RUNNING
-```
-
-创建 Execution 时必须固定 Definition 版本并保存输入快照。这样即使 Scheduled Job 随后升级到 version 4，旧 Execution 的重试仍使用 version 3，行为可以复现。
-
-三者的关系是：
+关系是：
 
 ```text
-Job Definition File 1 ── N Scheduled Job 1 ── N Execution
+Job Definition File 1 ── N Execution
+Cron Job 1 ── materializes ── N Execution
 ```
 
-这个区分非常重要：
+## Time-based Schedule 怎样落到底层 Primitive
 
-- Definition File 属于执行契约，不属于 Scheduler 的代码实现；
-- Scheduled Job 保存时间规则与下一次触发时间；
-- Execution 保存某一次运行的定义版本、输入快照、状态与输出引用；
-- Retry 通常属于某次 Execution 的新 attempt，而不是一份毫无关联的新 Job；
-- 暂停 Cron Job 不应该抹掉过去的执行历史；
-- 取消未来计划和取消正在运行的 attempt 是两个不同操作。
+外部产品仍然可以提供常见的时间能力，但它们最终都产生一次 `execute_at`：
 
-## 主范围内的常见 Job 怎样归类
+### One-time 与 Delayed
 
-不要把所有常见名词都当成并列类别。对于默认的 time-based Scheduler，更清楚的归类只有两层。
-
-### 用户创建的 Schedule：One-time 与 Recurring
-
-#### One-time Job
-
-只在指定时间运行一次：
+One-time 直接提交绝对时间；Delayed 只是 Client SDK 的便捷写法：
 
 ```text
-2026-08-13 15:00 发送预约提醒
+One-time: execute_at = 2026-08-13 15:00
+Delayed:  execute_at = now + 30 minutes
 ```
 
-#### Delayed Job
+### Recurring / Cron
 
-Delayed Job 通常不需要成为第三种顶层 Schedule。它只是用相对时间创建的 One-time Job：
-
-相对于某个业务动作，延迟一段时间运行：
+Cron Service 计算 occurrence，并逐次提交：
 
 ```text
-订单创建 30 分钟后检查是否付款
+Cron rule: 0 2 * * *
+Occurrence: 2026-08-13 02:00
+POST /executions execute_at=2026-08-13T02:00:00Z
 ```
 
-创建任务时把相对时间换算成绝对时间即可：
+### Retry
 
-```text
-next_run_at = created_at + 30 minutes
-```
-
-#### Recurring / Cron Job
-
-按照周期重复运行：
-
-```text
-每天凌晨生成报表
-每周一发送周报
-每 5 分钟同步数据
-```
-
-每次触发以后，根据 recurrence rule 计算新的 `next_run_at`。
-
-### 系统产生的后续 Attempt：Retry
-
-某次 Execution 失败以后再次尝试：
+Retry 不是新的 Execution。失败后，同一个 Execution 可以在 backoff 时间到达时产生下一个 Attempt：
 
 ```text
 attempt 1 failed
-next_run_at = now + backoff(attempt 2)
+next_attempt_at = now + backoff(attempt 2)
 ```
 
-所以更准确的概念关系是：
+它可以在内部复用相同的 durable timer 能力，但不能用 `POST /executions` 创建一个失去关联的新 Execution。Attempt 的状态留到下一节状态机再设计。
 
-```text
-Scheduled Job
-├── One-time schedule
-│   └── Delayed job = now + delay
-└── Recurring schedule
-    └── Cron / fixed interval
-
-Job Execution
-└── Attempt 1
-    └── Retry = Attempt 2 scheduled with backoff
-```
-
-它们在概念层级上并不完全并列，但从 Time Scheduler 的角度，都可以归一成同一个问题：
-
-> **当 `next_run_at <= now` 时，创建或推进一次 Execution，使它进入 ready 状态。**
-
-因此，它们可以共享同一条主路径：
-
-```text
-Job API
-   │
-   ▼
-Schedule Store
-   │  next_run_at <= now
-   ▼
-Time Scheduler
-   │  create Execution
-   ▼
-Ready Queue
-   │
-   ▼
-Workers
-```
-
-它们的不同主要留在策略和数据中：
-
-| 概念 | 系统里的含义 |
-|---|---|
-| One-time | 一份只产生一次预定 Execution 的 Scheduled Job |
-| Delayed | 使用 `now + delay` 创建的 One-time schedule |
-| Recurring / Cron | 一份会持续计算下一个 occurrence 的 Scheduled Job |
-| Retry | 同一 Execution 的后续 attempt，由 backoff 决定时间 |
-
-因此，面试中不应该看到四个名词，就立即画四个 Scheduler。
-
-### Cron 仍然有额外语义
-
-共享架构不代表完全没有差异。Cron 至少需要明确：
+Cron 仍需明确：
 
 - 使用哪个时区；
 - 夏令时切换时运行零次、一次还是两次；
@@ -241,7 +220,15 @@ Workers
 - 上一次还没有结束时，下一次是并行、跳过、排队还是替换；
 - 暂停后恢复时，是否追赶所有 missed executions。
 
-这些问题会扩展 Scheduled Job 和 Execution 的状态机，但通常还没有改变系统的主要组件。
+这些策略留在 Cron Service。底层 primitive 只接收已经确定的 `execute_at`。
+
+## 为什么不总是这样拆
+
+可组合方案的优点是职责单一，Cron、Retry 和 DAG 可以复用同一套持久化、计时、幂等与投递能力；底层也不必理解 Cron 或 dependency。
+
+代价是多了一条跨服务边界：Cron Service 更新自身状态与提交 Execution 不是天然的单事务，取消和可观测性也需要跨服务串联。Cron Service 必须持久化自己的 rule，并使用稳定 idempotency key 重试提交。
+
+如果系统很小、只有 Cron 一个调用方，集成式设计更简单；当可靠 timer 被多个上层服务复用时，拆出 one-time primitive 才真正值得。
 
 ## 不要混进主分类的相邻系统
 
@@ -373,7 +360,7 @@ Specialized Worker Pool
 | Batch Processing Engine | 如何拆分、并行和汇总大量工作？ | 否，另一道题 |
 | Cluster / Resource Scheduler | Execution 应该放在哪台机器？ | 否，另一道题 |
 
-这张表分类的是**系统责任**。One-time、Cron、Delayed 和 Retry 分类的是**主系统内部的时间语义**。两者不要混在一个层级里。
+这张表分类的是**系统责任**。One-time、Cron、Delayed 和 Retry 描述的是**产品层的时间语义**。两者不要混在一个层级里。
 
 ## 一个容易漏掉的例外：类型没变，规模也会改变架构
 
@@ -385,7 +372,7 @@ Specialized Worker Pool
 sub-second scheduling precision
 ```
 
-Job 语义仍然没有变化，但单个数据库的 `next_run_at` index 和一个轮询 Scheduler 已经可能成为瓶颈。系统可能需要：
+Execution 语义仍然没有变化，但单个数据库的 `execute_at` index 和一个轮询 Scheduler 已经可能成为瓶颈。系统可能需要：
 
 - 按稳定 key 或时间范围分片；
 - 按分钟或秒建立时间桶；
@@ -414,7 +401,7 @@ Job 语义仍然没有变化，但单个数据库的 `next_run_at` index 和一�
 3. 一般运行多久？失败后整体重试是否可以接受？
 4. 一个 Job 是否会拆成大量并行子任务？
 5. Worker 是否同质，还是需要 CPU、GPU、内存、region placement？
-6. 有多少 active schedules？峰值每秒有多少 Job 到期？
+6. 有多少待执行 Executions？峰值每秒有多少 Execution 到期？
 7. 调度精度是分钟、秒还是亚秒？
 8. 允许重复执行吗？允许丢失吗？
 
@@ -429,17 +416,23 @@ Job 语义仍然没有变化，但单个数据库的 `next_run_at` index 和一�
 - at-least-once execution is acceptable
 ```
 
-那么第一版就应该克制地收敛为：
+那么第一版可以收敛为：
 
 ```text
-Job API -> Schedule Store -> Time Scheduler
-        -> Execution Store -> Ready Queue -> Workers
+Direct Client ───────────────┐
+Cron Service ── Client SDK ──┼──> Execution API -> Execution Store
+DAG Orchestrator ────────────┘                         │ execute_at <= now
+                                                      ▼
+                                              Time Scheduler
+                                                      │
+                                                      ▼
+                                                Ready Queue -> Executor
 ```
 
 而不是一开始就引入 DAG Engine、Checkpoint Store、GPU Scheduler 和 Timing Wheel。
 
 这一阶段最重要的结论是：
 
-> **本文的主问题是 time-based Job Scheduler。One-time 与 Recurring 是 Scheduled Job 类型，Delayed 是 One-time 的创建方式，Retry 是 Execution 的后续 Attempt。Event、Workflow、Batch 和 Resource Scheduling 属于相邻系统边界；Long-running、规模与精度则是可能扩展主架构的约束。**
+> **产品可以提供 One-time 与 Recurring/Cron，但底层最小可复用组件只调度一次 Execution。Delayed 由 Client 换算为 `execute_at`，Cron Service 逐次 materialize occurrences，Retry 则属于同一 Execution 的后续 Attempt。**
 
-下一步再基于明确的第一版 scope，设计 API、Scheduled Job、Execution 状态机，以及 Scheduler 怎样可靠地领取到期任务。
+下一步基于这套 API 和 Data Model 设计 Execution / Attempt 状态机，再讨论 Scheduler 怎样可靠地领取到期任务。
