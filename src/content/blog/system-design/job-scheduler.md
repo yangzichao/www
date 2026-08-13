@@ -232,6 +232,27 @@ Cron 仍需明确：
 
 如果系统很小、只有 Cron 一个调用方，集成式设计更简单；当可靠 timer 被多个上层服务复用时，拆出 one-time primitive 才真正值得。
 
+## Worker Pull 还是 Scheduler Push
+
+这里有两种有效模型。“Worker 领取任务”指 **Pull**：没有谁主动给 Worker 发任务。Scheduler 只把到期 Execution 改成 `READY`；空闲 Worker 查询 READY records，并通过原子 compare-and-set 或 lease claim 其中一个。
+
+```text
+Pull
+Scheduler -> mark READY in Execution Store
+Worker -> poll -> claim lease -> run
+```
+
+Pull 不需要 Scheduler 维护 Worker registry、心跳、容量和连接状态；Worker 也会自然地按自身处理速度领取工作。它适合本文默认的独立、短时、同质任务，代价是 polling latency、空轮询以及多个 Worker 对 Execution Store 的竞争。
+
+**Push** 则由 Scheduler 选择 Worker，再通过 RPC 主动派发：
+
+```text
+Push
+Scheduler -> choose Worker -> assign lease -> RPC dispatch
+```
+
+Push 可以更快地响应，并能显式考虑 locality、资源、priority 或 sticky placement；但 Scheduler 必须掌握 Worker membership、health 和 capacity，还要处理“assignment 已提交但 RPC 响应丢失”这种不确定状态。Tie-breaker 很直接：**同质 Worker + 普通秒级任务选 Pull；需要资源匹配、数据本地性或极低 dispatch latency 时才选 Push。**
+
 ## Queue 是可选组件，不是默认答案
 
 第一版不需要独立 Message Queue。Execution Store 可以同时承担 durable scheduling state 与 ready-work handoff：
@@ -251,7 +272,7 @@ Worker:    用 lease 原子领取 READY Execution
 Scheduler -> Ready Queue -> Worker
 ```
 
-此时 Queue 负责缓冲与分发，Execution Store 仍是状态真相；数据库状态与 Queue 消息之间需要 Outbox 或等价的可恢复投递机制。因此 Queue 是有成本的扩展，不是架构图里的默认装饰。
+这是 Hybrid：Scheduler 把任务 push 给 Queue，Worker 再从 Queue pull。Queue 负责缓冲与分发，Execution Store 仍是状态真相；数据库状态与 Queue 消息之间需要 Outbox 或等价的可恢复投递机制。因此 Queue 是有成本的扩展，不是架构图里的默认装饰。
 
 ## 不要混进主分类的相邻系统
 
