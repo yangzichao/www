@@ -69,7 +69,7 @@ DAG Orchestrator ────────────┘
 - 相同 `idempotency_key` 的重复提交只创建一个 Execution；
 - Scheduler 节点故障后可以恢复，并能水平扩展到到期流量峰值。
 
-`idempotency_key` 只解决重复提交；at-least-once delivery 仍可能把同一个 Execution 多次交给 Worker，Worker 必须用 `execution_id` 单独保证副作用幂等。
+`idempotency_key` 只解决重复提交；at-least-once delivery 仍可能把同一个 Execution 多次交给 Worker，Worker 必须用 `execution_id` 单独保证副作用幂等。因此系统提供的是 at-least-once，而不是 exactly-once；它提供实现幂等所需的稳定标识，但不能自动保证所有外部副作用幂等。
 
 ### Out of Scope
 
@@ -205,14 +205,16 @@ POST /executions execute_at=2026-08-13T02:00:00Z
 
 ### Retry
 
-Retry 不是新的 Execution。失败后，同一个 Execution 可以在 backoff 时间到达时产生下一个 Attempt：
+Retry 不是新的 Execution。失败后，同一个 Execution 可以在 backoff 时间到达时产生下一个 Attempt。瞬时错误通常采用 capped exponential backoff，并加入 jitter，避免大量失败任务在同一时刻形成 retry storm：
 
 ```text
 attempt 1 failed
-next_attempt_at = now + backoff(attempt 2)
+maximum_delay = min(max_delay, base_delay * 2^(attempt_number - 1))
+retry_delay   = random(0, maximum_delay)  // full jitter
+next_attempt_at = now + retry_delay
 ```
 
-它可以在内部复用相同的 durable timer 能力，但不能用 `POST /executions` 创建一个失去关联的新 Execution。Attempt 的状态留到下一节状态机再设计。
+Retry 可以在内部复用相同的 durable timer 能力，但不能用 `POST /executions` 创建一个失去关联的新 Execution。只有可重试错误才进入 `RETRY_WAIT`；超过最大次数或遇到永久错误后，Execution 进入 `FAILED`。如果采用 Queue，可以把需要人工处理的消息送入 dead-letter queue；否则保留失败记录并提供 replay API 即可。
 
 Cron 仍需明确：
 
@@ -552,4 +554,4 @@ flowchart LR
 
 > **产品可以提供 One-time 与 Recurring/Cron，但底层最小可复用组件只调度一次 Execution。Delayed 由 Client 换算为 `execute_at`，Cron Service 逐次 materialize occurrences，Retry 则属于同一 Execution 的后续 Attempt。**
 
-下一步基于这套 API 和 Data Model 设计 Execution / Attempt 状态机，再讨论 Scheduler 怎样可靠地领取到期任务。
+至此，核心设计已经覆盖 API、Data Model、Execution / Attempt 状态机、Scheduler 分片、Worker 领取、at-least-once、幂等重试与 failover。后续扩展应由明确需求驱动，例如 priority、公平性、backpressure、容量估算与可观测性，而不是继续向核心路径堆组件。
