@@ -9,7 +9,7 @@ tags: [system-design, interview, learning, scheduler, distributed-systems]
 Job Scheduler 很容易被讲成一句话：
 
 ```text
-时间到了，把 Job 放进 Queue，让 Worker 执行。
+时间到了，让 Worker 执行 Job。
 ```
 
 这句话没有错，但 “Job Scheduler” 在不同语境里可能指完全不同的系统。真正开始设计之前，我们必须先认清题目：
@@ -25,7 +25,7 @@ Job Scheduler 很容易被讲成一句话：
 
 如果题目只有一句 “Design a Job Scheduler”，没有提到 DAG、GPU、Kubernetes 或 ETL，通常期待的是：
 
-> **设计一个分布式的 time-based Job Scheduler：可靠保存一次性和周期性计划，在预定时间生成 Execution，再通过 Queue 至少一次地交给 Worker。**
+> **设计一个分布式的 time-based Job Scheduler：可靠保存一次性和周期性计划，并在预定时间把 Execution 至少一次地交给 Worker。**
 
 从产品功能看，它支持 One-time 与 Recurring/Cron；从内部组件边界看，却有两种合理方案：
 
@@ -39,13 +39,13 @@ Composable
 
 本文选择第二种，先把最难复用的可靠性问题收敛成一个基础组件：
 
-> **One-time Execution Scheduler 只负责在 `execute_at` 到达时，可靠地把一次 Execution 交给执行系统。**
+> **One-time Job Scheduler 只负责在 `execute_at` 到达时，可靠地把一次 Execution 交给 Worker。**
 
 Cron Service、Retry coordinator，甚至 DAG Orchestrator，都可以通过同一个 Client SDK 使用它：
 
 ```text
 Direct Client ───────────────┐
-Cron Service ── Client SDK ──┼──> One-time Execution Scheduler ──> Executor
+Cron Service ── Client SDK ──┼──> One-time Job Scheduler ──> Worker
 DAG Orchestrator ────────────┘
 ```
 
@@ -58,7 +58,7 @@ DAG Orchestrator ────────────┘
 - Client 可以提交一次 Execution，并指定 `execute_at`；
 - Client 可以用 `execution_id` 查看状态与结果引用；
 - Client 可以取消尚未开始的 Execution；
-- 到期的 Execution 会被交给 Executor；
+- 到期的 Execution 会被交给 Worker；
 - Cron Service 可以创建、更新、暂停和取消 Cron rule，并通过 Client SDK 生成单次 Execution。
 
 ### Non-functional Requirements
@@ -69,7 +69,7 @@ DAG Orchestrator ────────────┘
 - 相同 `idempotency_key` 的重复提交只创建一个 Execution；
 - Scheduler 节点故障后可以恢复，并能水平扩展到到期流量峰值。
 
-`idempotency_key` 只解决重复提交；at-least-once delivery 仍可能把同一个 Execution 多次交给 Executor，执行端必须用 `execution_id` 单独保证副作用幂等。
+`idempotency_key` 只解决重复提交；at-least-once delivery 仍可能把同一个 Execution 多次交给 Worker，Worker 必须用 `execution_id` 单独保证副作用幂等。
 
 ### Out of Scope
 
@@ -232,6 +232,27 @@ Cron 仍需明确：
 
 如果系统很小、只有 Cron 一个调用方，集成式设计更简单；当可靠 timer 被多个上层服务复用时，拆出 one-time primitive 才真正值得。
 
+## Queue 是可选组件，不是默认答案
+
+第一版不需要独立 Message Queue。Execution Store 可以同时承担 durable scheduling state 与 ready-work handoff：
+
+```text
+Execution API -> Execution Store
+                       ↑
+Scheduler: 到期后原子地把 SCHEDULED 改成 READY
+Worker:    用 lease 原子领取 READY Execution
+```
+
+这样组件更少，也避免了“数据库已更新，但 Queue 写入失败”的双写问题。代价是 Worker polling 和领取竞争会给 Execution Store 增加压力。
+
+当到期流量尖峰、Worker backpressure 或数据库轮询压力成为真实瓶颈时，可以加入 Queue：
+
+```text
+Scheduler -> Ready Queue -> Worker
+```
+
+此时 Queue 负责缓冲与分发，Execution Store 仍是状态真相；数据库状态与 Queue 消息之间需要 Outbox 或等价的可恢复投递机制。因此 Queue 是有成本的扩展，不是架构图里的默认装饰。
+
 ## 不要混进主分类的相邻系统
 
 下面这些概念经常也带有 “Scheduler” 或 “Job” 字样，但不应该和 One-time、Cron、Delayed、Retry 放在同一个分类表里。它们是相邻的系统边界，不是四种新的时间策略。
@@ -380,7 +401,7 @@ Execution 语义仍然没有变化，但单个数据库的 `execute_at` index �
 - 按分钟或秒建立时间桶；
 - 只把近期任务加载进内存；
 - 对近期窗口使用 timing wheel；
-- 独立扩展 Scheduler shards 和 Queue partitions。
+- 独立扩展 Scheduler shards；如果引入 Queue，再扩展 Queue partitions。
 
 所以最终判断不是：
 
@@ -420,15 +441,17 @@ Execution 语义仍然没有变化，但单个数据库的 `execute_at` index �
 
 那么第一版可以收敛为：
 
-```text
-Direct Client ───────────────┐
-Cron Service ── Client SDK ──┼──> Execution API -> Execution Store
-DAG Orchestrator ────────────┘                         │ execute_at <= now
-                                                      ▼
-                                              Time Scheduler
-                                                      │
-                                                      ▼
-                                                Ready Queue -> Executor
+```mermaid
+flowchart LR
+    Client[Direct Client] --> SDK[Client SDK]
+    Cron[Cron Service] --> SDK
+    DAG[DAG Orchestrator<br/>optional extension] -.-> SDK
+
+    SDK --> API[Execution API]
+    API --> Store[(Execution Store)]
+    Scheduler[Scheduler] <-->|scan due / mark READY| Store
+    Worker[Worker] <-->|claim READY / update result| Store
+    Worker --> Definitions[Job Definition Store]
 ```
 
 而不是一开始就引入 DAG Engine、Checkpoint Store、GPU Scheduler 和 Timing Wheel。
