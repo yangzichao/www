@@ -63,42 +63,75 @@ Placement: Job 可以被任意 Worker 执行吗？
 
 这三个问题决定 High-Level Architecture 的形状，但它们不是三种并列的 Job 类型。
 
-## 先区分 Job Definition 与 Job Execution
+## 先区分 Definition File、Scheduled Job 与 Execution
 
-假设我们创建一个任务：每天凌晨 2 点生成账单。
+Scheduler 不应该把可执行代码或某一种 runtime 写死在自己的数据库里。更干净的边界是：执行平台提供一份版本化的 **Job Definition File**，Scheduler 只引用它。
 
-“每天凌晨 2 点生成账单”是一份长期存在的 **Job Definition**。它描述：
+Definition File 可以使用 YAML、JSON 或 XML。它声明输入、输出与执行方式，例如：
 
-```text
-job_type = GENERATE_BILL
-schedule = "0 2 * * *"
-timezone = America/Los_Angeles
-retry_policy = exponential_backoff
+```yaml
+name: generate-report
+version: 3
+
+inputs:
+  dataset_uri: string
+  report_date: date
+
+outputs:
+  report_uri: string
+
+execution:
+  type: container
+  image: report-generator:v3
+  command: ["generate"]
 ```
 
-但是 8 月 12 日凌晨 2 点的运行和 8 月 13 日凌晨 2 点的运行，是两次不同的 **Job Execution**：
+Scheduler 不需要理解 `execution` 里的具体实现。创建 Job 时，它只校验 Definition File 存在、输入符合声明，并保存引用：
+
+```text
+Scheduled Job
+- job_id
+- definition_uri
+- definition_version
+- input_values
+- schedule
+- next_run_at
+- status
+```
+
+Definition File 回答“这是什么任务、需要什么输入、产生什么输出”；Scheduled Job 回答“用哪些输入、在什么时候触发”。
+
+每天凌晨 2 点生成账单会持续产生不同的 **Job Execution**：
 
 ```text
 Execution A
+definition_version = 3
 scheduled_at = 2026-08-12 02:00
-attempt = 1
 status = SUCCEEDED
+output_reference = s3://reports/2026-08-12.pdf
 
 Execution B
+definition_version = 3
 scheduled_at = 2026-08-13 02:00
-attempt = 1
 status = RUNNING
+```
+
+创建 Execution 时必须固定 Definition 版本并保存输入快照。这样即使 Scheduled Job 随后升级到 version 4，旧 Execution 的重试仍使用 version 3，行为可以复现。
+
+三者的关系是：
+
+```text
+Job Definition File 1 ── N Scheduled Job 1 ── N Execution
 ```
 
 这个区分非常重要：
 
-- Definition 回答“以后还要不要运行”；
-- Execution 回答“这一次运行到了哪一步”；
+- Definition File 属于执行契约，不属于 Scheduler 的代码实现；
+- Scheduled Job 保存时间规则与下一次触发时间；
+- Execution 保存某一次运行的定义版本、输入快照、状态与输出引用；
 - Retry 通常属于某次 Execution 的新 attempt，而不是一份毫无关联的新 Job；
 - 暂停 Cron Job 不应该抹掉过去的执行历史；
 - 取消未来计划和取消正在运行的 attempt 是两个不同操作。
-
-所以在后面的讨论中，`Job` 如果指长期规则，我们会明确称为 Definition；如果指某一次实际运行，我们称为 Execution。
 
 ## 主范围内的常见 Job 怎样归类
 
@@ -116,7 +149,7 @@ status = RUNNING
 
 #### Delayed Job
 
-Delayed Job 通常不需要成为第三种顶层 Definition。它只是用相对时间创建的 One-time Job：
+Delayed Job 通常不需要成为第三种顶层 Schedule。它只是用相对时间创建的 One-time Job：
 
 相对于某个业务动作，延迟一段时间运行：
 
@@ -154,7 +187,7 @@ next_run_at = now + backoff(attempt 2)
 所以更准确的概念关系是：
 
 ```text
-Job Definition
+Scheduled Job
 ├── One-time schedule
 │   └── Delayed job = now + delay
 └── Recurring schedule
@@ -191,9 +224,9 @@ Workers
 
 | 概念 | 系统里的含义 |
 |---|---|
-| One-time | 一份只产生一次预定 Execution 的 Definition |
+| One-time | 一份只产生一次预定 Execution 的 Scheduled Job |
 | Delayed | 使用 `now + delay` 创建的 One-time schedule |
-| Recurring / Cron | 一份会持续计算下一个 occurrence 的 Definition |
+| Recurring / Cron | 一份会持续计算下一个 occurrence 的 Scheduled Job |
 | Retry | 同一 Execution 的后续 attempt，由 backoff 决定时间 |
 
 因此，面试中不应该看到四个名词，就立即画四个 Scheduler。
@@ -208,7 +241,7 @@ Workers
 - 上一次还没有结束时，下一次是并行、跳过、排队还是替换；
 - 暂停后恢复时，是否追赶所有 missed executions。
 
-这些问题会扩展 Definition 和 Execution 的状态机，但通常还没有改变系统的主要组件。
+这些问题会扩展 Scheduled Job 和 Execution 的状态机，但通常还没有改变系统的主要组件。
 
 ## 不要混进主分类的相邻系统
 
@@ -407,6 +440,6 @@ Job API -> Schedule Store -> Time Scheduler
 
 这一阶段最重要的结论是：
 
-> **本文的主问题是 time-based Job Scheduler。One-time 与 Recurring 是 Definition 类型，Delayed 是 One-time 的创建方式，Retry 是 Execution 的后续 Attempt。Event、Workflow、Batch 和 Resource Scheduling 属于相邻系统边界；Long-running、规模与精度则是可能扩展主架构的约束。**
+> **本文的主问题是 time-based Job Scheduler。One-time 与 Recurring 是 Scheduled Job 类型，Delayed 是 One-time 的创建方式，Retry 是 Execution 的后续 Attempt。Event、Workflow、Batch 和 Resource Scheduling 属于相邻系统边界；Long-running、规模与精度则是可能扩展主架构的约束。**
 
-下一步再基于明确的第一版 scope，设计 API、Job Definition、Execution 状态机，以及 Scheduler 怎样可靠地领取到期任务。
+下一步再基于明确的第一版 scope，设计 API、Scheduled Job、Execution 状态机，以及 Scheduler 怎样可靠地领取到期任务。
