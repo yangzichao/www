@@ -69,6 +69,8 @@ DAG Orchestrator ────────────┘
 - 相同 `idempotency_key` 的重复提交只创建一个 Execution；
 - Scheduler 节点故障后可以恢复，并能水平扩展到到期流量峰值。
 
+`idempotency_key` 只解决重复提交；at-least-once delivery 仍可能把同一个 Execution 多次交给 Executor，执行端必须用 `execution_id` 单独保证副作用幂等。
+
 ### Out of Scope
 
 ```text
