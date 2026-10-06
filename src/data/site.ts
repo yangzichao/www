@@ -27,6 +27,7 @@ export type WorkItem = {
   title: string;
   description: string;
   image?: string;
+  imageAlt?: string;
   url: string;
 };
 
@@ -59,25 +60,10 @@ export const siteData: SiteData = {
       title: 'JustSessions',
       description:
         'A native macOS workspace for Claude Code, Codex, and other coding agents.',
+      image: '/projects/justsessions/thumbnail.png',
+      imageAlt:
+        'JustSessions: Nothing extra. Just sessions. A native macOS window showing projects and a Claude Code terminal.',
       url: 'https://yangzichao.github.io/JustSessions/',
-    },
-    {
-      type: 'Project',
-      year: '2026',
-      title: 'Quaternion Rotation Lab',
-      description:
-        'An interactive 3D teaching lab for quaternion rotations, SLERP, the SU(2) double cover, Pauli matrices, and Bloch-sphere motion.',
-      // Moved to the dedicated lab subdomain (yangzichao/lab).
-      url: 'https://lab.zichaoyang.com/quaternions/',
-    },
-    {
-      type: 'Project',
-      year: '2026',
-      title: 'Physics Simulation Lab',
-      description:
-        'Three browser-based simulations in one lab: double pendulum chaos, central-force orbital mechanics, and two-source wave interference with live controls and canvas rendering.',
-      // Moved to the dedicated lab subdomain (yangzichao/lab).
-      url: 'https://lab.zichaoyang.com/physics-simulations/',
     },
     {
       type: 'Project',

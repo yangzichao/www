@@ -13,7 +13,7 @@ const contentClass = item.image ? 'work-card-content' : 'work-card-content-only'
   {
     item.image && (
       <div class="work-card-image-container">
-        <img src={item.image} class="work-card-image" loading="lazy" alt={item.title} />
+        <img src={item.image} class="work-card-image" loading="lazy" alt={item.imageAlt ?? item.title} />
       </div>
     )
   }
