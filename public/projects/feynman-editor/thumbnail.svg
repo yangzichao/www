@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Feynman Diagram Editor</title>
+  <desc id="description">An illustration of electron-muon scattering through photon exchange, with arrows showing fermion flow and a wavy photon propagator.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#dce3ec" stroke-width="1"/>
+    </pattern>
+    <marker id="fermion-arrow" markerWidth="11" markerHeight="11" refX="6" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0L11 5L0 10Z" fill="#26364c"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="630" fill="#f4f6f9"/>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#26364c">
+    <text x="64" y="108" font-size="19" font-weight="700" letter-spacing="3">VISUAL PHYSICS</text>
+    <text x="64" y="255" font-size="62" font-weight="700" letter-spacing="-2">Feynman</text>
+    <text x="64" y="327" font-size="62" font-weight="700" letter-spacing="-2">diagrams</text>
+    <rect x="64" y="356" width="84" height="5" rx="2" fill="#3c71c7"/>
+    <text x="64" y="442" font-size="25" fill="#607086">Draw. Label. Export.</text>
+    <text x="64" y="566" font-size="16" letter-spacing="1.2" fill="#607086">FEYNMAN DIAGRAM EDITOR</text>
+  </g>
+  <rect x="450" y="88" width="688" height="454" rx="18" fill="#fff" stroke="#dce3ec"/>
+  <rect x="450" y="88" width="688" height="454" rx="18" fill="url(#grid)" opacity="0.55"/>
+  <g fill="none" stroke="#26364c" stroke-width="4.5" stroke-linecap="round" marker-mid="url(#fermion-arrow)">
+    <path d="M520 190L665 220L810 250"/>
+    <path d="M810 250L955 220L1100 190"/>
+    <path d="M520 460L665 430L810 400"/>
+    <path d="M810 400L955 430L1100 460"/>
+  </g>
+  <path d="M810 250Q834 262.5 810 275Q786 287.5 810 300Q834 312.5 810 325Q786 337.5 810 350Q834 362.5 810 375Q786 387.5 810 400" fill="none" stroke="#3c71c7" stroke-width="4.5"/>
+  <g fill="#26364c">
+    <circle cx="810" cy="250" r="7"/>
+    <circle cx="810" cy="400" r="7"/>
+  </g>
+  <g font-family="Georgia, 'Times New Roman', serif" font-size="34" font-style="italic" fill="#26364c">
+    <text x="505" y="160">e<tspan baseline-shift="super" font-size="22">−</tspan></text>
+    <text x="1082" y="160">e<tspan baseline-shift="super" font-size="22">−</tspan></text>
+    <text x="505" y="510">μ<tspan baseline-shift="super" font-size="22">−</tspan></text>
+    <text x="1082" y="510">μ<tspan baseline-shift="super" font-size="22">−</tspan></text>
+    <text x="849" y="335" fill="#3c71c7">γ</text>
+  </g>
+  <text x="794" y="578" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#607086">Electron-muon scattering · photon exchange</text>
+</svg>

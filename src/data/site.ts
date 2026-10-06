@@ -28,6 +28,7 @@ export type WorkItem = {
   description: string;
   image?: string;
   imageAlt?: string;
+  imageFit?: 'cover' | 'contain';
   url: string;
 };
 
@@ -82,6 +83,10 @@ export const siteData: SiteData = {
       title: 'Feynman Diagram Editor',
       description:
         'A browser-based take on JaxoDraw: draw Feynman diagrams with click-and-drag — fermion, photon, gluon, scalar and ghost propagators, arcs, loops and LaTeX labels — then export to axodraw2 LaTeX, SVG or PNG. Runs entirely in your browser.',
+      image: '/projects/feynman-editor/thumbnail.svg',
+      imageAlt:
+        'Electron-muon scattering diagram with four fermion lines and a photon exchanged between two vertices.',
+      imageFit: 'contain',
       // Split out into its own repo + subdomain (yangzichao/feynman-editor).
       url: 'https://feynman.zichaoyang.com/',
     },
@@ -100,6 +105,10 @@ export const siteData: SiteData = {
       title: 'β-delayed proton emission from ¹¹Be in effective field theory',
       description:
         'Resolved a major experimental controversy in ¹¹Be decay using Halo Effective Field Theory. Our theoretical predictions were subsequently validated by high-precision experiments at CERN, debunking previous anomalies and establishing the definitive benchmark for this rare decay channel.',
+      image: '/papers/11be-proton-emission/thumbnail.svg',
+      imageAlt:
+        'Figure 2 from the published 11Be Halo EFT paper, showing differential decay rates with and without resonant final-state interactions.',
+      imageFit: 'contain',
       url: '/blog/physics/11be-proton-emission/',
     },
   ],
