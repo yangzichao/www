@@ -56,6 +56,14 @@ export const siteData: SiteData = {
     {
       type: 'Project',
       year: '2026',
+      title: 'JustSessions',
+      description:
+        'A native macOS workspace for Claude Code, Codex, and other coding agents.',
+      url: 'https://yangzichao.github.io/JustSessions/',
+    },
+    {
+      type: 'Project',
+      year: '2026',
       title: 'Quaternion Rotation Lab',
       description:
         'An interactive 3D teaching lab for quaternion rotations, SLERP, the SU(2) double cover, Pauli matrices, and Bloch-sphere motion.',
