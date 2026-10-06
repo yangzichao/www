@@ -68,6 +68,17 @@ export const siteData: SiteData = {
     {
       type: 'Project',
       year: '2026',
+      title: 'Sandbox Physics',
+      description:
+        'Interactive, bilingual physics experiments covering mechanics, optics, fields, and quantum phenomena.',
+      image: '/projects/sandboxphysics/thumbnail.jpg',
+      imageAlt:
+        'Sandbox Physics homepage with a black-hole visualization and the headline Physics, in motion.',
+      url: 'https://sandboxphysics.com/',
+    },
+    {
+      type: 'Project',
+      year: '2026',
       title: 'Feynman Diagram Editor',
       description:
         'A browser-based take on JaxoDraw: draw Feynman diagrams with click-and-drag — fermion, photon, gluon, scalar and ghost propagators, arcs, loops and LaTeX labels — then export to axodraw2 LaTeX, SVG or PNG. Runs entirely in your browser.',
