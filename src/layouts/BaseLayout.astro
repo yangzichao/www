@@ -21,6 +21,10 @@ const {
     <meta name="description" content={description} />
     <title>{title}</title>
 
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -28,7 +32,12 @@ const {
       rel="stylesheet"
     />
 
-    <script src="https://unpkg.com/@phosphor-icons/web" is:inline></script>
+    <!-- Only the regular weight is used (`ph ph-*`); the bare
+         @phosphor-icons/web script injects all six weights. -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
+    />
 
     <!-- Pre-paint gate for the 3D depth effects: depth-3d.css only
          hides reveal targets under html.fx3d, so no-JS and

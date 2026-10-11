@@ -51,7 +51,8 @@ export const siteData: SiteData = {
       // TODO: 占位,待填入真实简历链接
       url: '#',
       text: 'Download Resume',
-      visible: true,
+      // Hidden until a real resume link exists.
+      visible: false,
     },
   },
   items: [
