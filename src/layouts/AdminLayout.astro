@@ -23,6 +23,7 @@ const { title, activeSection, signedInAs } = Astro.props;
         <a href="/admin/comments/" aria-current={activeSection === 'comments' ? 'page' : undefined}>
           Comments
         </a>
+        <a href="/archive/blog/">Archive</a>
       </nav>
       <div class="admin-account">
         <span>@{signedInAs}</span>

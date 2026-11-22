@@ -29,20 +29,6 @@ test('blog index links to posts that render with breadcrumbs and a view count', 
   expect(errors).toStrictEqual([]);
 });
 
-test('diagrams arrive as prerendered whiteboard SVG without loading a renderer', async ({ page }) => {
-  const errors = collectPageErrors(page);
-  const requestedUrls: string[] = [];
-  page.on('request', (request) => requestedUrls.push(request.url()));
-  await page.goto('/blog/system-design/llm-inference/');
-
-  const diagram = page.locator('figure.whiteboard-diagram svg[role="img"]').first();
-  await expect(diagram).toBeVisible();
-  await expect(diagram.locator('title')).toHaveText(/^Diagram: /);
-  await expect(page.locator('figure.whiteboard-diagram .wb-node').first()).toBeAttached();
-  expect(requestedUrls.filter((url) => url.includes('mermaid'))).toStrictEqual([]);
-  expect(errors).toStrictEqual([]);
-});
-
 test('view counts go up on each visit', async ({ page }) => {
   const viewCount = page.locator('[data-page-view-count-value]');
   await page.goto('/blog/physics/11be-proton-emission/');

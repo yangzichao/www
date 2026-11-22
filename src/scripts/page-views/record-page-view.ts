@@ -18,6 +18,7 @@ function showViewCount(totalViews: number) {
 }
 
 export async function recordPageView(): Promise<void> {
+  if (document.body.dataset.recordsPageView === 'false') return;
   const response = await fetch(PAGE_VIEWS_ENDPOINT, {
     method: 'POST',
     body: location.pathname,

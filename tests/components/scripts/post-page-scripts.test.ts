@@ -164,4 +164,15 @@ describe('recordPageView', () => {
 
     expect(counters()[0]).toStrictEqual([true, '']);
   });
+
+  it('skips pages that opt out of view counting', async () => {
+    renderViewCounters();
+    document.body.dataset.recordsPageView = 'false';
+    const fetchStub = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchStub);
+    await recordPageView();
+    delete document.body.dataset.recordsPageView;
+
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
 });

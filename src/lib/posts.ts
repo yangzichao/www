@@ -1,6 +1,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
+import type { PostSection } from './post-sections';
 
-export type Post = CollectionEntry<'blog'>;
+export type Post = CollectionEntry<'blog'> | CollectionEntry<'archive'>;
 
 export interface CategoryGroup {
   slug: string;
@@ -47,9 +48,20 @@ export function categoryLabel(slug: string): string {
   );
 }
 
-export async function getPublishedPosts(): Promise<Post[]> {
-  const posts = await getCollection('blog', ({ data }) => !data.draft);
+function newestFirst<T extends Post>(posts: T[]): T[] {
   return posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+}
+
+export async function getPublishedPosts(): Promise<Post[]> {
+  return newestFirst(await getCollection('blog', ({ data }) => !data.draft));
+}
+
+export async function getArchivedPosts(): Promise<Post[]> {
+  return newestFirst(await getCollection('archive'));
+}
+
+export function postsInSection(section: PostSection): Promise<Post[]> {
+  return section.collection === 'archive' ? getArchivedPosts() : getPublishedPosts();
 }
 
 export function groupByCategory(posts: Post[]): CategoryGroup[] {

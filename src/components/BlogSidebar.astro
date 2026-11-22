@@ -1,13 +1,15 @@
 ---
 import type { CategoryGroup } from '../lib/posts';
 import { categoryOfId } from '../lib/posts';
+import { postUrl, WRITING_SECTION, type PostSection } from '../lib/post-sections';
 
 interface Props {
   groups: CategoryGroup[];
   currentId?: string;
+  section?: PostSection;
 }
 
-const { groups, currentId } = Astro.props;
+const { groups, currentId, section = WRITING_SECTION } = Astro.props;
 
 const currentCategory = currentId ? categoryOfId(currentId) : null;
 function isExpanded(group: CategoryGroup): boolean {
@@ -25,9 +27,9 @@ function isExpanded(group: CategoryGroup): boolean {
 <div class="sidebar-overlay" data-sidebar-overlay aria-hidden="true"></div>
 
 <aside class="blog-sidebar" data-blog-sidebar>
-  <nav class="sidebar-nav" aria-label="Writing">
-    <a class="sidebar-home" href="/blog/">
-      Writing
+  <nav class="sidebar-nav" aria-label={section.label}>
+    <a class="sidebar-home" href={section.basePath}>
+      {section.label}
     </a>
     {groups.map((group) => (
       <details class="sidebar-group" open={isExpanded(group)}>
@@ -50,7 +52,7 @@ function isExpanded(group: CategoryGroup): boolean {
             <li>
               <a
                 class:list={['sidebar-post-link', { 'is-active': post.id === currentId }]}
-                href={`/blog/${post.id}/`}
+                href={postUrl(section, post.id)}
                 aria-current={post.id === currentId ? 'page' : undefined}
               >
                 {post.data.title}

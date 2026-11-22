@@ -5,10 +5,14 @@ import '../styles/effects/depth-3d.css';
 interface Props {
   title?: string;
   description?: string;
+  recordsPageView?: boolean;
 }
 
-const { title = 'Zichao Yang', description = 'Personal homepage of Zichao Yang — researcher and developer.' } =
-  Astro.props;
+const {
+  title = 'Zichao Yang',
+  description = 'Personal homepage of Zichao Yang — researcher and developer.',
+  recordsPageView = true,
+} = Astro.props;
 ---
 
 <!doctype html>
@@ -39,7 +43,7 @@ const { title = 'Zichao Yang', description = 'Personal homepage of Zichao Yang �
     </script>
   </head>
 
-  <body>
+  <body data-records-page-view={recordsPageView ? undefined : 'false'}>
     <main class="container">
       <slot />
     </main>

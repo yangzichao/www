@@ -6,13 +6,8 @@ import TableOfContentsInline from '../components/blog/TableOfContentsInline.astr
 import CommentsSection from '../features/comments/components/CommentsSection';
 import type { CollectionEntry } from 'astro:content';
 import type { MarkdownHeading } from 'astro';
-import {
-  getPublishedPosts,
-  groupByCategory,
-  getAdjacentPostsInCategory,
-  categoryOfId,
-  categoryLabel,
-} from '../lib/posts';
+import { postsInSection, groupByCategory, getAdjacentPostsInCategory, categoryOfId, categoryLabel } from '../lib/posts';
+import { categoryUrl, postUrl, WRITING_SECTION, type PostSection } from '../lib/post-sections';
 import { shouldShowToc } from '../lib/toc';
 import 'katex/dist/katex.min.css';
 import '../styles/post.css';
@@ -24,11 +19,12 @@ interface Props {
   frontmatter: CollectionEntry<'blog'>['data'];
   id: string;
   headings?: MarkdownHeading[];
+  section?: PostSection;
 }
 
-const { frontmatter, id, headings = [] } = Astro.props;
+const { frontmatter, id, headings = [], section = WRITING_SECTION } = Astro.props;
 
-const posts = await getPublishedPosts();
+const posts = await postsInSection(section);
 const groups = groupByCategory(posts);
 const adjacent = getAdjacentPostsInCategory(posts, id);
 
@@ -49,9 +45,13 @@ const formattedDate = frontmatter.date.toLocaleDateString('en-US', {
 const isoDate = frontmatter.date.toISOString();
 ---
 
-<BaseLayout title={frontmatter.title} description={frontmatter.description ?? frontmatter.title}>
+<BaseLayout
+  title={frontmatter.title}
+  description={frontmatter.description ?? frontmatter.title}
+  recordsPageView={section.isPublic}
+>
   <div class:list={['blog-layout', { 'has-toc': hasTableOfContents }]}>
-    <BlogSidebar groups={groups} currentId={id} />
+    <BlogSidebar groups={groups} currentId={id} section={section} />
     <div class="blog-main">
       <TableOfContentsInline headings={headings} />
       <article class="prose prose-lg post-article">
@@ -61,21 +61,25 @@ const isoDate = frontmatter.date.toISOString();
             <span>Download PDF</span>
           </button>
           <nav class="post-breadcrumb" aria-label="Breadcrumb">
-            <a href="/blog/">Writing</a>
+            <a href={section.basePath}>{section.label}</a>
             <span class="post-breadcrumb-separator" aria-hidden="true">
               /
             </span>
-            <a href={`/blog/#${categorySlug}`}>{categoryName}</a>
+            <a href={categoryUrl(section, categorySlug)}>{categoryName}</a>
           </nav>
           <h1 class="post-title">{frontmatter.title}</h1>
           <div class="post-meta">
             <time datetime={isoDate}>{formattedDate}</time>
             {frontmatter.venue && <span class="post-meta-separator">·</span>}
             {frontmatter.venue && <span class="post-venue">{frontmatter.venue}</span>}
-            <span class="post-views" data-page-view-count hidden>
-              <span class="post-meta-separator">·</span>
-              <span data-page-view-count-value></span>
-            </span>
+            {section.isPublic && (
+              <span class="post-views" data-page-view-count hidden>
+                <span class="post-meta-separator">·</span>
+                <span data-page-view-count-value></span>
+              </span>
+            )}
+            {frontmatter.draft && <span class="post-meta-separator">·</span>}
+            {frontmatter.draft && <span class="post-draft-badge">Draft</span>}
           </div>
           {frontmatter.tags.length > 0 && (
             <ul class="post-tags">
@@ -88,12 +92,12 @@ const isoDate = frontmatter.date.toISOString();
         <slot />
       </article>
 
-      <CommentsSection client:visible pagePath={`/blog/${id}/`} />
+      {section.isPublic && <CommentsSection client:visible pagePath={postUrl(section, id)} />}
 
       {(adjacent.newer || adjacent.older) && (
         <nav class="post-pager" aria-label={`More in ${categoryName}`}>
           {adjacent.newer ? (
-            <a class="post-pager-link post-pager-newer" href={`/blog/${adjacent.newer.id}/`}>
+            <a class="post-pager-link post-pager-newer" href={postUrl(section, adjacent.newer.id)}>
               <span class="post-pager-direction">← Newer in {categoryName}</span>
               <span class="post-pager-title">{adjacent.newer.data.title}</span>
             </a>
@@ -101,7 +105,7 @@ const isoDate = frontmatter.date.toISOString();
             <span class="post-pager-spacer" />
           )}
           {adjacent.older && (
-            <a class="post-pager-link post-pager-older" href={`/blog/${adjacent.older.id}/`}>
+            <a class="post-pager-link post-pager-older" href={postUrl(section, adjacent.older.id)}>
               <span class="post-pager-direction">Older in {categoryName} →</span>
               <span class="post-pager-title">{adjacent.older.data.title}</span>
             </a>
@@ -221,6 +225,13 @@ const isoDate = frontmatter.date.toISOString();
 
   .post-venue {
     font-style: italic;
+  }
+
+  .post-draft-badge {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.75rem;
   }
 
   .post-views {

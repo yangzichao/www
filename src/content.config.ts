@@ -4,16 +4,23 @@ import { glob } from 'astro/loaders';
 import { join } from 'path';
 import { thoughtsLoader } from './loaders/thoughts-loader';
 
+const postFrontmatter = z.object({
+  title: z.string(),
+  date: z.coerce.date(),
+  description: z.string().optional(),
+  draft: z.boolean().default(false),
+  tags: z.array(z.string()).default([]),
+  venue: z.string().optional(),
+});
+
 const blog = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/blog' }),
-  schema: z.object({
-    title: z.string(),
-    date: z.coerce.date(),
-    description: z.string().optional(),
-    draft: z.boolean().default(false),
-    tags: z.array(z.string()).default([]),
-    venue: z.string().optional(),
-  }),
+  schema: postFrontmatter,
+});
+
+const archive = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/archive/blog' }),
+  schema: postFrontmatter,
 });
 
 const thoughts = defineCollection({
@@ -24,4 +31,4 @@ const thoughts = defineCollection({
   }),
 });
 
-export const collections = { blog, thoughts };
+export const collections = { blog, archive, thoughts };

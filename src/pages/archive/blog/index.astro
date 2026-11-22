@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PostIndex from '../../../components/blog/PostIndex.astro';
+import { checkAdminPageAccess } from '../../../features/admin/admin-page-guard';
+import { markAsPrivatePage } from '../../../features/archive/private-page-headers';
+import { getArchivedPosts, groupByCategory } from '../../../lib/posts';
+import { ARCHIVE_SECTION } from '../../../lib/post-sections';
+
+export const prerender = false;
+
+const access = await checkAdminPageAccess(Astro.cookies, ARCHIVE_SECTION.basePath, { requiresRepositoryAccess: false });
+if (access.kind === 'redirect') return Astro.redirect(access.location);
+markAsPrivatePage(Astro.response.headers);
+
+const groups = groupByCategory(await getArchivedPosts());
+---
+
+<BaseLayout title="Archive — Zichao Yang" description="Archived posts" recordsPageView={false}>
+  <PostIndex section={ARCHIVE_SECTION} groups={groups} subtitle="Retired posts, visible only to the admin." />
+</BaseLayout>
