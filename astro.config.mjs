@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
+import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { remarkMermaidToPre } from './src/markdown/remark-mermaid-to-pre.ts';
@@ -25,8 +26,10 @@ export default defineConfig({
     // `remarkMermaidToPre` runs before Astro's Shiki highlighter sees
     // the code block, so it gets converted to raw HTML and skips
     // syntax highlighting entirely.
-    remarkPlugins: [remarkMath, remarkMermaidToPre],
-    rehypePlugins: [rehypeKatex],
+    processor: unified({
+      remarkPlugins: [remarkMath, remarkMermaidToPre],
+      rehypePlugins: [rehypeKatex],
+    }),
     shikiConfig: { theme: 'github-light' },
   },
 });
