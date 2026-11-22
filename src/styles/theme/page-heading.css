@@ -1,0 +1,34 @@
+.page-back-link {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+  transition: color var(--transition);
+}
+
+.page-back-link:hover {
+  color: var(--color-text-main);
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 3.25rem;
+  font-weight: var(--font-weight-heading);
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  color: var(--color-text-main);
+}
+
+.page-subtitle {
+  margin-top: 0.85rem;
+  font-size: 1.0625rem;
+  color: var(--color-text-secondary);
+}
+
+@media (width <= 640px) {
+  .page-title {
+    font-size: 2.5rem;
+  }
+}

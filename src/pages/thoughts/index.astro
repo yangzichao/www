@@ -18,11 +18,11 @@ Astro.response.headers.set('cache-control', 'no-store');
 <BaseLayout title="Thoughts — Zichao Yang" description="Short thoughts, observations, and fragments.">
   <div class="thoughts-layout">
     <header class="thoughts-head">
-      <a class="back-home" href="/">
+      <a class="page-back-link" href="/">
         ← Home
       </a>
-      <h1 class="thoughts-title">Thoughts</h1>
-      <p class="thoughts-sub">Short observations, posted as they come.</p>
+      <h1 class="page-title">Thoughts</h1>
+      <p class="page-subtitle">Short observations, posted as they come.</p>
     </header>
 
     {isAdmin && (
@@ -81,33 +81,6 @@ Astro.response.headers.set('cache-control', 'no-store');
     margin-bottom: 3rem;
   }
 
-  .back-home {
-    display: inline-block;
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    text-decoration: none;
-    margin-bottom: 1.5rem;
-    transition: color var(--transition);
-  }
-
-  .back-home:hover {
-    color: var(--color-text-main);
-  }
-
-  .thoughts-title {
-    font-size: 2.75rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    color: var(--color-text-main);
-  }
-
-  .thoughts-sub {
-    margin-top: 0.75rem;
-    font-size: 1.125rem;
-    color: var(--color-text-muted);
-  }
-
   .thoughts-admin {
     margin-bottom: 1rem;
   }
@@ -141,10 +114,9 @@ Astro.response.headers.set('cache-control', 'no-store');
   }
 
   .thought-date {
+    font-family: var(--font-mono);
     font-size: 0.8rem;
     color: var(--color-text-muted);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
   }
 
   .thought-tags {
@@ -153,15 +125,13 @@ Astro.response.headers.set('cache-control', 'no-store');
   }
 
   .thought-tag {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
-    background: var(--color-card-hover);
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--tone-violet-ink);
+    background: var(--tone-violet-soft);
+    border: 1px solid var(--tone-violet-border);
+    border-radius: 5px;
+    padding: 0.1rem 0.5rem;
   }
 
   .thought-actions {
@@ -169,9 +139,9 @@ Astro.response.headers.set('cache-control', 'no-store');
   }
 
   .thought-body {
-    font-size: 1.05rem;
-    line-height: 1.7;
-    color: var(--color-text-main);
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--color-text-secondary);
   }
 
   .thought-body :global(p) {
@@ -187,13 +157,8 @@ Astro.response.headers.set('cache-control', 'no-store');
   }
 
   .thoughts-count {
-    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
     color: var(--color-text-muted);
-  }
-
-  @media (width <= 640px) {
-    .thoughts-title {
-      font-size: 2.25rem;
-    }
   }
 </style>

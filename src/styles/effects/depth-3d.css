@@ -25,11 +25,8 @@
   will-change: transform;
 }
 
-.depth-effects-enabled .work-card[data-tilt]:hover {
-  top: 0;
-  box-shadow:
-    0 18px 40px -12px rgb(0 0 0 / 16%),
-    0 6px 16px -8px rgb(0 0 0 / 10%);
+.depth-effects-enabled .work-card[data-tilt]:hover .work-card-panel {
+  box-shadow: 0 16px 32px -18px color-mix(in oklch, var(--tone-ink) 35%, transparent);
 }
 
 .tilt-glare {

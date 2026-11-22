@@ -1,0 +1,50 @@
+html {
+  background: var(--color-background);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--tone-violet-border);
+  color: var(--tone-violet-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+.container {
+  box-sizing: border-box;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 80px 40px;
+  width: 100%;
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-heading);
+  letter-spacing: 0.005em;
+  line-height: 1.2;
+  color: var(--color-text-main);
+  margin-bottom: 28px;
+}
+
+@media (width <= 768px) {
+  .container {
+    padding: 50px 24px;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+}

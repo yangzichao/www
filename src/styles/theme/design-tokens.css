@@ -1,0 +1,46 @@
+:root {
+  --color-background: oklch(99% 0.002 32deg);
+  --color-surface-raised: oklch(98% 0.004 32deg);
+  --color-surface-sunken: oklch(96% 0.006 31deg);
+  --color-surface-control: oklch(91% 0.009 31deg);
+  --color-surface-control-hover: oklch(87% 0.01 31deg);
+  --color-text-main: oklch(22% 0.008 29deg);
+  --color-text-secondary: oklch(32% 0.008 29deg);
+  --color-text-muted: oklch(48% 0.008 29deg);
+  --color-border: oklch(92.93% 0.01 48.72deg);
+  --color-border-strong: oklch(84% 0.01 30deg);
+  --color-card-background: var(--color-surface-raised);
+  --color-card-hover: var(--color-surface-sunken);
+  --color-accent: var(--color-text-main);
+  --color-link: oklch(49% 0.22 278deg);
+  --color-danger: oklch(50% 0.19 27deg);
+  --color-terminal: oklch(15% 0.003 21deg);
+  --color-terminal-text: oklch(92% 0.013 20deg);
+  --tone-violet-surface: oklch(90% 0.05 278deg);
+  --tone-violet-soft: oklch(96% 0.04 279deg);
+  --tone-violet-border: oklch(85% 0.07 278deg);
+  --tone-violet-ink: oklch(28% 0.16 278deg);
+  --tone-violet-strong: oklch(49% 0.22 278deg);
+  --tone-coral-surface: oklch(92% 0.04 30deg);
+  --tone-coral-border: oklch(84% 0.08 30deg);
+  --tone-coral-ink: oklch(30% 0.11 31deg);
+  --tone-coral-strong: oklch(52% 0.17 31deg);
+  --tone-green-surface: oklch(95.75% 0.03 148deg);
+  --tone-green-border: oklch(87.33% 0.08 148deg);
+  --tone-green-ink: oklch(32.17% 0.07 156.5deg);
+  --tone-green-strong: oklch(50% 0.12 152deg);
+  --tone-neutral-surface: var(--color-surface-raised);
+  --tone-neutral-border: oklch(91% 0.009 31deg);
+  --tone-neutral-ink: var(--color-text-main);
+  --tone-neutral-strong: var(--color-text-secondary);
+  --font-sans: inter, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-heading:
+    'Stack Sans Headline', inter, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', system-ui,
+    sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  --font-editorial: newsreader, georgia, 'Songti SC', 'Noto Serif CJK SC', serif;
+  --font-weight-heading: 360;
+  --radius: 7px;
+  --radius-panel: 8px;
+  --transition: 0.15s ease;
+}

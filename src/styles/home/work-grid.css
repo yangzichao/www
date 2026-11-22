@@ -1,0 +1,146 @@
+.work-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 28px 24px;
+  margin-bottom: 96px;
+}
+
+.work-grid-item {
+  display: flex;
+}
+
+.work-card[data-tone='violet'] {
+  --tone-surface: var(--tone-violet-surface);
+  --tone-border: var(--tone-violet-border);
+  --tone-ink: var(--tone-violet-ink);
+  --tone-strong: var(--tone-violet-strong);
+}
+
+.work-card[data-tone='coral'] {
+  --tone-surface: var(--tone-coral-surface);
+  --tone-border: var(--tone-coral-border);
+  --tone-ink: var(--tone-coral-ink);
+  --tone-strong: var(--tone-coral-strong);
+}
+
+.work-card[data-tone='green'] {
+  --tone-surface: var(--tone-green-surface);
+  --tone-border: var(--tone-green-border);
+  --tone-ink: var(--tone-green-ink);
+  --tone-strong: var(--tone-green-strong);
+}
+
+.work-card[data-tone='neutral'] {
+  --tone-surface: var(--tone-neutral-surface);
+  --tone-border: var(--tone-neutral-border);
+  --tone-ink: var(--tone-neutral-ink);
+  --tone-strong: var(--tone-neutral-strong);
+}
+
+.work-card {
+  --tone-grid-line: color-mix(in oklch, var(--tone-border) 45%, transparent);
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+  color: var(--tone-ink);
+}
+
+.work-card-tab {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+  padding: 7px 16px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--tone-ink);
+  background: var(--tone-surface);
+  border: 1px solid var(--tone-border);
+  border-bottom: 0;
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+}
+
+.work-card-year {
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 3px 5px;
+  color: var(--tone-strong);
+  background: color-mix(in oklch, var(--tone-border) 60%, transparent);
+  border-radius: 4px;
+}
+
+.work-card-panel {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background-color: var(--tone-surface);
+  background-image:
+    linear-gradient(var(--tone-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tone-grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border: 1px solid var(--tone-border);
+  border-radius: 0 var(--radius-panel) var(--radius-panel);
+  transition:
+    border-color var(--transition),
+    box-shadow 0.35s ease;
+}
+
+.work-card:hover .work-card-panel {
+  border-color: color-mix(in oklch, var(--tone-strong) 45%, var(--tone-border));
+}
+
+.work-card-image-container {
+  aspect-ratio: 16 / 9;
+  background-color: var(--color-background);
+  border: 1px solid var(--tone-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.work-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.work-card:hover .work-card-image {
+  transform: scale(1.04);
+}
+
+.work-card-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  padding: 18px 8px 8px;
+}
+
+.work-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 420;
+  line-height: 1.3;
+  letter-spacing: 0.005em;
+  margin-bottom: 10px;
+}
+
+.work-card-description {
+  font-size: 0.925rem;
+  line-height: 1.6;
+  flex-grow: 1;
+}
+
+@media (width <= 768px) {
+  .work-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-bottom: 56px;
+  }
+}

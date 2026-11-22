@@ -7,15 +7,15 @@
 .whiteboard-diagram {
   --wb-ink: #1e1e1e;
   --wb-muted-ink: #495057;
-  --wb-canvas: #fcfcfb;
-  --wb-grid-dot: #e4e4e0;
+  --wb-canvas: var(--color-surface-raised);
+  --wb-grid-dot: var(--color-border-strong);
   --wb-font: virgil, 'Kaiti SC', stkaiti, kaiti, 'Comic Sans MS', cursive;
 
   margin: 2em 0;
   padding: 0.75rem;
   overflow-x: auto;
-  border: 1px solid var(--prose-border, #e8e8e6);
-  border-radius: 12px;
+  border: 1px solid var(--prose-border, var(--color-border));
+  border-radius: var(--radius-panel);
   background-color: var(--wb-canvas);
   background-image: radial-gradient(var(--wb-grid-dot) 1px, transparent 1px);
   background-size: 18px 18px;
