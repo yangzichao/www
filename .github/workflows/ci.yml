@@ -30,6 +30,9 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      - name: Use the npm version from packageManager
+        run: npm install --global "$(node --print "require('./package.json').packageManager")"
+
       - run: npm ci
 
       - run: npm run generate-types
@@ -54,6 +57,9 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+
+      - name: Use the npm version from packageManager
+        run: npm install --global "$(node --print "require('./package.json').packageManager")"
 
       - run: npm ci
 
@@ -86,6 +92,9 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
+
+      - name: Use the npm version from packageManager
+        run: npm install --global "$(node --print "require('./package.json').packageManager")"
 
       - run: npm ci
 
