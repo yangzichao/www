@@ -1,0 +1,17 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"compatibility_date": "2026-11-17",
+	"compatibility_flags": ["global_fetch_strictly_public"],
+	"name": "zichaoyang-com",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"assets": {
+		"directory": "./dist",
+		"binding": "ASSETS"
+	},
+	"routes": [
+		{ "pattern": "zichaoyang.com", "custom_domain": true }
+	],
+	"observability": {
+		"enabled": true
+	}
+}

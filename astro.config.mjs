@@ -3,16 +3,16 @@ import tailwindcss from '@tailwindcss/vite';
 import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import cloudflare from '@astrojs/cloudflare';
 import { remarkMermaidToPre } from './src/markdown/remark-mermaid-to-pre.ts';
 
 export default defineConfig({
   site: 'https://zichaoyang.com',
+  adapter: cloudflare(),
   devToolbar: {
     enabled: false,
   },
 
-  // GitHub Pages auto-redirects the no-trailing-slash variant to the directory
-  // form, so a single canonical entry is enough.
   redirects: {
     '/research/11be-proton-emission/': '/blog/physics/11be-proton-emission/',
     '/tools/feynman/': 'https://feynman.zichaoyang.com/',

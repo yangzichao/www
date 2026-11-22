@@ -29,3 +29,6 @@ logs
 .playwright-mcp/
 
 www.code-workspace
+
+.wrangler/
+.dev.vars*
