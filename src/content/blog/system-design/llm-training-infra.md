@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, llm-training, distributed-training]
 
 这道题的核心因此不是“多买几张 GPU”，而是：**怎样把模型状态和计算合理地分布到许多加速器上，并让这些设备在故障、慢节点和昂贵 checkpoint 下仍然像一个可恢复的训练作业。**
 
-> 配套实验：[打开 LLM Training Infrastructure Lab](https://lab.zichaoyang.com/system-design/llm-training-infra/)。先改变模型参数量和单机 GPU 数，再增加节点；观察瓶颈什么时候从显存变成互联。
-
 ## 先算清 70B 训练到底要多少显存
 
 以 mixed-precision Adam 为一个粗略例子，每个参数可能需要：
@@ -361,20 +359,6 @@ Collective 的速度由最慢 rank 决定。监控 per-rank step time、data wai
 **Activation checkpointing** 用反向阶段重算 forward 换显存，能放更长序列，但增加计算。
 
 **频繁 checkpoint** 减少故障重做，却降低正常训练吞吐并增加存储成本。
-
-## 用 Lab 建立资源直觉
-
-**实验一：模型变大**
-
-固定 GPU 数增加参数量。先问 weights 是否放得下，再按约 16 bytes/parameter 估算训练状态。观察何时必须进入 sharding。
-
-**实验二：GPU 跨节点**
-
-增加 GPU 数但降低互联带宽。观察理论算力增长而 step time 不再下降。判断当前 communication-to-compute ratio。
-
-**实验三：Checkpoint interval**
-
-缩短 interval，比较故障重做窗口和正常写入开销。用真实 checkpoint duration 推导，而不是凭感觉选数字。
 
 ## 面试表达：先算显存，再选并行
 

@@ -12,8 +12,6 @@ RAG 经常被画成一条很顺的箭头：文档切块、做 embedding、存进
 
 所以 RAG 的核心不是“给 LLM 加一个数据库”，而是：**怎样在一个明确的时效和权限边界内找到足够好的证据，并让答案忠实、可追溯地依赖这些证据。**
 
-> 配套实验：[打开 RAG System Lab](https://lab.zichaoyang.com/system-design/rag-system/)。先只调 `chunk size` 和 `top-k`，观察检索结果，再打开 rerank；不要把所有优化一次性打开。
-
 ## 一个看似正确的错误答案
 
 公司差旅政策原来写着：
@@ -363,20 +361,6 @@ user_acl_context
 **更新更快** 降低 stale answer，但会增加 connector、embedding 和 index publish 压力。删除与 ACL revoke 可以走比普通新增更快的通道。
 
 **答案缓存** 降低生成成本，却很难正确包含用户 ACL、文档 generation、模型版本和对话上下文。Cache key 少一个维度，都可能返回越权或过期答案。
-
-## 用 Lab 做三次有目的的实验
-
-**实验一：Chunk size**
-
-把 chunk 从小调大，观察索引项减少、单块 context 增多。然后用“正文 + 例外条款”问题判断何时切断了语义，何时又混入太多噪声。
-
-**实验二：Top-k 与 rerank**
-
-先关闭 rerank，增加 top-k，观察 recall 和 context cost。再打开 rerank，思考它解决的是“候选顺序”还是“候选根本没召回”。
-
-**实验三：Freshness**
-
-收紧 freshness 目标，观察 ingestion pipeline 压力。问自己：内容新增、内容删除和 ACL revoke 是否真的应该共享同一个优先级？
 
 ## 面试表达：不要从 Vector DB 开始
 

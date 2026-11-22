@@ -12,8 +12,6 @@ News Feed 的表面需求是“展示我关注的人发的内容”。真正困�
 
 这道题的核心是：**在读时聚合和写时 fan-out 之间，按作者分布选择合适的计算时机。**
 
-> 配套实验：[打开 News Feed Lab](https://lab.zichaoyang.com/system-design/news-feed/)。先只增加普通用户和关注数，再提高 celebrity follower 数；观察同一个 fan-out 策略为什么会突然失效。
-
 ## 先做一个最简单的时间线
 
 Alice 关注 Bob 和 Carol。两人最近发了：
@@ -401,20 +399,6 @@ Feed inbox 是派生数据，可从 Follow graph + Post stream 重建。Rebuild 
 **更动态 ranking** 提升新鲜个性化，却使分页稳定性和 cache 更难。
 
 **最终一致的删除清理** 成本低，但安全过滤不能最终一致；读路径必须再验证。
-
-## 用 Lab 找到 Celebrity 拐点
-
-**实验一：普通关注图**
-
-比较读时 join 与写时 inbox。计算平均 follower 下的 fan-out amplification。
-
-**实验二：提高 celebrity followers**
-
-观察单条 PostCreated 产生的工作量。把名人切为 read-time merge，并记录新的读成本。
-
-**实验三：增加 feed 请求与 ranking**
-
-观察 hydration、feature 与 rank latency。设计 chronological fallback，保证模型故障不清空首页。
 
 ## 面试表达：先用名人解释混合策略
 

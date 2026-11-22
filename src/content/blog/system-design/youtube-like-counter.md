@@ -6,8 +6,6 @@ draft: false
 tags: [system-design, interview, learning, counter, youtube]
 ---
 
-> 配套实验：[打开 YouTube Like Counter Lab](https://lab.zichaoyang.com/system-design/youtube-like-counter/)。先观察重复请求为什么会破坏 blind counter，再提高热门视频写入比例，比较单行 counter、sharded counter 和异步聚合的边界。
-
 这道题看起来像 Hit Counter：用户点一次 Like，计数加一；取消 Like，计数减一。但如果把它真的实现成 `INCR` / `DECR`，系统很快就会算错。
 
 Hit Counter 统计的是事件：请求发生一次，就多一个 hit。YouTube Like Counter 统计的是状态：同一个用户对同一个视频最多贡献一个当前 reaction。

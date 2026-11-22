@@ -12,8 +12,6 @@ Autocomplete 的接口很小：用户输入几个字符，系统返回 5–10 �
 
 这道题的核心是：**把昂贵的候选统计和排序尽量提前计算，让在线路径只做一次有界 prefix lookup 与少量合并。**
 
-> 配套实验：[打开 Search Autocomplete Lab](https://lab.zichaoyang.com/system-design/search-autocomplete/)。先调整词表大小和热门 prefix，观察在线查询；再收紧更新 freshness，观察写侧索引构建成本。
-
 ## 为什么数据库 `LIKE 'app%'` 很快会不够
 
 第一版可以查询：
@@ -356,20 +354,6 @@ Request sequence/cancel token；只渲染最新 prefix。
 **Fuzzy matching** 减少拼写无结果，却增加 CPU 和误纠正。只在精确结果不足时触发。
 
 **更长 prefix 才请求** 减少 QPS，但首批建议出现更晚；客户端 debounce 根据设备/网络调节。
-
-## 用 Lab 观察读写两条压力
-
-**实验一：扩大词表**
-
-比较 `LIKE prefix%`、扫描有序数组和 Trie top-k。确认预计算解决的是候选范围，不只是换数据结构名。
-
-**实验二：提高热门 Prefix 占比**
-
-观察单 shard 热点。复制/cache 热 prefix，而不是只增加分片。
-
-**实验三：收紧更新 Freshness**
-
-看到 full rebuild 成本后加入 delta overlay。把紧急违规删除与普通热度更新分成两条通道。
 
 ## 面试表达：先把 Online 工作量压到有界
 

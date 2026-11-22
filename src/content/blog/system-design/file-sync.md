@@ -10,8 +10,6 @@ tags: [system-design, interview, learning, file-sync, storage]
 
 这道题的核心是：**把文件内容与文件名、目录、版本这些 metadata 分开，让每次修改先形成一个完整、不可变版本，再在设备之间可靠传播。**
 
-> 配套实验：[打开 File Sync Lab](https://lab.zichaoyang.com/system-design/file-sync/)。先只增加文件大小，比较整文件和 chunk 上传；再增加设备数与离线窗口，观察冲突为什么出现。
-
 ## 一个字符变化为什么不该上传 10GB
 
 用户有一个 10GB 虚拟机镜像，只修改了其中很小一段。若每次按整文件上传：
@@ -415,20 +413,6 @@ Chunk hash 在读取时校验，从健康 replica repair。Metadata 指向的所
 **Last-write-wins** 简单，却会静默丢离线编辑；保留 conflict copy 更诚实。
 
 **短授权 URL** 改善撤销语义，却增加续签和下载控制面 QPS。
-
-## 用 Lab 看数据与 Metadata 怎样分离
-
-**实验一：增大文件**
-
-比较整文件重传与 4MB chunk。再只改一个 chunk，计算节省的带宽。
-
-**实验二：改变 Chunk size**
-
-观察小块带来的 manifest/请求量和大块带来的重传量，找到 workload 合适点。
-
-**实验三：增加设备与离线窗口**
-
-让两台设备基于同一个 base 修改，亲自制造分叉。设计显式冲突结果，而不是覆盖。
 
 ## 面试表达：先把完整版本 Commit 说清楚
 

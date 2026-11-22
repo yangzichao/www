@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, agents, llm]
 
 因此这道题的核心不是 prompt engineering，而是：**怎样把不确定的模型决策包在一个确定、可追踪、可恢复的执行系统里。**
 
-> 配套实验：[打开 Agent Orchestration Lab](https://lab.zichaoyang.com/system-design/agent-orchestration/)。先保持 `max steps = 1`，再逐步增加工具数和上下文，不要直接跳到“全自动 Agent”。
-
 ## 一个退款为什么会执行两次
 
 用户说：“给订单 991 退款。”
@@ -397,20 +395,6 @@ Worker 对 Run 只持短 lease。Lease 过期后，新 worker 从最后 checkpoi
 **模型 fallback** 提高可用性，却可能改变工具选择、输出格式和安全表现。切换模型前要验证兼容性，不能只看接口相同。
 
 **精细 checkpoint** 减少故障重做，却增加写放大和状态管理。通常在模型决策后、工具调用前、工具结果后设置语义 checkpoint，比每个 token 都落盘更合理。
-
-## 用 Lab 观察系统为什么需要这些组件
-
-**实验一：增加 max steps**
-
-保持并发不变，从 1 增加到 10。观察模型调用和总 latency 如何近似线性放大。问自己：哪些 step 真的产生了新信息？
-
-**实验二：增加工具数和 context**
-
-观察每次模型调用的 token 和路由压力。然后假设先用一个轻量 router 选出 5 个工具，再比较成本。
-
-**实验三：增加并发 session**
-
-注意瓶颈会在 LLM quota、某个 hot tool 和 waiting Run 之间移动。Run API 能接住流量，不代表下游副作用能接住。
 
 ## 面试里怎么自然地讲
 

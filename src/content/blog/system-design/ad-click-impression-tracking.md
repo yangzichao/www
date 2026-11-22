@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, ads, event-tracking, streaming]
 
 这道题的核心是：**先把每次曝光与点击作为不可变事件可靠接收，再以 event time、去重和可修正聚合把它们变成可信报表与归因。**
 
-> 配套实验：[打开 Ad Click Tracking Lab](https://lab.zichaoyang.com/system-design/ad-tracking/)。先保持低峰值和宽松 freshness，再提高 burst 与 durability；观察 collector 为什么必须与报表计算解耦。
-
 ## 一个 Impression 为什么会被数三次
 
 浏览器展示广告后发送 beacon：
@@ -428,20 +426,6 @@ event ingestion -> dedup -> aggregation -> OLAP visible
 **Ingest 同步校验更多** 可能提高早期质量，却把远程依赖和模型 latency 放进最关键接收路径。
 
 **Exactly-once processing** 可以简化 state/output 一致性，但仍需要稳定业务 event ID 和外部计费幂等。
-
-## 用 Lab 观察 Streaming Pipeline 为什么出现
-
-**实验一：提高峰值倍数**
-
-让 collector 与同步数据库聚合一起运行，观察数据库如何拖慢 ingest；再用 log 解耦。
-
-**实验二：收紧报表 Freshness**
-
-观察更多 streaming state、checkpoint 和 OLAP 写入。区分 provisional dashboard 与 finalized billing。
-
-**实验三：提高 Durability**
-
-把 ack 从进程内存移动到 replicated log。计算增加的 latency，并说明为什么计费事件值得。
 
 ## 面试表达：先讲重试与事件时间
 

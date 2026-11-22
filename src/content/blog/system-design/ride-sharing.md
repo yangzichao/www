@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, ride-sharing, geospatial]
 
 核心问题是：**怎样用近似、新鲜的位置快速找候选，再用原子 claim 把一个司机分配给且只分配给一段行程。**
 
-> 配套实验：[打开 Ride Sharing Lab](https://lab.zichaoyang.com/system-design/ride-sharing/)。先提高司机数和 GPS 频率，观察写路径；再扩大搜索半径和 cell 密度，观察查询 fan-out。
-
 ## 最近的司机不一定能被你叫到
 
 乘客 A 和 B 同时发起请求。Geo index 都返回司机 D1：
@@ -419,20 +417,6 @@ API 不把精确司机坐标暴露给未匹配 rider；可显示模糊位置。�
 **批量全局 matching** 可能提高总体效率，却增加用户等待和实现复杂度；greedy 更低延迟。
 
 **位置最终一致** 通常可接受，Driver/Trip claim 则必须强语义。不要给两种状态统一一致性等级。
-
-## 用 Lab 找到真正瓶颈
-
-**实验一：提高司机数和 GPS 频率**
-
-观察 ingest writes 先增长，而 ride request 不变。把位置从 trip OLTP 中拆出来。
-
-**实验二：提高 Cell 密度和搜索半径**
-
-观察候选、跨 shard 和 ETA 调用的乘法效应。使用分层 ring 搜索。
-
-**实验三：增加城市/Region**
-
-按 pickup city 分片，设计故障时 trip owner 切换。位置可重建，已分配司机不能重复。
 
 ## 面试表达：候选是近似，Claim 必须原子
 

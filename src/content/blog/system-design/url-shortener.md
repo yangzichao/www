@@ -10,8 +10,6 @@ URL Shortener 看起来是一道很小的题：把长网址变成短码，再把
 
 这道题最重要的不是背 `Base62 + Redis + NoSQL`。真正要回答的是：**短码如何保证唯一，重定向如何保持低延迟，链接被删除、过期或突然爆红时，系统又怎样保持正确。**
 
-> 配套实验：[打开 URL Shortener Lab](https://lab.zichaoyang.com/system-design/url-shortener/)。先保持单 Region 和低热点，再提高 hot-link 占比；看到缓存压力以后再考虑分片。
-
 ## 从第一条链接开始
 
 用户提交：
@@ -362,20 +360,6 @@ Local cache/CDN 复制热点 value，避免所有请求进入同一 distributed 
 **更长 cache TTL** 提高命中，却延长修改和封禁传播时间。安全 invalidation 需要独立快通道。
 
 **全球多写** 提高创建可用性，却把一个原本简单的唯一性问题变成跨 Region 协调。
-
-## 用 Lab 跟着瓶颈走
-
-**实验一：提高读写比**
-
-观察数据库什么时候先被 redirect 读压住。加入 cache，确认创建路径并没有因此变复杂。
-
-**实验二：提高 Hot-link 占比**
-
-看到单 key 热点后，不要先分数据库；先问 CDN 和 local cache 能否复制这几十字节的数据。
-
-**实验三：增加 Region**
-
-分别讨论已有链接读取与新链接创建。选择单写还是多写前，先写出你愿意牺牲哪个语义。
 
 ## 面试表达：先把单机版本讲完整
 

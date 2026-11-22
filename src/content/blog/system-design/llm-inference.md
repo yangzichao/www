@@ -12,8 +12,6 @@ LLM 推理不是这样。它先读完整段 prompt，然后一个 token、一个
 
 这道题真正要解决的也就不是“怎样包一层 REST API”，而是：**怎样让许多长短不一的生成任务共享昂贵的 GPU，同时守住首字延迟、逐字流畅度和显存上限。**
 
-> 配套实验：[打开 LLM Inference Lab](https://lab.zichaoyang.com/system-design/llm-inference/)。本文最后给了三组实验，不要一开始就把所有开关都打开。
-
 ## 先看两个请求，为什么 request QPS 会骗人
 
 假设两个用户同时到达：
@@ -389,20 +387,6 @@ Usage consumer 按 `request_id` 幂等写入。计费基于服务端实际处理
 **Prefill/decode 分离** 保护交互式 decode，却增加 KV transfer、调度和拓扑复杂度。
 
 面试里不要把这些技术念成购物清单。先指出你遇到的瓶颈，再选择刚好解决它的机制。
-
-## 用 Lab 把这条推导跑一遍
-
-**实验一：先只拉长 prompt**
-
-保持 request rate 和输出长度不变，逐步增加 prompt。观察 TTFT 与 KV memory。你应该看到 prefill 压力先上升，而 TPOT 不一定同比例恶化。
-
-**实验二：只增加输出长度和并发**
-
-保持 prompt 较短，增加 output tokens 和 request rate。观察活跃序列生命周期变长，KV pages 不易释放，decode throughput 成为主要约束。
-
-**实验三：比较扩卡方案**
-
-增大模型直到单卡装不下，再打开并行。问自己：现在增加 GPU 是为了装 weights、增加 replica throughput，还是改善 KV capacity？三个目标对应的拓扑并不相同。
 
 ## 一套自然的面试表达
 

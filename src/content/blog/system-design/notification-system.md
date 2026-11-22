@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, notifications, messaging]
 
 这道题的核心是：**把一次业务通知意图变成可追踪、可去重、按政策选择渠道的投递状态机，而不是把 provider API 调用散落在每个业务服务里。**
 
-> 配套实验：[打开 Notification System Lab](https://lab.zichaoyang.com/system-design/notification-system/)。先只保留 email 渠道，再提高事件率和 provider latency；看到 retry backlog 后再加入多 provider。
-
 ## 为什么网络超时会导致用户收到两封邮件
 
 订单服务发出：
@@ -417,20 +415,6 @@ Delivery 留在 SENDING。Reconciler 用 provider message ID 查询，或复用 
 **发送时重新检查偏好** 更符合最新 consent，却可能改变已创建事务通知的原意；按 category 定义。
 
 **模板集中管理** 保证一致和审计，也要求严格 version/schema，不能把所有自由度交给业务服务。
-
-## 用 Lab 看 Backlog 怎么形成
-
-**实验一：提高事件速率**
-
-保持 provider 吞吐不变，观察 queue age 而不是只看 queue length。计算多久会错过通知 deadline。
-
-**实验二：增加 Provider latency 和错误**
-
-观察 worker 被在途调用占满、retry 放大。加入 timeout、circuit breaker 和 jitter。
-
-**实验三：加入多 Channel**
-
-明确一个 Notification 何时算完成：任一 channel 成功、必需 channel 全成功，还是每个 delivery 独立。不要只加三条箭头。
 
 ## 面试表达：从重复邮件开始
 

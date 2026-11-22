@@ -10,8 +10,6 @@ tags: [system-design, interview, learning, ml-training, mlops]
 
 ML training pipeline 的价值不是把 notebook 换成一张漂亮 DAG，而是把一次实验变成一个**有确定输入、确定产物、可重试、可比较、可审计的运行对象**。
 
-> 配套实验：[打开 ML Training Pipeline Lab](https://lab.zichaoyang.com/system-design/ml-training-pipeline/)。先从一个 notebook 开始，再增加 dataset version 和并发 job；观察瓶颈为什么从训练代码转向编排与治理。
-
 ## 一个“代码没变”的模型为什么变了
 
 研究员周一运行：
@@ -383,20 +381,6 @@ Queue 只能现实地提供 at-least-once task delivery。我们追求的是每�
 **Artifact cache** 节省计算，但 cache key 少一个输入版本就会复用错误结果。宁可保守 miss，也不要错误 hit。
 
 **抢占低优先级训练** 提高集群利用率，代价是 checkpoint 开销和完成时间波动。
-
-## 用 Lab 跟着架构演化
-
-**实验一：从 notebook 到 scheduled DAG**
-
-先增加每日 job 数，不增加模型。观察问题如何先从代码变成可重复执行、排队和失败恢复。
-
-**实验二：增加 dataset 大小**
-
-观察 data scan 和 artifact storage，而不是只看 GPU。尝试复用 transform artifact，比较成本。
-
-**实验三：增加 experiment 与自动 retraining**
-
-问自己 registry、evaluation gate 和 retention 在什么时候成为必要组件。自动触发不是自动发布。
 
 ## 面试表达：先把一次 Run 说完整
 

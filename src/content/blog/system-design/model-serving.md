@@ -10,8 +10,6 @@ tags: [system-design, interview, learning, model-serving, ml-platform]
 
 这道题的核心不是给 `model.predict()` 包一层 HTTP，而是：**怎样让不同版本、不同资源形态的模型在一个稳定的延迟与发布契约下提供预测。**
 
-> 配套实验：[打开 Model Serving Lab](https://lab.zichaoyang.com/system-design/model-serving/)。先保持单 replica，分别增加模型计算时间和请求率；看到排队后，再打开 dynamic batching。
-
 ## 一个 2ms 模型为什么会有 500ms p99
 
 假设模型单次计算只要 2ms，服务每秒稳定处理 400 个请求。单 replica 理论上每秒最多完成约 500 次推理，看起来还有余量。
@@ -371,20 +369,6 @@ Autoscaler 不能只看平均 GPU utilization。Queue delay 已上升时再启�
 **严格 schema** 防止 silent error，却要求 producer 与 model 团队认真做版本兼容。
 
 **缓存预测** 对确定性、重复输入有用，但 cache key 必须包含 model version、完整 feature 和权限上下文；许多实时个性化请求命中率并不高。
-
-## 用 Lab 找到吞吐与延迟的拐点
-
-**实验一：提高请求率**
-
-保持 replica 与 batch window 不变，观察 queue time 在利用率接近上限时突然上升。不要只看平均 compute。
-
-**实验二：打开 Dynamic batching**
-
-逐步增加 batch window。记录 throughput 和 p99，找到满足 SLO 的最大等待，而不是追求最大 batch。
-
-**实验三：增加模型数**
-
-观察 host memory 和 load thrashing。为 hot、warm、cold model 设计不同 placement，而不是一个策略服务所有模型。
 
 ## 面试表达：从单模型契约开始
 

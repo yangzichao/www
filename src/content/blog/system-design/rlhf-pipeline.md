@@ -12,8 +12,6 @@ RLHF 经常被压缩成三个方框：先做监督微调，再训练 reward mode
 
 所以这道题的核心是：**怎样把昂贵、异步、带有人类噪声的反馈，变成一条可追溯、可恢复、可评估的模型改进流水线。**
 
-> 配套实验：[打开 RLHF Pipeline Lab](https://lab.zichaoyang.com/system-design/rlhf-pipeline/)。先用很小的 rollout 和单个 epoch 理解数据流，再比较 PPO 与 DPO，不要先把 GPU 数拉满。
-
 ## 从一条 preference pair 开始
 
 给定 prompt：
@@ -391,20 +389,6 @@ Evaluation dataset 必须与训练数据去重，并固定版本。若每次 rel
 **更快自动发布** 缩短迭代周期，也扩大 evaluation 漏洞进入生产的概率。Alignment 模型尤其需要明确的人类 gate。
 
 **PPO** 能显式组合 reward、在线采样和约束，但系统复杂、训练更敏感；**DPO** 流水线更短，却更依赖高质量、代表当前使用场景的 preference data。
-
-## 用 Lab 理解瓶颈怎么移动
-
-**实验一：增加 rollout 数**
-
-保持模型和 PPO epoch 不变，只增加 rollout。观察推理侧成本先膨胀，问自己是否有足够新信息值得这些 token。
-
-**实验二：增加模型和 GPU**
-
-观察瓶颈从单卡显存移动到互联与 checkpoint。更多 GPU 不一定线性缩短 wall-clock time。
-
-**实验三：PPO 与 DPO**
-
-切换两条路线，列出消失的组件和仍然存在的数据治理问题。重点不是谁“更先进”，而是哪条路线满足当前目标。
 
 ## 面试表达：把版本链说清楚
 

@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, fraud-detection, machine-learning]
 
 这道题真正要设计的是：**怎样在极短延迟内组合可靠的实时信号做出可解释决策，并把迟到标签安全地送回训练和规则系统。**
 
-> 配套实验：[打开 Fraud Detection Lab](https://lab.zichaoyang.com/system-design/fraud-detection/)。先只调整 decision budget 和 feature window，再增加 label delay；观察在线路径与反馈路径为什么必须分开。
-
 ## 一笔交易的三个时钟
 
 用户在 `10:00:00` 发起一笔 800 美元交易。系统可能看到：
@@ -362,20 +360,6 @@ Ruleset immutable，支持 shadow、审批、canary 和即时回滚。紧急规�
 **Fail open** 保护支付可用性但扩大欺诈风险；**fail closed** 保护资金却伤害合法用户。应按金额、用户信任和场景分层。
 
 **更快 retraining** 适应攻击，也可能把尚未成熟、偏差更大的 label 加入训练。数据 freshness 与 label quality 必须平衡。
-
-## 用 Lab 把闭环跑出来
-
-**实验一：收紧 decision budget**
-
-观察 feature、model 和持久化如何争抢 80ms。设计超时后的明确降级，而不是只增加机器。
-
-**实验二：改变 feature window**
-
-比较 5 分钟 velocity 和 30 天行为基线的状态量与用途。不要把所有风险压进一个窗口。
-
-**实验三：增加 label delay**
-
-观察模型训练能使用的成熟样本减少。问自己怎样避免把“暂时没投诉”当作合法事实。
 
 ## 面试表达：先讲即时决策与迟到真相
 

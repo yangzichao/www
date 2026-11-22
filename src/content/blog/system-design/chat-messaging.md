@@ -10,8 +10,6 @@ tags: [system-design, interview, learning, messaging, realtime]
 
 这道题的核心不是长连接本身，而是：**怎样为每个会话建立可靠、可恢复的消息顺序，并把它实时或稍后送到每个成员的设备。**
 
-> 配套实验：[打开 Chat / Messaging Lab](https://lab.zichaoyang.com/system-design/chat-messaging/)。先保持一对一和单设备，再增加群组大小、离线比例和 Region；观察瓶颈从连接转向 fan-out。
-
 ## 一条消息什么时候算“发出去了”
 
 Alice 给 Bob 发送：
@@ -426,20 +424,6 @@ Membership 带生效 sequence。读取只允许 `joined_sequence <= message.sequ
 **Presence durable 化** 没有必要，增加成本；best effort 又意味着 UI 不能把“离线”当绝对事实。
 
 **跨 Region 单 home** 保持顺序，却增加远端写 latency；多主合并更可用，但客户端和协议要处理冲突。
-
-## 用 Lab 跟着状态量变化
-
-**实验一：增加连接，保持消息率**
-
-观察 gateway 的 socket/memory，而不是 message store。理解连接容量和消息吞吐要分别算。
-
-**实验二：增加群组大小**
-
-计算每条消息的 inbox 写放大。找到从 fan-out on write 切到 read 的边界。
-
-**实验三：提高离线比例和 Region**
-
-观察 durable inbox、cursor 和跨 Region replication 变得重要。实时 push 不是可靠同步协议。
 
 ## 面试表达：先定义 Ack
 

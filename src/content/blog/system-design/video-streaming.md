@@ -10,8 +10,6 @@ tags: [system-design, interview, learning, video-streaming, cdn]
 
 视频平台的核心不是“存大文件”，而是：**把原始媒体异步处理成多种码率的小分片，由 manifest 描述播放顺序，再通过 CDN 和自适应码率让客户端根据网络持续选择。**
 
-> 配套实验：[打开 Video Streaming Lab](https://lab.zichaoyang.com/system-design/video-streaming/)。先增加上传量和 rendition 数，观察转码；再增加并发观众，观察瓶颈如何转到 CDN egress。
-
 ## 为什么一个视频要保存很多份
 
 上传一个 4K 视频，平台可能生成：
@@ -395,20 +393,6 @@ Metadata 先改不可播放，停止签发 session；purge manifest/segments 按
 **更大 Player buffer** 减少卡顿，却增加 startup/live latency。
 
 **Origin 多 Region** 提高可用性和回源容量，也增加复制、成本和一致性管理。
-
-## 用 Lab 看瓶颈怎样迁移
-
-**实验一：增加上传与 Rendition**
-
-保持观众不变，观察 transcode queue 和 storage。决定固定 ladder 何时值得做 per-title 优化。
-
-**实验二：增加并发观众**
-
-观察 CDN egress 和 byte hit，确认增加 transcode worker无助于播放热点。
-
-**实验三：打开 Live**
-
-比较 VOD 的可重试 batch pipeline 与 live deadline。缩短 segment 后，记录 latency 和 CDN 请求放大。
 
 ## 面试表达：先把媒体准备与分发分开
 

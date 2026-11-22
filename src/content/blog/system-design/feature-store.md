@@ -12,8 +12,6 @@ Feature store 最容易被误解成“专门存特征的数据库”。如果只
 
 所以 feature store 的核心是：**让特征定义、历史时间语义和在线低延迟读取保持一致。**
 
-> 配套实验：[打开 Feature Store Lab](https://lab.zichaoyang.com/system-design/feature-store/)。先关闭 streaming feature，只打开 point-in-time correctness；理解数据泄漏以后，再观察 freshness 成本。
-
 ## 一个离线指标很高、上线却失效的模型
 
 我们要预测用户在 `10:00` 会不会取消订单。特征之一是：
@@ -377,20 +375,6 @@ Feature store 的健康不能只用 uptime 表示。一个 100% 可用但持续�
 **强 schema gate** 防止线上 silent corruption，也会让 feature 发布更慢。生产预测通常值得这份约束。
 
 **默认值** 提高可用性，却可能隐藏数据中断。默认策略必须由 model contract 定义并监控使用率。
-
-## 用 Lab 理解时间语义
-
-**实验一：Point-in-time correctness**
-
-构造一个预测时间之后才发生的事件。关闭正确 join 看离线指标如何虚高，再打开它。这个实验比先看架构图更重要。
-
-**实验二：Freshness**
-
-逐步从 batch 切到 streaming。观察 online write 和状态压力，判断哪些 feature 真正需要秒级更新。
-
-**实验三：训练/服务 parity**
-
-故意让 offline 窗口按 UTC、online 窗口按本地时间，观察边界样本。再设计一套 parity test 把问题提前暴露。
 
 ## 面试表达：先讲“不能偷看未来”
 

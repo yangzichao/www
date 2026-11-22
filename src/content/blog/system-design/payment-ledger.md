@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, payments, ledger]
 
 这道题的核心是：**用幂等状态机协调外部副作用，用双重记账账本守住内部资金不变量，再用对账处理无法靠在线事务消除的现实差异。**
 
-> 配套实验：[打开 Payment Ledger Lab](https://lab.zichaoyang.com/system-design/payment-ledger/)。先打开重复请求，再制造 PSP timeout；观察“API 幂等”和“外部实际只扣一次”为什么是两层问题。
-
 ## 一次付款里有两个不同的“成功”
 
 用户支付 100 美元。系统可能经历：
@@ -438,20 +436,6 @@ Payment version CAS + ledger business reference unique。一个完成，另一�
 **物化余额** 读取快，但必须和 immutable entries 同事务更新并定期重算。
 
 **更多自动 retry** 恢复 transient failure，也增加 ambiguous duplicate 风险。支付 retry 必须有稳定身份和状态查询。
-
-## 用 Lab 亲自制造支付事故
-
-**实验一：重复请求**
-
-关闭 idempotency，连续提交同一 checkout；再加入 key + payload hash，验证同 key 不同金额会被拒绝。
-
-**实验二：PSP timeout**
-
-让 PSP 成功但丢响应。比较“直接重试新 charge”和“查询同一 provider key”的结果。
-
-**实验三：跨 Region**
-
-让两个 Region 同时更新一个 account balance。看到 race 后，选择 owner/consensus，而不是用 last-write-wins 处理钱。
 
 ## 面试表达：先把状态机和账本分开
 

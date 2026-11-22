@@ -10,8 +10,6 @@ Crawler 的目标不是“尽可能快地下载网页”。如果 1,000 个 work
 
 这道题的核心是：**在全局高吞吐和单站点礼貌之间做调度，同时识别重复 URL/内容，让有限预算覆盖尽可能有价值的网页。**
 
-> 配套实验：[打开 Web Crawler Lab](https://lab.zichaoyang.com/system-design/web-crawler/)。先固定 domain 数增加 worker，观察为什么吞吐不再上升；再增加 domain 和目标 crawl rate，观察 frontier 如何并行。
-
 ## 为什么一个普通 FIFO Queue 不够
 
 Frontier 里依次出现：
@@ -395,7 +393,7 @@ DNS failure 按 host backoff，不让 retry storm 冲击 resolver。
 
 若只保留压缩正文 25%，仍是 500TB/day 级别。Bandwidth 和 storage 比 task queue QPS 更可能是成本核心。
 
-要达到 116K/s，若每 host 平均只允许 1 request/s，就至少需要 116K 个同时 eligible hosts。只有 1,000 个 domains 时，再加 worker也无法达到目标。这是 Lab 中最重要的容量结论。
+要达到 116K/s，若每 host 平均只允许 1 request/s，就至少需要 116K 个同时 eligible hosts。只有 1,000 个 domains 时，再加 worker 也无法达到目标。这是整个设计里最重要的容量结论。
 
 Frontier 假设平均积压 100B URLs，每条压缩 metadata 100 bytes，就是 10TB，必须分片并将冷 scheduled URLs 放磁盘/对象存储，近期待抓部分进内存时间轮。
 
@@ -480,20 +478,6 @@ Sandbox、CPU/memory/time limit。原始内容已保存，可用修复后的 par
 **执行 JavaScript** 能看到 SPA 内容，却大幅增加 CPU、安全和延迟；只对必要站点使用 browser renderer 队列。
 
 **按 Host 分片** 守住 politeness，但 host 大小倾斜；超级 host 仍由单 scheduler 管速率，fetch 可有限并发。
-
-## 用 Lab 理解“快”不是唯一目标
-
-**实验一：固定 Domain 增加 Worker**
-
-观察 throughput 在 per-host limit 后不再上升。新增 worker 只增加等待。
-
-**实验二：增加 Domain 数**
-
-看到 eligible hosts 增加后，全局并行度才增长。这说明 frontier 调度比 worker pool 大小更重要。
-
-**实验三：提高 Crawl rate 与 Seen Set**
-
-计算 URL metadata、DNS 与存储。加入 Bloom 前先明确 false positive 是否可接受。
 
 ## 面试表达：先画 Per-host Frontier
 

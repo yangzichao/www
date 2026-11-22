@@ -12,8 +12,6 @@ tags: [system-design, interview, learning, recommendation, machine-learning]
 
 这道题的核心是：**怎样从海量内容中快速找出一个有希望的候选集，在严格延迟内精排，同时持续收集无偏、可解释的反馈。**
 
-> 配套实验：[打开 Recommendation System Lab](https://lab.zichaoyang.com/system-design/recommendation-system/)。先关闭 two-tower 和实时特征，从热门榜开始；随后一次只打开一层，观察每层解决什么问题。
-
 ## 为什么不能直接给一亿条内容逐一打分
 
 假设平台有 1 亿个视频，ranking model 对一个 `(user, video)` 评分需要 0.1ms。单请求逐一评分就是：
@@ -426,20 +424,6 @@ Collector 按 event ID 幂等，Streaming 聚合按 impression 去重。客户�
 **更强 personalization** 提高相关性，也可能造成过滤泡泡、隐私风险和 cache 失效。
 
 **Fan-out 预计算** 能让读取更快，但用户兴趣和 catalog 变化快时写放大很高；多数推荐系统更偏在线召回与 ranking，只缓存可复用部分。
-
-## 用 Lab 逐层打开系统
-
-**实验一：热门榜基线**
-
-不打开 two-tower，先确认高可用基线和 feedback 事件。问自己个性化模型故障时是否能回到这里。
-
-**实验二：Two-tower ANN**
-
-扩大 corpus，观察 exact scoring 不可行。打开 ANN 后同时看 latency 和 recall，不要只看快了多少。
-
-**实验三：实时特征与 latency**
-
-加入 session feature 并收紧 ranking budget。决定哪些 feature 值得进入在线路径，哪些可以离线预计算。
 
 ## 面试表达：先解释为什么需要两阶段
 

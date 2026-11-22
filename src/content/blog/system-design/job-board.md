@@ -6,8 +6,6 @@ draft: false
 tags: [system-design, interview, learning, search, indexing, job-board]
 ---
 
-> 配套实验：[打开 Job Board Search Lab](https://lab.zichaoyang.com/system-design/job-board/)。从 PostgreSQL-only 开始，再提高常见关键词命中率和 Search QPS，观察 Elasticsearch / OpenSearch 什么时候才需要作为独立 component 出现。
-
 Job Board 的产品功能很多：发布职位、搜索、申请、简历、通知、推荐、招聘流程。但系统设计面试不是功能清单比赛。如果把所有模块都画出来，反而看不出这道题最独特的技术问题。
 
 这道题应该抓住一条主线：

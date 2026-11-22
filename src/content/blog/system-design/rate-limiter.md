@@ -12,8 +12,6 @@ Rate limiter 的目标看起来很简单：一个用户一分钟最多请求 100
 
 这道题的核心是：**在额度准确性、请求延迟和系统可用性之间，选择一个符合业务风险的边界。**
 
-> 配套实验：[打开 Rate Limiter Lab](https://lab.zichaoyang.com/system-design/rate-limiter/)。先保持单 API server，比较算法；再增加 server 和 hot-key，观察“准确计数”为什么会变成协调问题。
-
 ## 先用一个小例子看边界行为
 
 规则是每分钟最多 10 次。用户在：
@@ -380,20 +378,6 @@ Policy 先 shadow，只记录“本来会拒绝”，再 canary。发布有 sani
 **Fail open** 保护业务可用性，但可能伤害安全和成本；**fail closed** 相反。
 
 **全局严格配额** 需要跨 Region 协调；若业务只是防滥用，Region-local 近似往往更合理。
-
-## 用 Lab 观察协调成本
-
-**实验一：比较窗口算法**
-
-在窗口边界制造 burst，观察 fixed window。再用 token bucket 明确写出允许的 capacity 与 refill。
-
-**实验二：增加 API server**
-
-先让每台 server 本地计数，计算总超放；再切共享状态，观察新增的 p99 和依赖。
-
-**实验三：制造 Hot key 和多 Region**
-
-一个 tenant 占大部分流量时，增加 shard 不会解决单 key。尝试 local lease，并明确可接受误差。
 
 ## 面试表达：先问“额度要多准”
 

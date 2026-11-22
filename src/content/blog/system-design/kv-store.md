@@ -10,8 +10,6 @@ Key-value store 的接口可能只有 `put(key, value)` 和 `get(key)`，但真�
 
 这道题不该从一致性哈希开始。先在一台机器上把“写入不会因崩溃丢失”做对，再让容量与可用性推动我们走向分片和复制。
 
-> 配套实验：[打开 Key-Value Store Lab](https://lab.zichaoyang.com/system-design/kv-store/)。先设置 `N=3, R=1, W=1`，再分别提高 R 和 W；用读写 latency 与可用性验证 quorum 公式，而不是死记。
-
 ## 一个简单接口里隐藏的语义
 
 客户端执行：
@@ -361,20 +359,6 @@ Partition map 带 epoch。Rebalance 期间旧 owner 和新 owner 有明确 hando
 **更多 compaction** 降低读取放大和空间，代价是后台 I/O；太少则 SSTable 与 tombstone 堆积。
 
 **虚拟节点更多** 改善平衡与恢复并行，也增加 metadata 和 range 管理。
-
-## 用 Lab 验证 N/R/W
-
-**实验一：`N=3,R=1,W=1`**
-
-观察最低读写 latency，然后制造一个 replica 落后。读到旧值不是意外，而是配置选择。
-
-**实验二：`N=3,R=2,W=2`**
-
-观察 quorum latency 和单节点故障下的可用性。解释为什么 R+W>N 有帮助，又为什么 sloppy quorum 会让结论更复杂。
-
-**实验三：提高 R 或 W 到 3**
-
-制造一个慢节点。看 tail latency 如何被最慢副本控制，并讨论是否值得换取更强语义。
 
 ## 面试表达：从一台机器的 Ack 开始
 

@@ -12,8 +12,6 @@ Online Judge 的 API 很容易描述：用户提交代码，系统运行测试�
 
 所以这道题的核心是：**把每次提交变成一个可重试的异步任务，在严格资源和权限边界内执行，并保证失败 worker、重复任务和不同语言环境不会改变最终判题语义。**
 
-> 配套实验：[打开 Online Judge Lab](https://lab.zichaoyang.com/system-design/online-judge/)。先保持单语言和短运行时间，再提高 submission rate 与语言数；观察 queueing 和 warm sandbox 如何成为主要约束。
-
 ## 先看三段完全合法的“恶意代码”
 
 死循环：
@@ -569,20 +567,6 @@ AC 后查询 sketch 近似 percentile。测试版本或机器代际改变时不�
 **严格确定环境** 提高复现，却限制某些语言/API；允许更多系统能力就扩大攻击面。
 
 **更深排队缓冲** 吸收 burst，也延长等待并鼓励重试；达到 SLO 边界应 backpressure。
-
-## 用 Lab 观察系统为什么不是普通 API
-
-**实验一：提高 Submission Rate**
-
-保持 worker 固定，观察 queue age 如何积累。用 worker-seconds 算容量，而不是只看请求数。
-
-**实验二：增加平均执行时间**
-
-同样 QPS 下需要成倍 worker。拆短/长队列，避免 head-of-line blocking。
-
-**实验三：增加语言数**
-
-观察 image/fixture cache 和 warm-pool 内存。为热门语言常驻，冷门语言接受受控 cold start。
 
 ## 面试表达：先说不可信代码，再说扩容
 

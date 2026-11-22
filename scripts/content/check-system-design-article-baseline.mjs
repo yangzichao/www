@@ -90,10 +90,6 @@ for (const slug of tutorialSlugs) {
     failures.push(`${slug}: article is not published`);
   }
 
-  if (!/https:\/\/lab\.zichaoyang\.com\/system-design\//.test(content)) {
-    failures.push(`${slug}: missing its corresponding Lab link`);
-  }
-
   if (prose.length < minimumArticleCharacters) {
     failures.push(
       `${slug}: ${prose.length} characters is below the ${minimumArticleCharacters}-character editorial floor`,
