@@ -120,7 +120,7 @@ const isoDate = frontmatter.date.toISOString();
 
   <script slot="body-end" is:inline>
     if (document.querySelector('pre.mermaid')) {
-      import('https://esm.sh/mermaid@11')
+      import('https://esm.sh/mermaid@11.17.2')
         .then(({ default: mermaid }) => {
           mermaid.initialize({
             startOnLoad: false,
