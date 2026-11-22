@@ -1,10 +1,5 @@
+import { readJsonOrThrow } from '../../http/read-json-or-throw';
 import type { CommentThreadResponse, CreateCommentResponse } from '../comment-types';
-
-async function readJsonOrThrow<T>(response: Response): Promise<T> {
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new Error(payload.error ?? `Request failed with ${response.status}`);
-  return payload;
-}
 
 export async function fetchCommentThread(pagePath: string): Promise<CommentThreadResponse> {
   const response = await fetch(`/api/comments?${new URLSearchParams({ path: pagePath })}`);

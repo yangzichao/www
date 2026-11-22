@@ -3,7 +3,7 @@ import { createSession } from '../../../src/features/auth/session-store';
 import { ADMIN_GITHUB_LOGIN, ADMIN_GITHUB_USER_ID } from '../../../src/features/auth/admin-identity';
 import { encryptToken } from '../../../src/features/auth/token-encryption';
 
-const TABLES = ['comments', 'sessions', 'daily_page_views'];
+const TABLES = ['thoughts', 'comments', 'sessions', 'daily_page_views'];
 
 export const VISITOR_PROFILE = { id: 1001, login: 'friendly-visitor', avatarUrl: 'https://avatars.test/u/1001' };
 export const ADMIN_PROFILE = {

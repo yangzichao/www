@@ -1,16 +1,12 @@
----
-tags: [ai]
----
-
-Been thinking about the gap between how we build software and how we describe building software. That gap is where all the interesting failures happen.
-
----
-
-The most dangerous thing about LLMs isn't that they're wrong — it's that they're wrong in a way that sounds exactly right. Confidence is calibrated to the reader, not to the truth.
-
----
-
-我认为很多人对财富存在一个根本性的误判。他们天真地以为，财富等同于银行账户里那一串不断增长的数字。这是一种极其表象的初级认知。
+INSERT INTO thoughts (id, body, tags, created_at, timestamp_precision) VALUES
+('legacy-2026-02-01', 'Agents that can''t say "I don''t know" aren''t intelligent — they''re just confident. Epistemic humility is a capability, not a limitation.', '["ai"]', '2026-02-01T00:00:00.000Z', 'month'),
+('legacy-2026-03-01', 'The reason distributed systems are hard isn''t the technical complexity — it''s that failure is ambient and continuous, not exceptional. You have to design for broken being normal.', '["systems"]', '2026-03-01T00:00:00.000Z', 'month'),
+('legacy-2026-03-02', 'Speech-to-text has made me a worse typist and a better thinker. Not sure if that''s a trade I''d make again, but here we are.', '["systems"]', '2026-03-01T00:00:00.000Z', 'month'),
+('legacy-2026-04-01', 'There''s a version of productivity advice that''s basically guilt rebranded as motivation. You can usually spot it because it makes you feel bad for resting.', '["life","physics"]', '2026-04-01T00:00:00.000Z', 'month'),
+('legacy-2026-04-02', 'One of the weird things about effective field theories is that they work best when you commit to not knowing things. The ignorance is structural, not incidental. There''s a lesson in there somewhere.', '["life","physics"]', '2026-04-01T00:00:00.000Z', 'month'),
+('legacy-2026-05-01', 'Been thinking about the gap between how we build software and how we describe building software. That gap is where all the interesting failures happen.', '["ai"]', '2026-05-01T00:00:00.000Z', 'month'),
+('legacy-2026-05-02', 'The most dangerous thing about LLMs isn''t that they''re wrong — it''s that they''re wrong in a way that sounds exactly right. Confidence is calibrated to the reader, not to the truth.', '["ai"]', '2026-05-01T00:00:00.000Z', 'month'),
+('legacy-2026-05-03', '我认为很多人对财富存在一个根本性的误判。他们天真地以为，财富等同于银行账户里那一串不断增长的数字。这是一种极其表象的初级认知。
 
 货币的本质根本不是财富，而是一种索取权，是一张张通用的期权凭证。试想一下，如果全社会停止劳动，没有任何人去播种、运输或提供服务，那些花花绿绿的纸币瞬间就会沦为废纸。而富人真正持有的核心资产，从来不是货币本身，而是对底层人群四十年劳动时间的支配权。这就是为什么通货膨胀永远存在——因为货币必须贬值，才能驱使没有资产的人不断出卖时间。
 
@@ -20,4 +16,4 @@ The most dangerous thing about LLMs isn't that they're wrong — it's that they'
 
 这一生最昂贵的奢侈品，叫作不被剥削的自由。对于个体而言，破解这个局面的唯一路径，是减少你的资产负债。债务是时间杀手，它会剥夺你在这个博弈中的所有议价权。当你不再为了邻居的眼光去消费，不再背负非生产性的负债，你就切断了外界吸取你时间的管道。请记住，积攒第一笔启动资金绝不是为了消费，而是为了让你有缓冲时间。
 
-在这个体系里，最大的奢侈品不是爱马仕，也不是保时捷。真正的奢侈品，是你早晨可以睡到自然醒，可以选择当天做什么，更可以选择不做什么。
+在这个体系里，最大的奢侈品不是爱马仕，也不是保时捷。真正的奢侈品，是你早晨可以睡到自然醒，可以选择当天做什么，更可以选择不做什么。', '["ai"]', '2026-05-01T00:00:00.000Z', 'month');

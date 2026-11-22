@@ -1,0 +1,3 @@
+export const MAX_THOUGHT_BODY_LENGTH = 10000;
+export const MAX_THOUGHT_TAG_COUNT = 5;
+export const MAX_THOUGHT_TAG_LENGTH = 30;

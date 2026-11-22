@@ -37,6 +37,13 @@ describe('isPublishedPage', () => {
     });
   });
 
+  it('counts server-rendered public pages as published without asking the static assets', async () => {
+    const { assets, fetchStub } = assetsReturning(404);
+
+    await expect(isPublishedPage(assets, '/thoughts/', 'https://zichaoyang.com')).resolves.toBe(true);
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
   it.each([301, 307, 404])('treats status %i as unpublished', async (status) => {
     await expect(isPublishedPage(assetsReturning(status).assets, '/blog/a', 'https://zichaoyang.com')).resolves.toBe(
       false,

@@ -4,6 +4,12 @@ interface SocialLink {
   label: string;
 }
 
+export interface SitePageLink {
+  icon: string;
+  url: string;
+  label: string;
+}
+
 export interface Profile {
   name: string;
   role: string;
@@ -27,6 +33,7 @@ export interface WorkItem {
 
 interface SiteData {
   profile: Profile;
+  sitePages: SitePageLink[];
   items: WorkItem[];
 }
 
@@ -41,6 +48,7 @@ export const siteData: SiteData = {
       { icon: 'ph-linkedin-logo', url: 'https://www.linkedin.com/in/zichaoyang/', label: 'LinkedIn' },
     ],
   },
+  sitePages: [{ icon: 'ph-lightbulb', url: '/thoughts/', label: 'Thoughts' }],
   items: [
     {
       type: 'Project',

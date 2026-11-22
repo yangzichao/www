@@ -8,7 +8,6 @@ import {
   groupByCategory,
   type Post,
 } from '../../../src/lib/posts';
-import { formatThoughtMonth, getThoughts } from '../../../src/lib/thoughts';
 import { shouldShowToc, tocHeadingsOf } from '../../../src/lib/toc';
 import { setCollectionEntries } from '../../support/astro-content-stub';
 
@@ -83,24 +82,11 @@ describe('content collections', () => {
       'a/old',
     ]);
   });
-
-  it('returns thoughts newest first', async () => {
-    setCollectionEntries('thoughts', [
-      { id: 'old', collection: 'thoughts', data: { date: new Date('2026-01-01'), tags: [] } },
-      { id: 'new', collection: 'thoughts', data: { date: new Date('2026-05-01'), tags: [] } },
-    ]);
-
-    await expect(getThoughts().then((result) => result.map((entry) => entry.id))).resolves.toStrictEqual([
-      'new',
-      'old',
-    ]);
-  });
 });
 
 describe('dates', () => {
   it('formats date-only frontmatter on its UTC calendar day', () => {
     expect(formatPostDate(new Date('2026-05-02'))).toBe('May 2, 2026');
-    expect(formatThoughtMonth(new Date('2026-05-01'))).toBe('May 2026');
   });
 });
 

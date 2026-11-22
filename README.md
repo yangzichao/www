@@ -70,7 +70,7 @@ src/
   pages/                 ← routes: homepage, blog, thoughts, admin, auth, api
   features/              ← one folder per feature: admin, auth, comments, page-views, http, site-pages
   layouts/, components/  ← Astro shells and shared UI
-  content/               ← markdown posts and thoughts
+  content/               ← markdown posts
   lib/, loaders/, markdown/, scripts/, styles/
 migrations/              ← D1 schema
 tests/
@@ -105,7 +105,7 @@ Deploy runs `npm run build`, then `wrangler deploy`, and needs both jobs to pass
 ## Tech stack
 
 - **Astro 7** with React 19 islands, on Cloudflare Workers
-- **D1** for page views, sessions, and comments
+- **D1** for page views, sessions, comments, and thoughts
 - **GitHub OAuth** for sign-in and the admin post editor; **Turnstile** for anonymous comments
 - **Tailwind 4** + `@tailwindcss/typography` for `prose` styling
 - **remark-math + rehype-katex** for build-time LaTeX

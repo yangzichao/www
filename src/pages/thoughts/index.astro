@@ -1,15 +1,18 @@
 ---
-import { render } from 'astro:content';
+import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getThoughts, formatThoughtMonth } from '../../lib/thoughts';
+import ThoughtComposer from '../../features/thoughts/components/ThoughtComposer';
+import ThoughtDeleteButton from '../../features/thoughts/components/ThoughtDeleteButton';
+import { loadCurrentUser } from '../../features/auth/current-session';
+import { listThoughtsNewestFirst } from '../../features/thoughts/thought-store';
+import { describeThoughtCount, toThoughtFeedItem } from '../../features/thoughts/thought-feed';
 
-const thoughts = await getThoughts();
-const rendered = await Promise.all(
-  thoughts.map(async (thought) => {
-    const { Content } = await render(thought);
-    return { thought, Content };
-  }),
-);
+export const prerender = false;
+
+const viewer = await loadCurrentUser(Astro.cookies);
+const isAdmin = viewer?.isAdmin ?? false;
+const feedItems = (await listThoughtsNewestFirst(env.DB)).map(toThoughtFeedItem);
+Astro.response.headers.set('cache-control', 'no-store');
 ---
 
 <BaseLayout title="Thoughts — Zichao Yang" description="Short thoughts, observations, and fragments.">
@@ -19,75 +22,55 @@ const rendered = await Promise.all(
         ← Home
       </a>
       <h1 class="thoughts-title">Thoughts</h1>
-      <p class="thoughts-sub">Short observations. Randomly shuffled each visit.</p>
+      <p class="thoughts-sub">Short observations, posted as they come.</p>
     </header>
 
-    <div id="thoughts-pool">
-      {rendered.map(({ thought, Content }, index) => (
-        <article class="thought-card" data-index={index} data-date={thought.data.date.toISOString()}>
+    {isAdmin && (
+      <section class="thoughts-admin" aria-label="Post a thought">
+        <ThoughtComposer client:load />
+        <p class="thoughts-export">
+          Export all:
+          <a href="/api/thoughts/export?format=markdown" download>
+            Markdown
+          </a>
+          ·
+          <a href="/api/thoughts/export?format=json" download>
+            JSON
+          </a>
+        </p>
+      </section>
+    )}
+
+    <div class="thoughts-feed">
+      {feedItems.map((item) => (
+        <article class="thought-card" data-thought-id={item.id}>
           <div class="thought-meta">
-            <time class="thought-date" datetime={thought.data.date.toISOString()}>
-              {formatThoughtMonth(thought.data.date)}
+            <time class="thought-date" datetime={item.createdAt}>
+              {item.displayTimestamp}
             </time>
-            {thought.data.tags.length > 0 && (
+            {item.tags.length > 0 && (
               <div class="thought-tags">
-                {thought.data.tags.map((tag) => (
+                {item.tags.map((tag) => (
                   <span class="thought-tag">{tag}</span>
                 ))}
               </div>
             )}
+            {isAdmin && (
+              <span class="thought-actions">
+                <ThoughtDeleteButton client:visible thoughtId={item.id} />
+              </span>
+            )}
           </div>
-          <div class="thought-body prose">
-            <Content />
-          </div>
+          <div class="thought-body prose" set:html={item.html} />
         </article>
       ))}
     </div>
 
     <footer class="thoughts-footer">
-      <span id="thoughts-count" class="thoughts-count"></span>
-      <button id="shuffle-btn" class="shuffle-btn" type="button" hidden>
-        <i class="ph ph-shuffle"></i>
-        Shuffle
-      </button>
+      <span class="thoughts-count">{describeThoughtCount(feedItems.length)}</span>
     </footer>
   </div>
 </BaseLayout>
-
-<script>
-  const VISIBLE_COUNT = 8;
-
-  function shuffle<T>(items: T[]): T[] {
-    return items
-      .map((item) => ({ item, sortKey: Math.random() }))
-      .sort((left, right) => left.sortKey - right.sortKey)
-      .map(({ item }) => item);
-  }
-
-  function showRandom() {
-    const cards = Array.from(document.querySelectorAll<HTMLElement>('.thought-card'));
-    const count = Math.min(VISIBLE_COUNT, cards.length);
-
-    const picked = new Set(shuffle(cards).slice(0, count));
-    cards.forEach((card) => {
-      card.hidden = !picked.has(card);
-    });
-
-    const countEl = document.getElementById('thoughts-count');
-    if (countEl) {
-      countEl.textContent =
-        cards.length <= VISIBLE_COUNT ? `All ${cards.length} thoughts` : `${count} of ${cards.length} thoughts`;
-    }
-
-    const shuffleBtn = document.getElementById('shuffle-btn');
-    if (shuffleBtn) {
-      shuffleBtn.hidden = cards.length <= VISIBLE_COUNT;
-    }
-  }
-
-  document.getElementById('shuffle-btn')?.addEventListener('click', showRandom);
-  showRandom();
-</script>
 
 <style>
   .thoughts-layout {
@@ -95,7 +78,7 @@ const rendered = await Promise.all(
   }
 
   .thoughts-head {
-    margin-bottom: 3.5rem;
+    margin-bottom: 3rem;
   }
 
   .back-home {
@@ -125,12 +108,27 @@ const rendered = await Promise.all(
     color: var(--color-text-muted);
   }
 
+  .thoughts-admin {
+    margin-bottom: 1rem;
+  }
+
+  .thoughts-export {
+    margin-top: -1.5rem;
+    margin-bottom: 2rem;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .thoughts-export a {
+    color: var(--color-text-main);
+  }
+
   .thought-card {
     padding: 1.75rem 0;
     border-bottom: 1px solid var(--color-border);
   }
 
-  #thoughts-pool .thought-card:first-child {
+  .thoughts-feed .thought-card:first-child {
     border-top: 1px solid var(--color-border);
   }
 
@@ -166,6 +164,10 @@ const rendered = await Promise.all(
     padding: 0.15rem 0.5rem;
   }
 
+  .thought-actions {
+    margin-left: auto;
+  }
+
   .thought-body {
     font-size: 1.05rem;
     line-height: 1.7;
@@ -181,37 +183,12 @@ const rendered = await Promise.all(
   }
 
   .thoughts-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding: 1.75rem 0 0;
-    gap: 1rem;
   }
 
   .thoughts-count {
     font-size: 0.85rem;
     color: var(--color-text-muted);
-  }
-
-  .shuffle-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text-main);
-    background: var(--color-card-hover);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-stack);
-  }
-
-  .shuffle-btn:hover {
-    background: #eef0f2;
-    transform: translateY(-1px);
   }
 
   @media (width <= 640px) {
