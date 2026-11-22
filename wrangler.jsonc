@@ -8,6 +8,14 @@
 		"directory": "./dist",
 		"binding": "ASSETS"
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "zichaoyang-com",
+			"database_id": "ebf878c4-4c97-440d-b50b-7d8410fb11f8",
+			"migrations_dir": "migrations"
+		}
+	],
 	"routes": [
 		{ "pattern": "zichaoyang.com", "custom_domain": true }
 	],

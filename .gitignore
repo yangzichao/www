@@ -32,3 +32,4 @@ www.code-workspace
 
 .wrangler/
 .dev.vars*
+worker-configuration.d.ts

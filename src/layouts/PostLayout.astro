@@ -76,6 +76,10 @@ const isoDate = frontmatter.date.toISOString();
             <time datetime={isoDate}>{formattedDate}</time>
             {frontmatter.venue && <span class="post-meta-separator">·</span>}
             {frontmatter.venue && <span class="post-venue">{frontmatter.venue}</span>}
+            <span class="post-views" data-page-view-count hidden>
+              <span class="post-meta-separator">·</span>
+              <span data-page-view-count-value></span>
+            </span>
           </div>
           {
             frontmatter.tags.length > 0 && (
@@ -258,6 +262,10 @@ const isoDate = frontmatter.date.toISOString();
 
   .post-venue {
     font-style: italic;
+  }
+
+  .post-views {
+    display: contents;
   }
 
   .post-tags {

@@ -53,7 +53,9 @@ const {
     <slot name="body-end" />
     <script>
       import { initDepthEffects } from '../scripts/effects/init-depth-effects';
+      import { recordPageView } from '../scripts/page-views/record-page-view';
       initDepthEffects();
+      recordPageView();
     </script>
   </body>
 </html>
