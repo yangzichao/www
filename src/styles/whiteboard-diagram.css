@@ -1,0 +1,65 @@
+@font-face {
+  font-family: Virgil;
+  src: url('/fonts/Virgil.woff2') format('woff2');
+  font-display: swap;
+}
+
+.whiteboard-diagram {
+  --wb-ink: #1e1e1e;
+  --wb-muted-ink: #495057;
+  --wb-canvas: #fcfcfb;
+  --wb-grid-dot: #e4e4e0;
+  --wb-font: virgil, 'Kaiti SC', stkaiti, kaiti, 'Comic Sans MS', cursive;
+
+  margin: 2em 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  border: 1px solid var(--prose-border, #e8e8e6);
+  border-radius: 12px;
+  background-color: var(--wb-canvas);
+  background-image: radial-gradient(var(--wb-grid-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.whiteboard-diagram svg {
+  display: block;
+  width: 100%;
+  min-width: min(var(--wb-natural-width), 640px);
+  max-width: var(--wb-natural-width);
+  height: auto;
+  margin: 0 auto;
+}
+
+.whiteboard-diagram text {
+  font-family: var(--wb-font);
+  fill: var(--wb-ink);
+}
+
+.whiteboard-diagram .wb-text-title {
+  font-size: 15px;
+}
+
+.whiteboard-diagram .wb-text-detail,
+.whiteboard-diagram .wb-text-connector,
+.whiteboard-diagram .wb-text-note {
+  font-size: 12.5px;
+}
+
+.whiteboard-diagram .wb-text-detail,
+.whiteboard-diagram .wb-text-connector {
+  fill: var(--wb-muted-ink);
+}
+
+.whiteboard-diagram .wb-text-group {
+  font-size: 13.5px;
+  fill: var(--wb-muted-ink);
+}
+
+.whiteboard-diagram .wb-glyph {
+  fill: none;
+  stroke: var(--wb-ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

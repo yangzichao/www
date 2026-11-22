@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import cloudflare from '@astrojs/cloudflare';
 import react from '@astrojs/react';
-import { remarkMermaidToPre } from './src/markdown/remark-mermaid-to-pre.ts';
+import { remarkWhiteboardDiagrams } from './src/markdown/whiteboard/remark-whiteboard-diagrams.ts';
 
 export default defineConfig({
   site: 'https://zichaoyang.com',
@@ -26,7 +26,7 @@ export default defineConfig({
 
   markdown: {
     processor: unified({
-      remarkPlugins: [remarkMath, remarkMermaidToPre],
+      remarkPlugins: [remarkMath, remarkWhiteboardDiagrams],
       rehypePlugins: [rehypeKatex],
     }),
     shikiConfig: { theme: 'github-light' },

@@ -223,19 +223,6 @@
   overflow: auto hidden;
 }
 
-/* External: `prose` gives every `<pre>` a dark gray background
- * (--tw-prose-pre-bg). Shiki code blocks override it with an inline light
- * style, but the mermaid `<pre>` has none — so clear it explicitly, or the
- * transparent diagram SVG ends up sitting on a dark gray block. */
-.post-article pre.mermaid {
-  margin: 2em 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: center;
-  overflow-x: auto;
-}
-
 @media (width <= 768px) {
   .post-article {
     font-size: 1.125rem;

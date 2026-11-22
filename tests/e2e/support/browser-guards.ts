@@ -13,15 +13,6 @@ const FAKE_TURNSTILE_SCRIPT = `
   };
 `;
 
-const FAKE_MERMAID_MODULE = `
-  export default {
-    initialize() {},
-    async run({ querySelector }) {
-      document.querySelectorAll(querySelector).forEach((block) => block.setAttribute('data-fake-mermaid', 'rendered'));
-    },
-  };
-`;
-
 export async function isolateFromThirdParties(context: BrowserContext): Promise<void> {
   await context.route(
     (url) => url.origin !== E2E_ORIGIN,
@@ -29,10 +20,6 @@ export async function isolateFromThirdParties(context: BrowserContext): Promise<
       const url = new URL(route.request().url());
       if (url.hostname === 'challenges.cloudflare.com') {
         await route.fulfill({ contentType: 'text/javascript', body: FAKE_TURNSTILE_SCRIPT });
-        return;
-      }
-      if (url.hostname === 'esm.sh' && url.pathname.startsWith('/mermaid@')) {
-        await route.fulfill({ contentType: 'text/javascript', body: FAKE_MERMAID_MODULE });
         return;
       }
       await route.fulfill({ status: 204, body: '' });

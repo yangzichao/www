@@ -3,29 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { thoughtsLoader } from '../../../src/loaders/thoughts-loader';
-import { remarkMermaidToPre } from '../../../src/markdown/remark-mermaid-to-pre';
-
-describe('remarkMermaidToPre', () => {
-  it('turns mermaid code blocks into escaped raw HTML and leaves other code alone', () => {
-    const tree = {
-      type: 'root',
-      children: [
-        { type: 'code', lang: 'mermaid', meta: 'title', value: 'graph TD; A-->B & <C>' },
-        { type: 'code', lang: 'ts', value: 'const a = 1;' },
-        { type: 'blockquote', children: [{ type: 'code', lang: 'mermaid', value: 'graph LR; X' }] },
-        { type: 'paragraph' },
-      ],
-    };
-    remarkMermaidToPre()(tree);
-
-    expect(tree.children).toStrictEqual([
-      { type: 'html', value: '<pre class="mermaid">graph TD; A--&gt;B &amp; &lt;C&gt;</pre>' },
-      { type: 'code', lang: 'ts', value: 'const a = 1;' },
-      { type: 'blockquote', children: [{ type: 'html', value: '<pre class="mermaid">graph LR; X</pre>' }] },
-      { type: 'paragraph' },
-    ]);
-  });
-});
 
 describe('thoughtsLoader', () => {
   let thoughtsDirectory: string;

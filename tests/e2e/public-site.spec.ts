@@ -29,11 +29,17 @@ test('blog index links to posts that render with breadcrumbs and a view count', 
   expect(errors).toStrictEqual([]);
 });
 
-test('mermaid diagrams are handed to the renderer', async ({ page }) => {
+test('diagrams arrive as prerendered whiteboard SVG without loading a renderer', async ({ page }) => {
   const errors = collectPageErrors(page);
+  const requestedUrls: string[] = [];
+  page.on('request', (request) => requestedUrls.push(request.url()));
   await page.goto('/blog/system-design/llm-inference/');
 
-  await expect(page.locator('pre.mermaid').first()).toHaveAttribute('data-fake-mermaid', 'rendered');
+  const diagram = page.locator('figure.whiteboard-diagram svg[role="img"]').first();
+  await expect(diagram).toBeVisible();
+  await expect(diagram.locator('title')).toHaveText(/^Diagram: /);
+  await expect(page.locator('figure.whiteboard-diagram .wb-node').first()).toBeAttached();
+  expect(requestedUrls.filter((url) => url.includes('mermaid'))).toStrictEqual([]);
   expect(errors).toStrictEqual([]);
 });
 
