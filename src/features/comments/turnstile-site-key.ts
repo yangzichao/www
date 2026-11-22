@@ -1,0 +1,7 @@
+const PRODUCTION_TURNSTILE_SITE_KEY = '0x4AAAAAAGMytzfiXGKF5A9C';
+const ALWAYS_PASSING_TEST_SITE_KEY = '1x00000000000000000000AA';
+const PRODUCTION_HOSTNAME = 'zichaoyang.com';
+
+export function turnstileSiteKeyFor(hostname: string): string {
+  return hostname === PRODUCTION_HOSTNAME ? PRODUCTION_TURNSTILE_SITE_KEY : ALWAYS_PASSING_TEST_SITE_KEY;
+}

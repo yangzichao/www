@@ -1,0 +1,15 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import ModerationQueue from '../../features/admin/components/ModerationQueue';
+import { checkAdminPageAccess } from '../../features/admin/admin-page-guard';
+
+export const prerender = false;
+
+const access = await checkAdminPageAccess(Astro.cookies, '/admin/comments/', { requiresRepositoryAccess: false });
+if (access.kind === 'redirect') return Astro.redirect(access.location);
+Astro.response.headers.set('cache-control', 'no-store');
+---
+
+<AdminLayout title="Comments" activeSection="comments" signedInAs={access.user.githubLogin}>
+  <ModerationQueue client:load />
+</AdminLayout>

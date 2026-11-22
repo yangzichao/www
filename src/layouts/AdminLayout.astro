@@ -1,0 +1,88 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  activeSection: 'posts' | 'comments';
+  signedInAs: string;
+}
+
+const { title, activeSection, signedInAs } = Astro.props;
+---
+
+<BaseLayout title={`${title} · Admin`} description="Site administration">
+  <div class="admin-shell">
+    <header class="admin-header">
+      <nav class="admin-nav" aria-label="Admin">
+        <a href="/" class="admin-home">zichaoyang.com</a>
+        <a href="/admin/" aria-current={activeSection === 'posts' ? 'page' : undefined}>Posts</a>
+        <a href="/admin/comments/" aria-current={activeSection === 'comments' ? 'page' : undefined}>Comments</a>
+      </nav>
+      <div class="admin-account">
+        <span>@{signedInAs}</span>
+        <button type="button" data-admin-sign-out>Sign out</button>
+      </div>
+    </header>
+    <slot />
+  </div>
+</BaseLayout>
+
+<script>
+  document.querySelector('[data-admin-sign-out]')?.addEventListener('click', async () => {
+    await fetch('/auth/logout', { method: 'POST' });
+    location.assign('/');
+  });
+</script>
+
+<style is:global>
+  main.container:has(.admin-shell) {
+    max-width: 1400px;
+    padding-top: 32px;
+  }
+</style>
+
+<style>
+  .admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.9rem;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+  }
+
+  .admin-nav a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+
+  .admin-nav a[aria-current='page'],
+  .admin-nav .admin-home {
+    color: var(--color-text-main);
+    font-weight: 600;
+  }
+
+  .admin-account {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    color: var(--color-text-muted);
+  }
+
+  .admin-account button {
+    font: inherit;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+</style>

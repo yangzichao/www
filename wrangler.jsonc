@@ -20,6 +20,9 @@
 		{ "pattern": "zichaoyang.com", "custom_domain": true },
 		{ "pattern": "www.zichaoyang.com", "custom_domain": true }
 	],
+	"secrets": {
+		"required": ["GITHUB_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY", "TURNSTILE_SECRET_KEY"]
+	},
 	"observability": {
 		"enabled": true
 	}

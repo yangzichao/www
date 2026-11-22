@@ -1,0 +1,16 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminEditor from '../../features/admin/components/AdminEditor';
+import { checkAdminPageAccess } from '../../features/admin/admin-page-guard';
+import { adminSignInUrl } from '../../features/auth/admin-sign-in-url';
+
+export const prerender = false;
+
+const access = await checkAdminPageAccess(Astro.cookies, '/admin/', { requiresRepositoryAccess: true });
+if (access.kind === 'redirect') return Astro.redirect(access.location);
+Astro.response.headers.set('cache-control', 'no-store');
+---
+
+<AdminLayout title="Posts" activeSection="posts" signedInAs={access.user.githubLogin}>
+  <AdminEditor client:load signInUrl={adminSignInUrl('/admin/')} />
+</AdminLayout>

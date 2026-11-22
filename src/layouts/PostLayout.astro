@@ -3,6 +3,7 @@ import BaseLayout from './BaseLayout.astro';
 import BlogSidebar from '../components/BlogSidebar.astro';
 import TableOfContentsRail from '../components/blog/TableOfContentsRail.astro';
 import TableOfContentsInline from '../components/blog/TableOfContentsInline.astro';
+import CommentsSection from '../features/comments/components/CommentsSection';
 import type { CollectionEntry } from 'astro:content';
 import type { MarkdownHeading } from 'astro';
 import {
@@ -93,6 +94,8 @@ const isoDate = frontmatter.date.toISOString();
         </header>
         <slot />
       </article>
+
+      <CommentsSection client:visible pagePath={`/blog/${id}/`} />
 
       {
         (adjacent.newer || adjacent.older) && (

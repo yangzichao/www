@@ -4,11 +4,13 @@ import { unified } from '@astrojs/markdown-remark';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import cloudflare from '@astrojs/cloudflare';
+import react from '@astrojs/react';
 import { remarkMermaidToPre } from './src/markdown/remark-mermaid-to-pre.ts';
 
 export default defineConfig({
   site: 'https://zichaoyang.com',
   adapter: cloudflare(),
+  integrations: [react()],
   devToolbar: {
     enabled: false,
   },

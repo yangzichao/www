@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { isPublishedPage, parsePagePath } from '../../features/page-views/page-path';
+import { isPublishedPage, parsePagePath } from '../../features/site-pages/page-path';
 import { recordPageView } from '../../features/page-views/page-view-store';
 
 export const prerender = false;
