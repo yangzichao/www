@@ -1,7 +1,3 @@
-/* Smoothed pointer parallax for `[data-parallax-depth="N"]` elements.
- * N is the maximum shift in px; elements also rotate slightly toward
- * the cursor so they read as floating in front of the page. */
-
 const SMOOTHING_FACTOR = 0.08;
 const ROTATION_RATIO = 0.5;
 const SETTLE_EPSILON = 0.0005;

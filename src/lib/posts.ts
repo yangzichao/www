@@ -8,15 +8,8 @@ export type CategoryGroup = {
   posts: Post[];
 };
 
-/**
- * Posts have no explicit category field — the topic is the first path
- * segment of the content id (e.g. `system-design/leetcode-online-judge`
- * → `system-design`). Root-level posts (e.g. `hello-world`) fall into
- * the catch-all bucket below.
- */
 const UNCATEGORIZED = 'misc';
 
-/** Pretty labels for known folders; everything else is title-cased. */
 const CATEGORY_LABELS: Record<string, string> = {
   ai: 'AI',
   growth: 'Growth',
@@ -27,11 +20,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   [UNCATEGORIZED]: 'Miscellaneous',
 };
 
-/**
- * Explicit sidebar order. Categories keep a stable position instead of
- * reshuffling whenever a newer post lands in a different folder; the
- * catch-all bucket stays last, and unknown folders slot in just above it.
- */
 const CATEGORY_ORDER: string[] = ['system-design', 'ai', 'growth', 'physics', 'life', 'meta', UNCATEGORIZED];
 
 function categoryRank(slug: string): number {
@@ -58,16 +46,11 @@ export function categoryLabel(slug: string): string {
   );
 }
 
-/** Published (non-draft) posts, newest first. */
 export async function getPublishedPosts(): Promise<Post[]> {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return posts.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 }
 
-/**
- * Group already-sorted posts by category, in the fixed CATEGORY_ORDER
- * so the sidebar layout stays stable as new posts land.
- */
 export function groupByCategory(posts: Post[]): CategoryGroup[] {
   const buckets = new Map<string, Post[]>();
   for (const post of posts) {
@@ -83,23 +66,18 @@ export function groupByCategory(posts: Post[]): CategoryGroup[] {
 }
 
 export type AdjacentPosts = {
-  previous: Post | null;
-  next: Post | null;
+  newer: Post | null;
+  older: Post | null;
 };
 
-/**
- * Neighbours of a post within its own category, following the sidebar's
- * newest-first order: `previous` is the next-newer post, `next` the
- * next-older one — so "Next" walks deeper into the archive.
- */
 export function getAdjacentPostsInCategory(posts: Post[], currentId: string): AdjacentPosts {
   const currentCategory = categoryOfId(currentId);
   const categoryPosts = posts.filter((post) => categoryOf(post) === currentCategory);
   const index = categoryPosts.findIndex((post) => post.id === currentId);
-  if (index === -1) return { previous: null, next: null };
+  if (index === -1) return { newer: null, older: null };
   return {
-    previous: index > 0 ? categoryPosts[index - 1] : null,
-    next: index < categoryPosts.length - 1 ? categoryPosts[index + 1] : null,
+    newer: index > 0 ? categoryPosts[index - 1] : null,
+    older: index < categoryPosts.length - 1 ? categoryPosts[index + 1] : null,
   };
 }
 

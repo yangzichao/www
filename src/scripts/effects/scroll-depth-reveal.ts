@@ -1,7 +1,3 @@
-/* Reveals `[data-depth-reveal]` elements as they enter the viewport:
- * they float forward from z-depth (see styles/effects/depth-3d.css).
- * Children of a `[data-depth-stagger]` container reveal in sequence. */
-
 const STAGGER_STEP_MS = 70;
 const STAGGER_MAX_MS = 420;
 

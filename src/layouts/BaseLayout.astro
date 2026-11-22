@@ -39,12 +39,9 @@ const {
       href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
     />
 
-    <!-- Pre-paint gate for the 3D depth effects: depth-3d.css only
-         hides reveal targets under html.fx3d, so no-JS and
-         reduced-motion visitors get the flat page with no flash. -->
     <script is:inline>
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        document.documentElement.classList.add('fx3d');
+        document.documentElement.classList.add('depth-effects-enabled');
       }
     </script>
   </head>

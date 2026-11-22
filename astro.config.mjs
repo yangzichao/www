@@ -10,13 +10,10 @@ export default defineConfig({
     enabled: false,
   },
 
-  // Preserve permalinks from the legacy static site so external citations
-  // and search-engine results don't break after the URL move. GitHub
-  // Pages auto-redirects the no-trailing-slash variant to the directory
+  // GitHub Pages auto-redirects the no-trailing-slash variant to the directory
   // form, so a single canonical entry is enough.
   redirects: {
     '/research/11be-proton-emission/': '/blog/physics/11be-proton-emission/',
-    // The Feynman editor now lives in its own repo at this subdomain.
     '/tools/feynman/': 'https://feynman.zichaoyang.com/',
   },
 
@@ -30,8 +27,6 @@ export default defineConfig({
     // syntax highlighting entirely.
     remarkPlugins: [remarkMath, remarkMermaidToPre],
     rehypePlugins: [rehypeKatex],
-    // Light syntax theme to match the site's white, minimal surface;
-    // the dark default clashed with the surrounding page.
     shikiConfig: { theme: 'github-light' },
   },
 });

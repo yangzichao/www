@@ -1,13 +1,6 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
-/* ---------------------------------------------------------------
- * Custom homepage styles preserved from the pre-Astro static site.
- * These coexist with Tailwind utilities; markdown blog posts (slice
- * 2+) will use the Tailwind `prose` class, while the homepage keeps
- * its hand-tuned layout below.
- * --------------------------------------------------------------- */
-
 :root {
   --color-background: #ffffff;
   --color-text-main: #111111;
@@ -53,7 +46,6 @@ body {
   width: 100%;
 }
 
-/* HEADER */
 .header {
   margin-bottom: 80px;
   display: flex;
@@ -121,7 +113,6 @@ body {
   transform: translateY(-1px);
 }
 
-/* GRID + SECTION TITLE */
 .section-title {
   font-size: 0.875rem;
   font-weight: 700;
@@ -149,7 +140,6 @@ body {
   margin-bottom: 80px;
 }
 
-/* CARDS */
 .work-grid-item {
   display: flex;
 }
@@ -235,7 +225,6 @@ body {
   flex-grow: 1;
 }
 
-/* FOOTER */
 .footer {
   border-top: 1px solid var(--color-border);
   padding-top: 40px;
@@ -246,7 +235,6 @@ body {
   color: var(--color-text-muted);
 }
 
-/* RESPONSIVE */
 @media (max-width: 768px) {
   .container {
     padding: 50px 24px;

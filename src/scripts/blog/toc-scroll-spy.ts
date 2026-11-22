@@ -1,10 +1,3 @@
-/**
- * Highlights the table-of-contents entry for the section currently in
- * view. Uses a rAF-throttled scroll listener and live offsets (instead
- * of cached ones) so late layout shifts — images, Mermaid diagrams —
- * can't desync the highlight.
- */
-
 const CURRENT_SECTION_OFFSET_PX = 96;
 
 export function initTocScrollSpy(): void {

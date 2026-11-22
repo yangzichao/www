@@ -9,7 +9,6 @@ export function thoughtsLoader(thoughtsDir: string): Loader {
     async load({ store, logger }) {
       store.clear();
 
-      // Collect all YYYY-MM.md files from year subdirectories (e.g. 2026/2026-05.md)
       const yearDirs = readdirSync(thoughtsDir)
         .filter((entry) => /^\d{4}$/.test(entry))
         .filter((entry) => statSync(join(thoughtsDir, entry)).isDirectory())
@@ -30,11 +29,10 @@ export function thoughtsLoader(thoughtsDir: string): Loader {
         const raw = readFileSync(filePath, 'utf-8');
 
         const { tags, body } = parseFrontmatter(raw);
-        const monthStr = file.replace('.md', ''); // e.g. '2026-05'
+        const monthStr = file.replace('.md', '');
         const [year, month] = monthStr.split('-').map(Number);
         const date = new Date(Date.UTC(year, month - 1, 1));
 
-        // Split on lines that are exactly `---` (with optional surrounding blank lines)
         const blocks = body
           .split(/\n\s*---\s*\n/)
           .map((b) => b.trim())
@@ -59,14 +57,12 @@ export function thoughtsLoader(thoughtsDir: string): Loader {
 }
 
 function parseFrontmatter(content: string): { tags: string[]; body: string } {
-  // Match optional YAML front matter block
   const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
   if (!match) return { tags: [], body: content.trim() };
 
   const fm = match[1];
   const body = match[2].trim();
 
-  // Parse inline array syntax: tags: [foo, bar] or tags: ['foo', "bar"]
   const tagsMatch = fm.match(/^tags:\s*\[([^\]]*)\]/m);
   const tags = tagsMatch
     ? tagsMatch[1]

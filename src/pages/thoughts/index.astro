@@ -56,7 +56,7 @@ const rendered = await Promise.all(
 
     <footer class="thoughts-footer">
       <span id="thoughts-count" class="thoughts-count"></span>
-      <button id="shuffle-btn" class="shuffle-btn" type="button">
+      <button id="shuffle-btn" class="shuffle-btn" type="button" hidden>
         <i class="ph ph-shuffle"></i>
         Shuffle
       </button>
@@ -80,15 +80,9 @@ const rendered = await Promise.all(
     const cards = Array.from(document.querySelectorAll<HTMLElement>('.thought-card'));
     const count = Math.min(VISIBLE_COUNT, cards.length);
 
-    cards.forEach((c) => {
-      c.style.display = 'none';
-      c.classList.remove('visible');
-    });
-
-    const picked = shuffle(cards).slice(0, count);
-    picked.forEach((c) => {
-      c.style.display = 'block';
-      c.classList.add('visible');
+    const picked = new Set(shuffle(cards).slice(0, count));
+    cards.forEach((card) => {
+      card.hidden = !picked.has(card);
     });
 
     const countEl = document.getElementById('thoughts-count');
@@ -101,7 +95,7 @@ const rendered = await Promise.all(
 
     const shuffleBtn = document.getElementById('shuffle-btn');
     if (shuffleBtn) {
-      shuffleBtn.style.display = cards.length <= VISIBLE_COUNT ? 'none' : 'inline-flex';
+      shuffleBtn.hidden = cards.length <= VISIBLE_COUNT;
     }
   }
 
@@ -145,9 +139,7 @@ const rendered = await Promise.all(
     color: var(--color-text-muted);
   }
 
-  /* Cards hidden until JS runs */
   .thought-card {
-    display: none;
     padding: 1.75rem 0;
     border-bottom: 1px solid var(--color-border);
   }

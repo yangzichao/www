@@ -91,20 +91,20 @@ const isoDate = frontmatter.date.toISOString();
       </article>
 
       {
-        (adjacent.previous || adjacent.next) && (
+        (adjacent.newer || adjacent.older) && (
           <nav class="post-pager" aria-label={`More in ${categoryName}`}>
-            {adjacent.previous ? (
-              <a class="post-pager-link post-pager-previous" href={`/blog/${adjacent.previous.id}/`}>
+            {adjacent.newer ? (
+              <a class="post-pager-link post-pager-newer" href={`/blog/${adjacent.newer.id}/`}>
                 <span class="post-pager-direction">← Newer in {categoryName}</span>
-                <span class="post-pager-title">{adjacent.previous.data.title}</span>
+                <span class="post-pager-title">{adjacent.newer.data.title}</span>
               </a>
             ) : (
               <span class="post-pager-spacer" />
             )}
-            {adjacent.next && (
-              <a class="post-pager-link post-pager-next" href={`/blog/${adjacent.next.id}/`}>
+            {adjacent.older && (
+              <a class="post-pager-link post-pager-older" href={`/blog/${adjacent.older.id}/`}>
                 <span class="post-pager-direction">Older in {categoryName} →</span>
-                <span class="post-pager-title">{adjacent.next.data.title}</span>
+                <span class="post-pager-title">{adjacent.older.data.title}</span>
               </a>
             )}
           </nav>
@@ -122,17 +122,9 @@ const isoDate = frontmatter.date.toISOString();
   </script>
 
   <script slot="body-end" is:inline>
-    // Lazy-load mermaid only on pages that contain a diagram. The
-    // `remarkMermaidToPre` plugin emits `<pre class="mermaid">` during
-    // the markdown build, so a single querySelector is enough to
-    // detect whether this page actually needs the renderer.
     if (document.querySelector('pre.mermaid')) {
       import('https://esm.sh/mermaid@11')
         .then(({ default: mermaid }) => {
-          // `base` theme + explicit variables so diagrams match the
-          // blog's light, monochrome editorial palette (Inter, near-black
-          // text, soft off-white nodes, muted gray edges) instead of
-          // Mermaid's stock lavender-on-navy default.
           mermaid.initialize({
             startOnLoad: false,
             theme: 'base',
@@ -166,8 +158,6 @@ const isoDate = frontmatter.date.toISOString();
 </BaseLayout>
 
 <style>
-  /* The article body is serif; keep the title and meta on Inter so the
-     masthead matches the homepage. */
   .post-header {
     position: relative;
     font-family: var(--font-stack);
@@ -176,8 +166,6 @@ const isoDate = frontmatter.date.toISOString();
     border-bottom: 1px solid var(--color-border, #e5e5e5);
   }
 
-  /* One-click "Save as PDF" — anchored top-right of the header, clear
-     of the title. Hidden in print via styles/print.css. */
   .pdf-download {
     position: absolute;
     top: 0;
@@ -211,9 +199,6 @@ const isoDate = frontmatter.date.toISOString();
     line-height: 1;
   }
 
-  /* On narrow screens the floating "Contents" toggle sits top-left;
-     keep the PDF button from colliding with a long wrapped title by
-     letting it sit on its own line above the title. */
   @media (max-width: 600px) {
     .pdf-download {
       position: static;
@@ -292,7 +277,6 @@ const isoDate = frontmatter.date.toISOString();
     color: var(--color-text-muted, #666666);
   }
 
-  /* Prev/next within the post's category ---------------------------- */
   .post-pager {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -321,7 +305,7 @@ const isoDate = frontmatter.date.toISOString();
     background: var(--color-card-hover, #fafafa);
   }
 
-  .post-pager-next {
+  .post-pager-older {
     text-align: right;
   }
 
@@ -346,7 +330,7 @@ const isoDate = frontmatter.date.toISOString();
       display: none;
     }
 
-    .post-pager-next {
+    .post-pager-older {
       text-align: left;
     }
   }

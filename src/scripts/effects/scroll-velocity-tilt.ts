@@ -1,8 +1,3 @@
-/* Tilts `[data-scroll-tilt]` surfaces away from the viewer while
- * scrolling, proportional to scroll velocity, then eases back flat —
- * the page feels like a plane you push through rather than a sheet
- * you slide. */
-
 const MAX_TILT_DEGREES = 2.4;
 const VELOCITY_TO_DEGREES = 0.035;
 const TILT_DECAY = 0.86;

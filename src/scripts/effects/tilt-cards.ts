@@ -1,6 +1,3 @@
-/* Pointer-tracked 3D tilt + glare for `[data-tilt]` elements.
- * Writes CSS custom properties consumed by styles/effects/depth-3d.css. */
-
 const MAX_TILT_DEGREES = 7;
 const HOVER_LIFT_PX = 14;
 

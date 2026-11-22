@@ -9,8 +9,6 @@ interface Props {
 
 const { groups, currentId } = Astro.props;
 
-/* Only the category you are reading starts expanded; on the index page
- * (no currentId) every group starts open as a browsable site map. */
 const currentCategory = currentId ? categoryOfId(currentId) : null;
 function isExpanded(group: CategoryGroup): boolean {
   return currentCategory === null || group.slug === currentCategory;
@@ -94,7 +92,6 @@ function isExpanded(group: CategoryGroup): boolean {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') setOpen(false);
   });
-  // Close the drawer after navigating on mobile.
   sidebar?.querySelectorAll('a').forEach((link) => {
     link.addEventListener('click', () => setOpen(false));
   });

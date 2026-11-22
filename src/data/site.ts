@@ -4,19 +4,12 @@ type SocialLink = {
   label: string;
 };
 
-type Resume = {
-  url: string;
-  text: string;
-  visible: boolean;
-};
-
 export type Profile = {
   name: string;
   role: string;
   bio: string;
   avatar: string;
   social: SocialLink[];
-  resume: Resume;
 };
 
 type WorkItemType = 'Project' | 'Paper';
@@ -47,13 +40,6 @@ export const siteData: SiteData = {
       { icon: 'ph-github-logo', url: 'https://github.com/yangzichao', label: 'GitHub' },
       { icon: 'ph-linkedin-logo', url: 'https://www.linkedin.com/in/zichaoyang/', label: 'LinkedIn' },
     ],
-    resume: {
-      // TODO: 占位,待填入真实简历链接
-      url: '#',
-      text: 'Download Resume',
-      // Hidden until a real resume link exists.
-      visible: false,
-    },
   },
   items: [
     {
@@ -88,7 +74,6 @@ export const siteData: SiteData = {
       imageAlt:
         'Electron-muon scattering diagram with four fermion lines and a photon exchanged between two vertices.',
       imageFit: 'contain',
-      // Split out into its own repo + subdomain (yangzichao/feynman-editor).
       url: 'https://feynman.zichaoyang.com/',
     },
     {
