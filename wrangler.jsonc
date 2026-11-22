@@ -17,7 +17,8 @@
 		}
 	],
 	"routes": [
-		{ "pattern": "zichaoyang.com", "custom_domain": true }
+		{ "pattern": "zichaoyang.com", "custom_domain": true },
+		{ "pattern": "www.zichaoyang.com", "custom_domain": true }
 	],
 	"observability": {
 		"enabled": true
