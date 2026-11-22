@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      lint-and-format:
+        patterns:
+          [
+            'eslint*',
+            '@eslint*',
+            '@eslint-react/*',
+            'typescript-eslint',
+            '@vitest/eslint-plugin',
+            'prettier*',
+            'stylelint*',
+            'postcss-html',
+            'globals',
+            'knip',
+            'lefthook',
+          ]
+      testing:
+        patterns:
+          ['vitest', '@vitest/*', '@cloudflare/vitest-plugin', '@testing-library/*', 'happy-dom', '@playwright/test']
+      astro:
+        patterns: ['astro', '@astrojs/*']
+      cloudflare:
+        patterns: ['wrangler', '@cloudflare/*']
+        exclude-patterns: ['@cloudflare/vitest-plugin']
+      react:
+        patterns: ['react', 'react-dom', '@types/react*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']

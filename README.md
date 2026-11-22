@@ -1,15 +1,23 @@
 # zichaoyang.com
 
-Personal homepage and blog. Static site built with [Astro](https://astro.build), deployed to GitHub Pages via GitHub Actions.
+Personal homepage and blog. Built with [Astro](https://astro.build) and React islands, served by a Cloudflare Worker with D1 for page views, comments, and sessions.
 
 ## Quick reference
 
-| What | Where |
+| What | Command |
 | --- | --- |
 | Local dev server | `npm run dev` → <http://localhost:4321> |
 | Production build | `npm run build` → `dist/` |
+| Everything CI checks, minus E2E | `npm run verify` |
+| Format / check formatting | `npm run format` / `npm run format:check` |
+| Lint TS, TSX, Astro / CSS | `npm run lint` / `npm run lint:css` |
 | Type-check | `npm run check` |
+| Unused files, exports, deps | `npm run knip` |
+| Unit, component, Worker tests | `npm test` (`npm run test:coverage` for coverage) |
+| End-to-end tests | `npm run test:e2e` |
 | Live site | <https://zichaoyang.com> |
+
+Use the Node version in `.node-version` (`engine-strict` is on, so `npm ci` refuses other versions).
 
 ## Writing a new blog post
 
@@ -39,67 +47,55 @@ Personal homepage and blog. Static site built with [Astro](https://astro.build),
    - **Mermaid diagrams** — fenced ```` ```mermaid ```` blocks (rendered client-side via lazy-loaded CDN)
    - **Code blocks** — syntax-highlighted by Astro's bundled Shiki
 
-4. `git add . && git commit -m "post: …" && git push` — Actions builds + deploys, live in ~2 minutes.
+4. `git add . && git commit -m "post: …" && git push`. CI verifies, builds, and deploys; the post is live in a few minutes.
 
 ## Project layout
 
 ```
 src/
-  pages/
-    index.astro                  ← homepage
-    blog/[...slug].astro         ← dynamic route for every blog post
-  layouts/
-    BaseLayout.astro             ← html shell, head, fonts
-    PostLayout.astro             ← prose article template + Mermaid loader
-  components/
-    Header.astro
-    WorkCard.astro
-    Footer.astro
-  data/
-    site.ts                      ← profile, social links, homepage cards
-  content/
-    blog/                        ← all markdown posts (recursive)
-  content.config.ts              ← Zod schema for blog frontmatter
-  markdown/
-    remark-mermaid-to-pre.ts     ← custom plugin: ```mermaid → <pre class="mermaid">
-  styles/
-    global.css                   ← Tailwind 4 + typography + handwritten homepage styles
-public/
-  CNAME                          ← custom domain (zichaoyang.com)
-  avatar.jpg, hoah-cover.jpg     ← static assets, served at /avatar.jpg etc.
-.github/workflows/
-  deploy.yml                     ← GitHub Actions: build + deploy to Pages
-astro.config.mjs                 ← redirects + remark/rehype plugins (math, mermaid)
+  pages/                 ← routes: homepage, blog, thoughts, admin, auth, api
+  features/              ← one folder per feature: admin, auth, comments, page-views, http, site-pages
+  layouts/, components/  ← Astro shells and shared UI
+  content/               ← markdown posts and thoughts
+  lib/, loaders/, markdown/, scripts/, styles/
+migrations/              ← D1 schema
+tests/
+  unit/                  ← pure logic, Node
+  components/            ← React islands and browser scripts, happy-dom
+  workers/               ← API routes and stores against a real local D1 (workerd)
+  e2e/                   ← Playwright against `wrangler dev` with a seeded local D1
+  support/               ← shared fakes and fixtures
+tooling/lint/            ← the custom no-comments rule for ESLint and Stylelint
 ```
+
+## Quality gates
+
+- **Formatting:** Prettier with the Astro and Tailwind plugins.
+- **Linting:** ESLint with type-aware `typescript-eslint` strict rules, React, hooks, jsx-a11y, Astro, Vitest, and a local `no-comments` rule that enforces `AGENTS.md`. Stylelint covers CSS and Astro `<style>` blocks.
+- **Types:** `astro check` with `strict`, `noUncheckedIndexedAccess`, and `exactOptionalPropertyTypes`.
+- **Tests:** Vitest projects for unit, components, and Workers, with coverage thresholds of 95% statements and functions, 90% branches, and 97% lines. E2E runs Playwright on Chromium against the built Worker.
+- **Determinism:** exact dependency versions, a pinned Node version, `TZ=UTC`, a fixed shuffle seed, no `.only`, mocks restored after each test, and no real network. Turnstile and Mermaid are served by local fakes in E2E.
+- **Git hooks:** lefthook runs Prettier, ESLint, and Stylelint on staged files before each commit, and `npm run verify` before each push.
 
 ## Deployment
 
-Pushes to `main` trigger `.github/workflows/deploy.yml`:
+`.github/workflows/ci.yml` runs on every push and pull request:
 
 ```
-checkout → npm ci → npm run check → npm run build → upload-pages-artifact → deploy-pages
+verify (format, lint, types, knip, coverage)   e2e (build + Playwright)
+                       └──────────── deploy (main only) ────────────┘
 ```
 
-`public/CNAME` (containing `zichaoyang.com`) is passed through to `dist/CNAME` so the custom domain survives every deploy.
-
-### One-time GitHub Pages settings
-
-These are configured once and persist across deploys:
-
-1. **Settings → Pages → Source** must be **GitHub Actions** (not "Deploy from a branch").
-2. **Settings → Pages → Custom domain** must be `zichaoyang.com`.
-3. **Settings → Pages → Enforce HTTPS** should be checked.
-
-⚠️ If you ever change the Source field, GitHub will clear the Custom domain field — you'll need to re-enter it.
+Deploy runs `npm run build`, then `wrangler deploy`, and needs both jobs to pass. Dependabot opens grouped weekly update PRs for npm and Actions.
 
 ## Tech stack
 
-- **Astro 5** — static site generator
-- **TypeScript** strict mode (`astro check`)
-- **Tailwind 4** + `@tailwindcss/typography` — for `prose` markdown styling
-- **remark-math + rehype-katex** — server-side LaTeX rendering at build time
-- **`remarkMermaidToPre`** (custom, ~30 lines) — turns mermaid blocks into `<pre class="mermaid">` so a tiny client script (lazy-loaded from esm.sh CDN, only when a diagram is on the page) can render them
-- **Phosphor Icons** — via CDN, used in homepage social links
+- **Astro 7** with React 19 islands, on Cloudflare Workers
+- **D1** for page views, sessions, and comments
+- **GitHub OAuth** for sign-in and the admin post editor; **Turnstile** for anonymous comments
+- **Tailwind 4** + `@tailwindcss/typography` for `prose` styling
+- **remark-math + rehype-katex** for build-time LaTeX
+- **`remarkMermaidToPre`** turns mermaid blocks into `<pre class="mermaid">`, which a small client script renders with Mermaid from esm.sh, only on pages that have a diagram
 
 ## Permalink stability
 

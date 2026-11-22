@@ -15,13 +15,7 @@ function isExpanded(group: CategoryGroup): boolean {
 }
 ---
 
-<button
-  class="sidebar-toggle"
-  type="button"
-  aria-label="Toggle contents"
-  aria-expanded="false"
-  data-sidebar-toggle
->
+<button class="sidebar-toggle" type="button" aria-label="Toggle contents" aria-expanded="false" data-sidebar-toggle>
   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
     <path d="M1 3h14M1 8h14M1 13h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
   </svg>
@@ -32,46 +26,40 @@ function isExpanded(group: CategoryGroup): boolean {
 
 <aside class="blog-sidebar" data-blog-sidebar>
   <nav class="sidebar-nav" aria-label="Writing">
-    <a class="sidebar-home" href="/blog/">Writing</a>
-    {
-      groups.map((group) => (
-        <details class="sidebar-group" open={isExpanded(group)}>
-          <summary class="sidebar-group-label">
-            <svg
-              class="sidebar-group-chevron"
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              aria-hidden="true"
-            >
-              <path
-                d="M3 1.5 6.5 5 3 8.5"
-                stroke="currentColor"
-                stroke-width="1.5"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <span>{group.label}</span>
-            <span class="sidebar-group-count">{group.posts.length}</span>
-          </summary>
-          <ul class="sidebar-post-list">
-            {group.posts.map((post) => (
-              <li>
-                <a
-                  class:list={['sidebar-post-link', { 'is-active': post.id === currentId }]}
-                  href={`/blog/${post.id}/`}
-                  aria-current={post.id === currentId ? 'page' : undefined}
-                >
-                  {post.data.title}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ))
-    }
+    <a class="sidebar-home" href="/blog/">
+      Writing
+    </a>
+    {groups.map((group) => (
+      <details class="sidebar-group" open={isExpanded(group)}>
+        <summary class="sidebar-group-label">
+          <svg class="sidebar-group-chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <path
+              d="M3 1.5 6.5 5 3 8.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>{group.label}</span>
+          <span class="sidebar-group-count">{group.posts.length}</span>
+        </summary>
+        <ul class="sidebar-post-list">
+          {group.posts.map((post) => (
+            <li>
+              <a
+                class:list={['sidebar-post-link', { 'is-active': post.id === currentId }]}
+                href={`/blog/${post.id}/`}
+                aria-current={post.id === currentId ? 'page' : undefined}
+              >
+                {post.data.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </details>
+    ))}
   </nav>
 </aside>
 

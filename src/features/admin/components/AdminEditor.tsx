@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { describeError } from '../../http/describe-error';
+import { postFileSummaryFor } from '../post-file-path';
 import type { PostFileSummary } from '../post-file-types';
 import { AdminRequestError, fetchPostFile, fetchPostFiles, savePostFile } from './admin-api';
 import { NewPostForm } from './NewPostForm';
@@ -31,7 +33,7 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
 
   function handleRequestError(error: unknown) {
     if (error instanceof AdminRequestError && error.status === 401) setNeedsSignIn(true);
-    setStatusMessage(error instanceof Error ? error.message : 'Request failed.');
+    setStatusMessage(describeError(error, 'Request failed.'));
   }
 
   useEffect(() => {
@@ -43,7 +45,9 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
       if (hasUnsavedChanges) event.preventDefault();
     }
     window.addEventListener('beforeunload', warnBeforeLeaving);
-    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+    return () => {
+      window.removeEventListener('beforeunload', warnBeforeLeaving);
+    };
   }, [hasUnsavedChanges]);
 
   function confirmDiscardingChanges(): boolean {
@@ -87,13 +91,9 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
       const isNewPost = openDocument.sha === null;
       setOpenDocument({ path: saved.path, content: draftContent, sha: saved.sha });
       setCommitMessage(defaultCommitMessage(saved.path, false));
-      if (isNewPost) {
-        const [category, fileName] = saved.path.replace('src/content/blog/', '').split('/');
-        setPosts((current) =>
-          [...current, { path: saved.path, category, slug: fileName.replace(/\.md$/, '') }].sort((left, right) =>
-            left.path.localeCompare(right.path),
-          ),
-        );
+      const savedSummary = isNewPost ? postFileSummaryFor(saved.path) : null;
+      if (savedSummary) {
+        setPosts((current) => [...current, savedSummary].sort((left, right) => left.path.localeCompare(right.path)));
       }
       setStatusMessage(`Committed ${saved.commitSha.slice(0, 7)}. The site redeploys in about a minute.`);
     } catch (error) {
@@ -120,11 +120,19 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
         <button
           type="button"
           className="admin-primary admin-new-button"
-          onClick={() => confirmDiscardingChanges() && setIsCreating(true)}
+          onClick={() => {
+            if (confirmDiscardingChanges()) setIsCreating(true);
+          }}
         >
           New post
         </button>
-        <PostList posts={posts} selectedPath={openDocument?.path ?? null} onSelect={handleSelect} />
+        <PostList
+          posts={posts}
+          selectedPath={openDocument?.path ?? null}
+          onSelect={(path) => {
+            void handleSelect(path);
+          }}
+        />
       </aside>
       <main className="admin-main">
         {isCreating ? (
@@ -132,7 +140,9 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
             categories={categories}
             existingPaths={existingPaths}
             onCreate={handleCreate}
-            onCancel={() => setIsCreating(false)}
+            onCancel={() => {
+              setIsCreating(false);
+            }}
           />
         ) : openDocument ? (
           <PostEditor
@@ -143,7 +153,9 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
             statusMessage={statusMessage}
             onDraftChange={setDraftContent}
             onCommitMessageChange={setCommitMessage}
-            onSave={handleSave}
+            onSave={() => {
+              void handleSave();
+            }}
           />
         ) : (
           <p className="admin-hint">{statusMessage ?? 'Pick a post on the left, or create a new one.'}</p>

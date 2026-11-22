@@ -21,15 +21,29 @@ declare global {
 
 let turnstileScriptPromise: Promise<TurnstileApi> | null = null;
 
-export function loadTurnstile(): Promise<TurnstileApi> {
-  if (window.turnstile) return Promise.resolve(window.turnstile);
-  turnstileScriptPromise ??= new Promise((resolve, reject) => {
+function injectTurnstileScript(): Promise<TurnstileApi> {
+  return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = TURNSTILE_SCRIPT_URL;
     script.async = true;
-    script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error('Turnstile unavailable')));
-    script.onerror = () => reject(new Error('Turnstile failed to load'));
+    const failLoading = (message: string) => {
+      script.remove();
+      turnstileScriptPromise = null;
+      reject(new Error(message));
+    };
+    script.onload = () => {
+      if (window.turnstile) resolve(window.turnstile);
+      else failLoading('Turnstile unavailable');
+    };
+    script.onerror = () => {
+      failLoading('Turnstile failed to load');
+    };
     document.head.appendChild(script);
   });
+}
+
+export function loadTurnstile(): Promise<TurnstileApi> {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  turnstileScriptPromise ??= injectTurnstileScript();
   return turnstileScriptPromise;
 }

@@ -1,0 +1,19 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: prettier
+      glob: '*.{js,mjs,ts,tsx,astro,css,json,jsonc,yml,yaml}'
+      run: npx prettier --check {staged_files}
+
+    - name: eslint
+      glob: '*.{js,mjs,ts,tsx,astro}'
+      run: npx eslint --max-warnings=0 {staged_files}
+
+    - name: stylelint
+      glob: 'src/**/*.{css,astro}'
+      run: npx stylelint --max-warnings=0 {staged_files}
+
+pre-push:
+  jobs:
+    - name: verify
+      run: npm run verify

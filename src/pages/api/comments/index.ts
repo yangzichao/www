@@ -52,7 +52,7 @@ export const POST: APIRoute = async ({ request, url, cookies, clientAddress }) =
     (await verifyTurnstileToken({
       token: submission.turnstileToken,
       secretKey: env.TURNSTILE_SECRET_KEY,
-      clientAddress: clientAddress ?? null,
+      clientAddress,
     }));
   if (!passedChallenge) return jsonError(400, 'Human verification failed. Please try again.');
 

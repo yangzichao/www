@@ -52,11 +52,22 @@ export function CommentItem({ comment, canModerate, onApprove, onDelete }: Comme
       {canModerate && (
         <div className="comment-moderation">
           {isPending && (
-            <button type="button" onClick={() => onApprove(comment.id)}>
+            <button
+              type="button"
+              onClick={() => {
+                onApprove(comment.id);
+              }}
+            >
               Approve
             </button>
           )}
-          <button type="button" className="comment-delete" onClick={() => onDelete(comment.id)}>
+          <button
+            type="button"
+            className="comment-delete"
+            onClick={() => {
+              onDelete(comment.id);
+            }}
+          >
             Delete
           </button>
         </div>

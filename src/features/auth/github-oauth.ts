@@ -41,7 +41,7 @@ export async function exchangeCodeForAccessToken(options: {
     }),
   });
   if (!response.ok) return null;
-  const payload = (await response.json()) as { access_token?: string };
+  const payload = await response.json<{ access_token?: string }>();
   return payload.access_token ?? null;
 }
 
@@ -54,6 +54,6 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
     },
   });
   if (!response.ok) return null;
-  const user = (await response.json()) as { id: number; login: string; avatar_url: string };
+  const user = await response.json<{ id: number; login: string; avatar_url: string }>();
   return { id: user.id, login: user.login, avatarUrl: user.avatar_url };
 }

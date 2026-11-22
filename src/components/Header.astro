@@ -14,23 +14,22 @@ const { profile } = Astro.props;
     <div class="bio">{profile.bio}</div>
 
     <div class="links">
-      {
-        profile.social.map((item) => (
-          <a href={item.url} target="_blank" rel="noopener noreferrer" class="link-button">
-            <i class={`ph ${item.icon}`} />
-            {item.label}
-          </a>
-        ))
-      }
+      {profile.social.map((item) => (
+        <a href={item.url} target="_blank" rel="noopener noreferrer" class="link-button">
+          <i class={`ph ${item.icon}`} />
+          {item.label}
+        </a>
+      ))}
     </div>
   </div>
 
-  <div class="header-avatar-frame" data-depth-reveal style="--reveal-delay: 120ms">
-    <img
-      class="header-avatar"
-      data-parallax-depth="16"
-      alt={`${profile.name} avatar`}
-      src={profile.avatar}
-    />
+  <div
+    class="header-avatar-frame"
+    data-depth-reveal
+    style="
+
+--reveal-delay: 120ms"
+  >
+    <img class="header-avatar" data-parallax-depth="16" alt={`${profile.name} avatar`} src={profile.avatar} />
   </div>
 </header>

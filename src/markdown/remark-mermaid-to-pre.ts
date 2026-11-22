@@ -1,16 +1,13 @@
-type RemarkNode = {
+interface RemarkNode {
   type: string;
   lang?: string | null;
   value?: string;
   meta?: string | null;
   children?: RemarkNode[];
-};
+}
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export function remarkMermaidToPre() {

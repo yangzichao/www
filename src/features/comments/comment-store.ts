@@ -75,7 +75,9 @@ export async function listCommentsForPage(
 ): Promise<PublicComment[]> {
   const statusFilter = options.includePending ? '' : "AND status = 'published'";
   const { results } = await database
-    .prepare(`SELECT ${COMMENT_COLUMNS} FROM comments WHERE page_path = ?1 ${statusFilter} ORDER BY created_at ASC`)
+    .prepare(
+      `SELECT ${COMMENT_COLUMNS} FROM comments WHERE page_path = ?1 ${statusFilter} ORDER BY created_at ASC, id ASC`,
+    )
     .bind(pagePath)
     .all<CommentRow>();
   return results.map(toPublicComment);
@@ -83,14 +85,16 @@ export async function listCommentsForPage(
 
 export async function listPendingComments(database: D1Database): Promise<PublicComment[]> {
   const { results } = await database
-    .prepare(`SELECT ${COMMENT_COLUMNS} FROM comments WHERE status = 'pending' ORDER BY created_at ASC`)
+    .prepare(`SELECT ${COMMENT_COLUMNS} FROM comments WHERE status = 'pending' ORDER BY created_at ASC, id ASC`)
     .all<CommentRow>();
   return results.map(toPublicComment);
 }
 
 export async function listRecentPublishedComments(database: D1Database, limit: number): Promise<PublicComment[]> {
   const { results } = await database
-    .prepare(`SELECT ${COMMENT_COLUMNS} FROM comments WHERE status = 'published' ORDER BY created_at DESC LIMIT ?1`)
+    .prepare(
+      `SELECT ${COMMENT_COLUMNS} FROM comments WHERE status = 'published' ORDER BY created_at DESC, id DESC LIMIT ?1`,
+    )
     .bind(limit)
     .all<CommentRow>();
   return results.map(toPublicComment);

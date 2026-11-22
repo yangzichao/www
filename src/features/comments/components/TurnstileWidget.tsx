@@ -5,29 +5,40 @@ import { loadTurnstile } from './turnstile-script';
 interface TurnstileWidgetProps {
   resetSignal: number;
   onTokenChange: (token: string | null) => void;
+  onUnavailable: () => void;
 }
 
-export function TurnstileWidget({ resetSignal, onTokenChange }: TurnstileWidgetProps) {
+export function TurnstileWidget({ resetSignal, onTokenChange, onUnavailable }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadTurnstile().then((turnstile) => {
-      if (cancelled || !containerRef.current) return;
-      widgetIdRef.current = turnstile.render(containerRef.current, {
-        sitekey: turnstileSiteKeyFor(location.hostname),
-        callback: (token) => onTokenChange(token),
-        'expired-callback': () => onTokenChange(null),
-        'error-callback': () => onTokenChange(null),
+    loadTurnstile()
+      .then((turnstile) => {
+        if (cancelled || !containerRef.current) return;
+        widgetIdRef.current = turnstile.render(containerRef.current, {
+          sitekey: turnstileSiteKeyFor(location.hostname),
+          callback: (token) => {
+            onTokenChange(token);
+          },
+          'expired-callback': () => {
+            onTokenChange(null);
+          },
+          'error-callback': () => {
+            onTokenChange(null);
+          },
+        });
+      })
+      .catch(() => {
+        if (!cancelled) onUnavailable();
       });
-    });
     return () => {
       cancelled = true;
       if (widgetIdRef.current) window.turnstile?.remove(widgetIdRef.current);
       widgetIdRef.current = null;
     };
-  }, [onTokenChange]);
+  }, [onTokenChange, onUnavailable]);
 
   useEffect(() => {
     if (resetSignal === 0 || !widgetIdRef.current) return;

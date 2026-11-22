@@ -25,9 +25,6 @@ export default defineConfig({
   },
 
   markdown: {
-    // `remarkMermaidToPre` runs before Astro's Shiki highlighter sees
-    // the code block, so it gets converted to raw HTML and skips
-    // syntax highlighting entirely.
     processor: unified({
       remarkPlugins: [remarkMath, remarkMermaidToPre],
       rehypePlugins: [rehypeKatex],

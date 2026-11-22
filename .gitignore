@@ -33,3 +33,7 @@ www.code-workspace
 .wrangler/
 .dev.vars*
 worker-configuration.d.ts
+
+coverage/
+playwright-report/
+test-results/

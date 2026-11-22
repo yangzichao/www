@@ -2,11 +2,11 @@ import { getCollection, type CollectionEntry } from 'astro:content';
 
 export type Post = CollectionEntry<'blog'>;
 
-export type CategoryGroup = {
+export interface CategoryGroup {
   slug: string;
   label: string;
   posts: Post[];
-};
+}
 
 const UNCATEGORIZED = 'misc';
 
@@ -29,7 +29,8 @@ function categoryRank(slug: string): number {
 }
 
 export function categoryOfId(id: string): string {
-  return id.includes('/') ? id.split('/')[0] : UNCATEGORIZED;
+  const separatorIndex = id.indexOf('/');
+  return separatorIndex === -1 ? UNCATEGORIZED : id.slice(0, separatorIndex);
 }
 
 function categoryOf(post: Post): string {
@@ -65,10 +66,10 @@ export function groupByCategory(posts: Post[]): CategoryGroup[] {
     .sort((a, b) => categoryRank(a.slug) - categoryRank(b.slug) || a.slug.localeCompare(b.slug));
 }
 
-export type AdjacentPosts = {
+export interface AdjacentPosts {
   newer: Post | null;
   older: Post | null;
-};
+}
 
 export function getAdjacentPostsInCategory(posts: Post[], currentId: string): AdjacentPosts {
   const currentCategory = categoryOfId(currentId);
@@ -76,8 +77,8 @@ export function getAdjacentPostsInCategory(posts: Post[], currentId: string): Ad
   const index = categoryPosts.findIndex((post) => post.id === currentId);
   if (index === -1) return { newer: null, older: null };
   return {
-    newer: index > 0 ? categoryPosts[index - 1] : null,
-    older: index < categoryPosts.length - 1 ? categoryPosts[index + 1] : null,
+    newer: categoryPosts[index - 1] ?? null,
+    older: categoryPosts[index + 1] ?? null,
   };
 }
 

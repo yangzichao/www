@@ -2,14 +2,26 @@
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "jsxImportSource": "react",
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "useUnknownInCatchVariables": true,
+    "types": ["@cloudflare/vitest-plugin/types", "@testing-library/jest-dom/vitest"]
   },
-  "include": [
-    ".astro/types.d.ts",
-    "**/*",
-    "./worker-configuration.d.ts"
-  ],
+  "include": [".astro/types.d.ts", "**/*", "./worker-configuration.d.ts"],
   "exclude": [
-    "dist"
+    "dist",
+    ".claude",
+    ".wrangler",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    "notes",
+    "prompts",
+    "skills",
+    "public"
   ]
 }

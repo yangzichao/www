@@ -19,9 +19,7 @@ export function initScrollVelocityTilt(): void {
 
     const settled = Math.abs(currentTilt) < SETTLE_EPSILON && Math.abs(targetTilt) < SETTLE_EPSILON;
     tiltSurfaces.forEach((surface) => {
-      surface.style.transform = settled
-        ? ''
-        : `perspective(1100px) rotateX(${currentTilt.toFixed(3)}deg)`;
+      surface.style.transform = settled ? '' : `perspective(1100px) rotateX(${currentTilt.toFixed(3)}deg)`;
     });
 
     pendingFrame = settled ? 0 : requestAnimationFrame(render);
@@ -32,10 +30,7 @@ export function initScrollVelocityTilt(): void {
     () => {
       const velocity = window.scrollY - lastScrollY;
       lastScrollY = window.scrollY;
-      targetTilt = Math.max(
-        -MAX_TILT_DEGREES,
-        Math.min(MAX_TILT_DEGREES, velocity * VELOCITY_TO_DEGREES),
-      );
+      targetTilt = Math.max(-MAX_TILT_DEGREES, Math.min(MAX_TILT_DEGREES, velocity * VELOCITY_TO_DEGREES));
       if (!pendingFrame) pendingFrame = requestAnimationFrame(render);
     },
     { passive: true },

@@ -13,5 +13,7 @@ export const GET: APIRoute = ({ url, cookies, redirect }) => {
     returnPath: sanitizeReturnPath(url.searchParams.get('return_to')),
     secure: url.protocol === 'https:',
   });
-  return redirect(buildAuthorizeUrl({ siteOrigin: url.origin, scope: oauthScopeForIntent(intent), state: pending.state }));
+  return redirect(
+    buildAuthorizeUrl({ siteOrigin: url.origin, scope: oauthScopeForIntent(intent), state: pending.state }),
+  );
 };

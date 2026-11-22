@@ -12,5 +12,5 @@ export async function recordPageView(database: D1Database, path: string, viewedA
       .bind(utcDay(viewedAt), path),
     database.prepare('SELECT SUM(views) AS total_views FROM daily_page_views WHERE path = ?1').bind(path),
   ]);
-  return totalResult.results[0]?.total_views ?? 0;
+  return totalResult?.results[0]?.total_views ?? 0;
 }

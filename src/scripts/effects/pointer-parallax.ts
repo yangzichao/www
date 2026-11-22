@@ -27,8 +27,7 @@ export function initPointerParallax(): void {
         `rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
     });
 
-    const settled =
-      Math.abs(targetX - currentX) < SETTLE_EPSILON && Math.abs(targetY - currentY) < SETTLE_EPSILON;
+    const settled = Math.abs(targetX - currentX) < SETTLE_EPSILON && Math.abs(targetY - currentY) < SETTLE_EPSILON;
     pendingFrame = settled ? 0 : requestAnimationFrame(render);
   };
 

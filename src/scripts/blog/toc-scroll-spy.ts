@@ -15,13 +15,13 @@ export function initTocScrollSpy(): void {
   let activeSlug: string | null = null;
   let frameRequested = false;
 
-  function currentHeadingSlug(): string {
-    let current = headings[0];
+  function currentHeadingSlug(): string | null {
+    let currentSlug: string | null = headings[0]?.id ?? null;
     for (const heading of headings) {
-      if (heading.getBoundingClientRect().top <= CURRENT_SECTION_OFFSET_PX) current = heading;
+      if (heading.getBoundingClientRect().top <= CURRENT_SECTION_OFFSET_PX) currentSlug = heading.id;
       else break;
     }
-    return current.id;
+    return currentSlug;
   }
 
   function updateActiveLink(): void {

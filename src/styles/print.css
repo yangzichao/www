@@ -47,7 +47,7 @@
     height: auto;
   }
 
-  .post-article a[href^="http"]::after {
+  .post-article a[href^='http']::after {
     content: ' (' attr(href) ')';
     font-size: 0.85em;
     color: #555;

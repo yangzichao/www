@@ -191,7 +191,7 @@ main.container {
   margin-bottom: 0.7rem;
 }
 
-@media (min-width: 1280px) {
+@media (width >= 1280px) {
   main.container:has(.blog-layout.has-toc) {
     max-width: 1360px;
   }
@@ -232,7 +232,7 @@ main.container {
   background: var(--color-background);
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 6%);
   cursor: pointer;
 }
 
@@ -244,7 +244,7 @@ main.container {
   display: none;
 }
 
-@media (max-width: 1000px) {
+@media (width <= 1000px) {
   main.container {
     max-width: 760px;
     padding-top: 40px;
@@ -283,7 +283,7 @@ main.container {
 
   .blog-sidebar.is-open {
     transform: none;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 4px 0 24px rgb(0 0 0 / 12%);
   }
 
   .sidebar-overlay {
@@ -291,7 +291,7 @@ main.container {
     position: fixed;
     inset: 0;
     z-index: 65;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgb(0 0 0 / 40%);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease;

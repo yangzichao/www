@@ -1,0 +1,16 @@
+dist/
+.astro/
+.wrangler/
+coverage/
+playwright-report/
+test-results/
+node_modules/
+package-lock.json
+worker-configuration.d.ts
+src/content/
+public/
+notes/
+prompts/
+skills/
+*.md
+.claude/

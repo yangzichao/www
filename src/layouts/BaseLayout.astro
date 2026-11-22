@@ -7,10 +7,8 @@ interface Props {
   description?: string;
 }
 
-const {
-  title = 'Zichao Yang',
-  description = 'Personal homepage of Zichao Yang — researcher and developer.',
-} = Astro.props;
+const { title = 'Zichao Yang', description = 'Personal homepage of Zichao Yang — researcher and developer.' } =
+  Astro.props;
 ---
 
 <!doctype html>
@@ -32,12 +30,7 @@ const {
       rel="stylesheet"
     />
 
-    <!-- Only the regular weight is used (`ph ph-*`); the bare
-         @phosphor-icons/web script injects all six weights. -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
-    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css" />
 
     <script is:inline>
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {

@@ -1,6 +1,7 @@
 import { useCallback, useState, type SubmitEvent } from 'react';
 import type { PublicViewer } from '../../auth/session-user';
 import { commentSignInUrl } from '../../auth/admin-sign-in-url';
+import { describeError } from '../../http/describe-error';
 import { MAX_AUTHOR_NAME_LENGTH, MAX_COMMENT_BODY_LENGTH } from '../comment-limits';
 import type { PublicComment } from '../comment-types';
 import { postComment } from './comments-api';
@@ -20,7 +21,12 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
   const [turnstileResetSignal, setTurnstileResetSignal] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const handleTokenChange = useCallback((token: string | null) => setTurnstileToken(token), []);
+  const handleTokenChange = useCallback((token: string | null) => {
+    setTurnstileToken(token);
+  }, []);
+  const handleTurnstileUnavailable = useCallback(() => {
+    setStatusMessage('Human verification could not load. Please try again later.');
+  }, []);
 
   const isAnonymous = viewer === null;
   const canSubmit = body.trim().length > 0 && !isSubmitting && (!isAnonymous || turnstileToken !== null);
@@ -36,7 +42,7 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
       onPosted(comment);
       setStatusMessage(comment.status === 'pending' ? 'Thanks! Your comment will appear after review.' : null);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Could not post your comment.');
+      setStatusMessage(describeError(error, 'Could not post your comment.'));
     } finally {
       setIsSubmitting(false);
       if (isAnonymous) setTurnstileResetSignal((signal) => signal + 1);
@@ -44,7 +50,12 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
   }
 
   return (
-    <form className="comment-form" onSubmit={handleSubmit}>
+    <form
+      className="comment-form"
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+    >
       {viewer ? (
         <p className="comment-identity">
           Commenting as <strong>@{viewer.login}</strong> ·{' '}
@@ -65,20 +76,32 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
           className="comment-input"
           type="text"
           placeholder="Name (optional)"
+          aria-label="Name (optional)"
           maxLength={MAX_AUTHOR_NAME_LENGTH}
           value={authorName}
-          onChange={(event) => setAuthorName(event.target.value)}
+          onChange={(event) => {
+            setAuthorName(event.target.value);
+          }}
         />
       )}
       <textarea
         className="comment-input comment-textarea"
         placeholder="Leave a comment"
+        aria-label="Comment"
         rows={4}
         maxLength={MAX_COMMENT_BODY_LENGTH}
         value={body}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => {
+          setBody(event.target.value);
+        }}
       />
-      {isAnonymous && <TurnstileWidget resetSignal={turnstileResetSignal} onTokenChange={handleTokenChange} />}
+      {isAnonymous && (
+        <TurnstileWidget
+          resetSignal={turnstileResetSignal}
+          onTokenChange={handleTokenChange}
+          onUnavailable={handleTurnstileUnavailable}
+        />
+      )}
       <div className="comment-form-footer">
         {statusMessage && <span className="comment-status">{statusMessage}</span>}
         <button type="submit" className="comment-submit" disabled={!canSubmit}>

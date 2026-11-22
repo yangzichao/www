@@ -1,20 +1,20 @@
-type SocialLink = {
+interface SocialLink {
   icon: string;
   url: string;
   label: string;
-};
+}
 
-export type Profile = {
+export interface Profile {
   name: string;
   role: string;
   bio: string;
   avatar: string;
   social: SocialLink[];
-};
+}
 
 type WorkItemType = 'Project' | 'Paper';
 
-export type WorkItem = {
+export interface WorkItem {
   type: WorkItemType;
   year: string;
   title: string;
@@ -23,12 +23,12 @@ export type WorkItem = {
   imageAlt?: string;
   imageFit?: 'cover' | 'contain';
   url: string;
-};
+}
 
-type SiteData = {
+interface SiteData {
   profile: Profile;
   items: WorkItem[];
-};
+}
 
 export const siteData: SiteData = {
   profile: {
@@ -46,8 +46,7 @@ export const siteData: SiteData = {
       type: 'Project',
       year: '2026',
       title: 'JustSessions',
-      description:
-        'A native macOS workspace for Claude Code, Codex, and other coding agents.',
+      description: 'A native macOS workspace for Claude Code, Codex, and other coding agents.',
       image: '/projects/justsessions/thumbnail.png',
       imageAlt:
         'JustSessions: Nothing extra. Just sessions. A native macOS window showing projects and a Claude Code terminal.',
@@ -60,8 +59,7 @@ export const siteData: SiteData = {
       description:
         'Interactive, bilingual physics experiments covering mechanics, optics, fields, and quantum phenomena.',
       image: '/projects/sandboxphysics/thumbnail.jpg',
-      imageAlt:
-        'Sandbox Physics homepage with a black-hole visualization and the headline Physics, in motion.',
+      imageAlt: 'Sandbox Physics homepage with a black-hole visualization and the headline Physics, in motion.',
       url: 'https://sandboxphysics.com/',
     },
     {
@@ -71,8 +69,7 @@ export const siteData: SiteData = {
       description:
         'A browser-based take on JaxoDraw: draw Feynman diagrams with click-and-drag — fermion, photon, gluon, scalar and ghost propagators, arcs, loops and LaTeX labels — then export to axodraw2 LaTeX, SVG or PNG. Runs entirely in your browser.',
       image: '/projects/feynman-editor/thumbnail.svg',
-      imageAlt:
-        'Electron-muon scattering diagram with four fermion lines and a photon exchanged between two vertices.',
+      imageAlt: 'Electron-muon scattering diagram with four fermion lines and a photon exchanged between two vertices.',
       imageFit: 'contain',
       url: 'https://feynman.zichaoyang.com/',
     },
@@ -80,8 +77,7 @@ export const siteData: SiteData = {
       type: 'Project',
       year: '2024',
       title: 'HoAh (吼蛙)',
-      description:
-        'Fast, Local, Multilingual, and Non-Profit & Free speech-to-text for macOS.',
+      description: 'Fast, Local, Multilingual, and Non-Profit & Free speech-to-text for macOS.',
       image: '/hoah-cover.jpg',
       url: 'https://hoah.app/',
     },

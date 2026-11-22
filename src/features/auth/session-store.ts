@@ -73,7 +73,10 @@ export async function findSession(database: D1Database, sessionToken: string): P
 }
 
 export async function deleteSession(database: D1Database, sessionToken: string): Promise<void> {
-  await database.prepare('DELETE FROM sessions WHERE id_hash = ?1').bind(await hashSessionToken(sessionToken)).run();
+  await database
+    .prepare('DELETE FROM sessions WHERE id_hash = ?1')
+    .bind(await hashSessionToken(sessionToken))
+    .run();
 }
 
 export async function deleteExpiredSessions(database: D1Database): Promise<void> {

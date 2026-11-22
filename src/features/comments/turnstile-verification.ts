@@ -11,6 +11,6 @@ export async function verifyTurnstileToken(options: {
   if (options.clientAddress) form.append('remoteip', options.clientAddress);
   const response = await fetch(TURNSTILE_SITEVERIFY_URL, { method: 'POST', body: form });
   if (!response.ok) return false;
-  const outcome = (await response.json()) as { success: boolean };
+  const outcome = await response.json<{ success: boolean }>();
   return outcome.success;
 }

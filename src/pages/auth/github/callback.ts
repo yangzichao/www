@@ -35,9 +35,7 @@ export const GET: APIRoute = async ({ url, cookies, redirect, locals }) => {
     return plainTextResponse(403, 'Only the site owner can sign in to the admin area.');
   }
 
-  const encryptedAccessToken = wantsRepositoryAccess
-    ? await encryptToken(accessToken, env.TOKEN_ENCRYPTION_KEY)
-    : null;
+  const encryptedAccessToken = wantsRepositoryAccess ? await encryptToken(accessToken, env.TOKEN_ENCRYPTION_KEY) : null;
   const sessionToken = await createSession(env.DB, profile, encryptedAccessToken);
   writeSessionCookie(cookies, sessionToken, url.protocol === 'https:');
   locals.cfContext.waitUntil(deleteExpiredSessions(env.DB));

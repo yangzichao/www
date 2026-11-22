@@ -12,7 +12,8 @@ export class AdminRequestError extends Error {
 
 async function readJsonOrThrow<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) throw new AdminRequestError(response.status, payload.error ?? `Request failed with ${response.status}`);
+  if (!response.ok)
+    throw new AdminRequestError(response.status, payload.error ?? `Request failed with ${response.status}`);
   return payload;
 }
 

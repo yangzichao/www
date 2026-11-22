@@ -17,13 +17,13 @@ function showViewCount(totalViews: number) {
   });
 }
 
-export async function recordPageView() {
+export async function recordPageView(): Promise<void> {
   const response = await fetch(PAGE_VIEWS_ENDPOINT, {
     method: 'POST',
     body: location.pathname,
     keepalive: true,
-  });
-  if (!response.ok) return;
-  const { totalViews } = (await response.json()) as PageViewResponse;
+  }).catch(() => null);
+  if (!response?.ok) return;
+  const { totalViews } = await response.json<PageViewResponse>();
   showViewCount(totalViews);
 }

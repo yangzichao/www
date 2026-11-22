@@ -22,5 +22,7 @@ export function initScrollDepthReveal(): void {
     { rootMargin: '0px 0px -8% 0px', threshold: 0.05 },
   );
 
-  revealElements.forEach((element) => observer.observe(element));
+  revealElements.forEach((element) => {
+    observer.observe(element);
+  });
 }

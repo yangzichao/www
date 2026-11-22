@@ -5,7 +5,7 @@ import { findSession, type StoredSession } from './session-store';
 import { decryptToken } from './token-encryption';
 import type { SessionUser } from './session-user';
 
-export async function loadCurrentSession(cookies: AstroCookies): Promise<StoredSession | null> {
+async function loadCurrentSession(cookies: AstroCookies): Promise<StoredSession | null> {
   const sessionToken = readSessionToken(cookies);
   if (!sessionToken) return null;
   return findSession(env.DB, sessionToken);

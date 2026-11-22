@@ -24,7 +24,9 @@ export function PostList({ posts, selectedPath, onSelect }: PostListProps) {
                 <button
                   type="button"
                   className={post.path === selectedPath ? 'admin-post-link is-selected' : 'admin-post-link'}
-                  onClick={() => onSelect(post.path)}
+                  onClick={() => {
+                    onSelect(post.path);
+                  }}
                 >
                   {post.slug}
                 </button>

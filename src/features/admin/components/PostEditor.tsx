@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 import { publicUrlForPostFile } from '../post-file-path';
 
 export interface EditorDocument {
@@ -29,18 +29,19 @@ export function PostEditor({
   onSave,
 }: PostEditorProps) {
   const hasUnsavedChanges = draftContent !== editorDocument.content;
-  const saveRef = useRef(onSave);
-  saveRef.current = onSave;
+  const saveFromShortcut = useEffectEvent(onSave);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        saveRef.current();
+        saveFromShortcut();
       }
     }
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   return (
@@ -55,16 +56,22 @@ export function PostEditor({
       </div>
       <textarea
         className="admin-editor-textarea"
+        aria-label="Post markdown"
         value={draftContent}
         spellCheck={false}
-        onChange={(event) => onDraftChange(event.target.value)}
+        onChange={(event) => {
+          onDraftChange(event.target.value);
+        }}
       />
       <div className="admin-editor-footer">
         <input
           className="admin-commit-message"
           value={commitMessage}
           placeholder="Commit message"
-          onChange={(event) => onCommitMessageChange(event.target.value)}
+          aria-label="Commit message"
+          onChange={(event) => {
+            onCommitMessageChange(event.target.value);
+          }}
         />
         <button
           type="button"

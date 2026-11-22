@@ -36,9 +36,9 @@ const categoryName = categoryLabel(categorySlug);
 
 const hasTableOfContents = shouldShowToc(headings);
 
-// Use UTC so a frontmatter date like `2026-05-02` (parsed as midnight
-// UTC by the YAML loader) doesn't shift to the previous day in any
-// negative-offset timezone during build.
+/* External: the YAML loader parses a date-only frontmatter value like
+ * `2026-05-02` as midnight UTC, so formatting in local time would show the
+ * previous day in any negative-offset timezone. */
 const formattedDate = frontmatter.date.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'long',
@@ -48,28 +48,22 @@ const formattedDate = frontmatter.date.toLocaleDateString('en-US', {
 const isoDate = frontmatter.date.toISOString();
 ---
 
-<BaseLayout
-  title={frontmatter.title}
-  description={frontmatter.description ?? frontmatter.title}
->
+<BaseLayout title={frontmatter.title} description={frontmatter.description ?? frontmatter.title}>
   <div class:list={['blog-layout', { 'has-toc': hasTableOfContents }]}>
     <BlogSidebar groups={groups} currentId={id} />
     <div class="blog-main">
       <TableOfContentsInline headings={headings} />
       <article class="prose prose-lg post-article">
         <header class="not-prose post-header">
-          <button
-            type="button"
-            class="pdf-download"
-            aria-label="Download this post as PDF"
-            onclick="window.print()"
-          >
+          <button type="button" class="pdf-download" aria-label="Download this post as PDF" onclick="window.print()">
             <i class="ph ph-file-pdf" aria-hidden="true"></i>
             <span>Download PDF</span>
           </button>
           <nav class="post-breadcrumb" aria-label="Breadcrumb">
             <a href="/blog/">Writing</a>
-            <span class="post-breadcrumb-separator" aria-hidden="true">/</span>
+            <span class="post-breadcrumb-separator" aria-hidden="true">
+              /
+            </span>
             <a href={`/blog/#${categorySlug}`}>{categoryName}</a>
           </nav>
           <h1 class="post-title">{frontmatter.title}</h1>
@@ -82,41 +76,37 @@ const isoDate = frontmatter.date.toISOString();
               <span data-page-view-count-value></span>
             </span>
           </div>
-          {
-            frontmatter.tags.length > 0 && (
-              <ul class="post-tags">
-                {frontmatter.tags.map((tag) => (
-                  <li class="post-tag">{tag}</li>
-                ))}
-              </ul>
-            )
-          }
+          {frontmatter.tags.length > 0 && (
+            <ul class="post-tags">
+              {frontmatter.tags.map((tag) => (
+                <li class="post-tag">{tag}</li>
+              ))}
+            </ul>
+          )}
         </header>
         <slot />
       </article>
 
       <CommentsSection client:visible pagePath={`/blog/${id}/`} />
 
-      {
-        (adjacent.newer || adjacent.older) && (
-          <nav class="post-pager" aria-label={`More in ${categoryName}`}>
-            {adjacent.newer ? (
-              <a class="post-pager-link post-pager-newer" href={`/blog/${adjacent.newer.id}/`}>
-                <span class="post-pager-direction">← Newer in {categoryName}</span>
-                <span class="post-pager-title">{adjacent.newer.data.title}</span>
-              </a>
-            ) : (
-              <span class="post-pager-spacer" />
-            )}
-            {adjacent.older && (
-              <a class="post-pager-link post-pager-older" href={`/blog/${adjacent.older.id}/`}>
-                <span class="post-pager-direction">Older in {categoryName} →</span>
-                <span class="post-pager-title">{adjacent.older.data.title}</span>
-              </a>
-            )}
-          </nav>
-        )
-      }
+      {(adjacent.newer || adjacent.older) && (
+        <nav class="post-pager" aria-label={`More in ${categoryName}`}>
+          {adjacent.newer ? (
+            <a class="post-pager-link post-pager-newer" href={`/blog/${adjacent.newer.id}/`}>
+              <span class="post-pager-direction">← Newer in {categoryName}</span>
+              <span class="post-pager-title">{adjacent.newer.data.title}</span>
+            </a>
+          ) : (
+            <span class="post-pager-spacer" />
+          )}
+          {adjacent.older && (
+            <a class="post-pager-link post-pager-older" href={`/blog/${adjacent.older.id}/`}>
+              <span class="post-pager-direction">Older in {categoryName} →</span>
+              <span class="post-pager-title">{adjacent.older.data.title}</span>
+            </a>
+          )}
+        </nav>
+      )}
     </div>
     <TableOfContentsRail headings={headings} />
   </div>
@@ -135,8 +125,7 @@ const isoDate = frontmatter.date.toISOString();
           mermaid.initialize({
             startOnLoad: false,
             theme: 'base',
-            fontFamily:
-              '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
             themeVariables: {
               background: '#ffffff',
               primaryColor: '#f6f6f4',
@@ -184,8 +173,8 @@ const isoDate = frontmatter.date.toISOString();
     font-family: var(--font-stack);
     font-size: 0.8rem;
     font-weight: 500;
-    color: var(--color-text-muted, #666666);
-    background: var(--color-background, #ffffff);
+    color: var(--color-text-muted, #666);
+    background: var(--color-background, #fff);
     border: 1px solid var(--color-border, #e5e5e5);
     border-radius: 999px;
     cursor: pointer;
@@ -196,8 +185,8 @@ const isoDate = frontmatter.date.toISOString();
   }
 
   .pdf-download:hover {
-    color: var(--color-text-main, #111111);
-    border-color: var(--color-text-muted, #999999);
+    color: var(--color-text-main, #111);
+    border-color: var(--color-text-muted, #999);
     background: var(--color-card-hover, #f6f6f4);
   }
 
@@ -206,7 +195,7 @@ const isoDate = frontmatter.date.toISOString();
     line-height: 1;
   }
 
-  @media (max-width: 600px) {
+  @media (width <= 600px) {
     .pdf-download {
       position: static;
       margin-bottom: 1rem;
@@ -223,17 +212,17 @@ const isoDate = frontmatter.date.toISOString();
     gap: 0.5rem;
     font-size: 0.85rem;
     margin-bottom: 1rem;
-    color: var(--color-text-muted, #666666);
+    color: var(--color-text-muted, #666);
   }
 
   .post-breadcrumb a {
-    color: var(--color-text-muted, #666666);
+    color: var(--color-text-muted, #666);
     text-decoration: none;
     transition: color var(--transition, 0.15s ease);
   }
 
   .post-breadcrumb a:hover {
-    color: var(--color-text-main, #111111);
+    color: var(--color-text-main, #111);
   }
 
   .post-breadcrumb-separator {
@@ -246,13 +235,13 @@ const isoDate = frontmatter.date.toISOString();
     letter-spacing: -0.03em;
     line-height: 1.12;
     margin: 0 0 0.85rem;
-    color: var(--color-text-main, #111111);
+    color: var(--color-text-main, #111);
     text-wrap: balance;
   }
 
   .post-meta {
     font-size: 0.875rem;
-    color: var(--color-text-muted, #666666);
+    color: var(--color-text-muted, #666);
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -285,7 +274,7 @@ const isoDate = frontmatter.date.toISOString();
     padding: 2px 8px;
     background: #f3f3f3;
     border-radius: 4px;
-    color: var(--color-text-muted, #666666);
+    color: var(--color-text-muted, #666);
   }
 
   .post-pager {
@@ -312,7 +301,7 @@ const isoDate = frontmatter.date.toISOString();
   }
 
   .post-pager-link:hover {
-    border-color: #bbbbbb;
+    border-color: #bbb;
     background: var(--color-card-hover, #fafafa);
   }
 
@@ -322,17 +311,17 @@ const isoDate = frontmatter.date.toISOString();
 
   .post-pager-direction {
     font-size: 0.78rem;
-    color: var(--color-text-muted, #666666);
+    color: var(--color-text-muted, #666);
   }
 
   .post-pager-title {
     font-size: 0.95rem;
     font-weight: 600;
     line-height: 1.35;
-    color: var(--color-text-main, #111111);
+    color: var(--color-text-main, #111);
   }
 
-  @media (max-width: 600px) {
+  @media (width <= 600px) {
     .post-pager {
       grid-template-columns: 1fr;
     }

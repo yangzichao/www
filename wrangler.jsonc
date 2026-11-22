@@ -1,29 +1,29 @@
 {
-	"$schema": "./node_modules/wrangler/config-schema.json",
-	"compatibility_date": "2026-11-17",
-	"compatibility_flags": ["global_fetch_strictly_public"],
-	"name": "zichaoyang-com",
-	"main": "@astrojs/cloudflare/entrypoints/server",
-	"assets": {
-		"directory": "./dist",
-		"binding": "ASSETS"
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "zichaoyang-com",
-			"database_id": "ebf878c4-4c97-440d-b50b-7d8410fb11f8",
-			"migrations_dir": "migrations"
-		}
-	],
-	"routes": [
-		{ "pattern": "zichaoyang.com", "custom_domain": true },
-		{ "pattern": "www.zichaoyang.com", "custom_domain": true }
-	],
-	"secrets": {
-		"required": ["GITHUB_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY", "TURNSTILE_SECRET_KEY"]
-	},
-	"observability": {
-		"enabled": true
-	}
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "compatibility_date": "2026-11-17",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "name": "zichaoyang-com",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zichaoyang-com",
+      "database_id": "ebf878c4-4c97-440d-b50b-7d8410fb11f8",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "routes": [
+    { "pattern": "zichaoyang.com", "custom_domain": true },
+    { "pattern": "www.zichaoyang.com", "custom_domain": true },
+  ],
+  "secrets": {
+    "required": ["GITHUB_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY", "TURNSTILE_SECRET_KEY"],
+  },
+  "observability": {
+    "enabled": true,
+  },
 }

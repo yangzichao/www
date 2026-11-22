@@ -8,50 +8,40 @@ const rendered = await Promise.all(
   thoughts.map(async (thought) => {
     const { Content } = await render(thought);
     return { thought, Content };
-  })
+  }),
 );
 ---
 
-<BaseLayout
-  title="Thoughts — Zichao Yang"
-  description="Short thoughts, observations, and fragments."
->
+<BaseLayout title="Thoughts — Zichao Yang" description="Short thoughts, observations, and fragments.">
   <div class="thoughts-layout">
     <header class="thoughts-head">
-      <a class="back-home" href="/">← Home</a>
+      <a class="back-home" href="/">
+        ← Home
+      </a>
       <h1 class="thoughts-title">Thoughts</h1>
       <p class="thoughts-sub">Short observations. Randomly shuffled each visit.</p>
     </header>
 
     <div id="thoughts-pool">
-      {
-        rendered.map(({ thought, Content }, index) => (
-          <article
-            class="thought-card"
-            data-index={index}
-            data-date={thought.data.date.toISOString()}
-          >
-            <div class="thought-meta">
-              <time
-                class="thought-date"
-                datetime={thought.data.date.toISOString()}
-              >
-                {formatThoughtMonth(thought.data.date)}
-              </time>
-              {thought.data.tags.length > 0 && (
-                <div class="thought-tags">
-                  {thought.data.tags.map((tag) => (
-                    <span class="thought-tag">{tag}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div class="thought-body prose">
-              <Content />
-            </div>
-          </article>
-        ))
-      }
+      {rendered.map(({ thought, Content }, index) => (
+        <article class="thought-card" data-index={index} data-date={thought.data.date.toISOString()}>
+          <div class="thought-meta">
+            <time class="thought-date" datetime={thought.data.date.toISOString()}>
+              {formatThoughtMonth(thought.data.date)}
+            </time>
+            {thought.data.tags.length > 0 && (
+              <div class="thought-tags">
+                {thought.data.tags.map((tag) => (
+                  <span class="thought-tag">{tag}</span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div class="thought-body prose">
+            <Content />
+          </div>
+        </article>
+      ))}
     </div>
 
     <footer class="thoughts-footer">
@@ -67,13 +57,11 @@ const rendered = await Promise.all(
 <script>
   const VISIBLE_COUNT = 8;
 
-  function shuffle<T>(arr: T[]): T[] {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
+  function shuffle<T>(items: T[]): T[] {
+    return items
+      .map((item) => ({ item, sortKey: Math.random() }))
+      .sort((left, right) => left.sortKey - right.sortKey)
+      .map(({ item }) => item);
   }
 
   function showRandom() {
@@ -88,9 +76,7 @@ const rendered = await Promise.all(
     const countEl = document.getElementById('thoughts-count');
     if (countEl) {
       countEl.textContent =
-        cards.length <= VISIBLE_COUNT
-          ? `All ${cards.length} thoughts`
-          : `${count} of ${cards.length} thoughts`;
+        cards.length <= VISIBLE_COUNT ? `All ${cards.length} thoughts` : `${count} of ${cards.length} thoughts`;
     }
 
     const shuffleBtn = document.getElementById('shuffle-btn');
@@ -228,7 +214,7 @@ const rendered = await Promise.all(
     transform: translateY(-1px);
   }
 
-  @media (max-width: 640px) {
+  @media (width <= 640px) {
     .thoughts-title {
       font-size: 2.25rem;
     }

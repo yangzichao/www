@@ -15,3 +15,9 @@ Only these comments are allowed:
 - Issue or RFC links that explain a constraint the code cannot express.
 
 Not allowed: narration of what the code does, section banners, commented-out code, TODOs, history notes ("moved to X", "used to be Y"), and justifications for workarounds. Delete them when you touch a file.
+
+## Tooling
+
+- The `local/no-comments` lint rule in `tooling/lint/` enforces the rule above. To keep a comment about a vendor or platform constraint, start it with `External:`.
+- Run `npm run verify` before calling a change done. It runs format check, ESLint, Stylelint, `astro check`, knip, and the Vitest suites with coverage thresholds. Run `npm run test:e2e` when a change touches routes, the Worker, or client scripts.
+- Pin dependency versions exactly. Tests must not touch the real network, wall clock, or local timezone; use the fakes in `tests/support/`.

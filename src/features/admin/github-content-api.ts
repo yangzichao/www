@@ -1,5 +1,5 @@
 import { base64ToUtf8, utf8ToBase64 } from '../http/base64';
-import { BLOG_CONTENT_DIRECTORY, isEditablePostFilePath } from './post-file-path';
+import { postFileSummaryFor } from './post-file-path';
 import type { PostFileContent, PostFileSummary, SavePostResponse } from './post-file-types';
 import { CONTENT_BRANCH, CONTENT_REPOSITORY } from './github-repository';
 
@@ -30,7 +30,7 @@ async function callGitHub<T>(accessToken: string, path: string, init: RequestIni
     const detail = (await response.json().catch(() => null)) as { message?: string } | null;
     throw new GitHubContentError(response.status, detail?.message ?? `GitHub API returned ${response.status}`);
   }
-  return (await response.json()) as T;
+  return await response.json();
 }
 
 function contentsPath(filePath: string): string {
@@ -43,11 +43,7 @@ export async function listPostFiles(accessToken: string): Promise<PostFileSummar
     `/repos/${CONTENT_REPOSITORY}/git/trees/${CONTENT_BRANCH}?recursive=1`,
   );
   return tree.tree
-    .filter((entry) => entry.type === 'blob' && isEditablePostFilePath(entry.path))
-    .map((entry) => {
-      const [category, fileName] = entry.path.slice(BLOG_CONTENT_DIRECTORY.length).split('/');
-      return { path: entry.path, category, slug: fileName.replace(/\.md$/, '') };
-    })
+    .flatMap((entry) => (entry.type === 'blob' ? (postFileSummaryFor(entry.path) ?? []) : []))
     .sort((left, right) => left.path.localeCompare(right.path));
 }
 

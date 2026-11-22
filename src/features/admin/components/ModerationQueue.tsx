@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CommentItem } from '../../comments/components/CommentItem';
 import { approveCommentById, deleteCommentById } from '../../comments/components/comments-api';
 import type { PublicComment } from '../../comments/comment-types';
+import { describeError } from '../../http/describe-error';
 import { fetchModerationQueue } from './admin-api';
 import '../../comments/components/comments.css';
 import './admin.css';
@@ -46,6 +47,7 @@ export default function ModerationQueue() {
   const [pending, setPending] = useState<PublicComment[]>([]);
   const [recent, setRecent] = useState<PublicComment[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchModerationQueue()
@@ -53,26 +55,44 @@ export default function ModerationQueue() {
         setPending(queue.pending);
         setRecent(queue.recent);
       })
-      .catch((error: Error) => setLoadError(error.message));
+      .catch((error: unknown) => {
+        setLoadError(describeError(error, 'Unknown error.'));
+      });
   }, []);
 
-  async function handleApprove(commentId: string) {
-    await approveCommentById(commentId);
-    const approved = pending.find((comment) => comment.id === commentId);
-    setPending((current) => current.filter((comment) => comment.id !== commentId));
-    if (approved) setRecent((current) => [{ ...approved, status: 'published' }, ...current]);
+  function runAction(action: () => Promise<void>) {
+    setActionError(null);
+    action().catch((error: unknown) => {
+      setActionError(describeError(error, 'Something went wrong. Please try again.'));
+    });
   }
 
-  async function handleDelete(commentId: string) {
-    await deleteCommentById(commentId);
-    setPending((current) => current.filter((comment) => comment.id !== commentId));
-    setRecent((current) => current.filter((comment) => comment.id !== commentId));
+  function handleApprove(commentId: string) {
+    runAction(async () => {
+      await approveCommentById(commentId);
+      const approved = pending.find((comment) => comment.id === commentId);
+      setPending((current) => current.filter((comment) => comment.id !== commentId));
+      if (approved) setRecent((current) => [{ ...approved, status: 'published' }, ...current]);
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    runAction(async () => {
+      await deleteCommentById(commentId);
+      setPending((current) => current.filter((comment) => comment.id !== commentId));
+      setRecent((current) => current.filter((comment) => comment.id !== commentId));
+    });
   }
 
   if (loadError) return <p className="admin-hint">{loadError}</p>;
 
   return (
     <div className="admin-moderation">
+      {actionError && (
+        <p className="admin-hint" role="alert">
+          {actionError}
+        </p>
+      )}
       <CommentGroup title="Pending review" comments={pending} onApprove={handleApprove} onDelete={handleDelete} />
       <CommentGroup title="Recently published" comments={recent} onApprove={handleApprove} onDelete={handleDelete} />
     </div>

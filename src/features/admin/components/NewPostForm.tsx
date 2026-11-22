@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { newPostTemplate, slugFromTitle } from '../new-post-template';
 import { postFilePathFor } from '../post-file-path';
 
@@ -13,6 +13,12 @@ export function NewPostForm({ categories, existingPaths, onCreate, onCancel }: N
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(categories[0] ?? '');
   const [slug, setSlug] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    titleInputRef.current?.focus();
+  }, []);
+
   const effectiveSlug = slug || slugFromTitle(title);
   const path = postFilePathFor(category, effectiveSlug);
   const problem = !title.trim()
@@ -34,11 +40,22 @@ export function NewPostForm({ categories, existingPaths, onCreate, onCancel }: N
       <h2>New post</h2>
       <label>
         Title
-        <input value={title} onChange={(event) => setTitle(event.target.value)} autoFocus />
+        <input
+          ref={titleInputRef}
+          value={title}
+          onChange={(event) => {
+            setTitle(event.target.value);
+          }}
+        />
       </label>
       <label>
         Category
-        <select value={category} onChange={(event) => setCategory(event.target.value)}>
+        <select
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
+          }}
+        >
           {categories.map((name) => (
             <option key={name} value={name}>
               {name}
@@ -48,11 +65,22 @@ export function NewPostForm({ categories, existingPaths, onCreate, onCancel }: N
       </label>
       <label>
         Slug
-        <input value={slug} placeholder={slugFromTitle(title)} onChange={(event) => setSlug(event.target.value)} />
+        <input
+          value={slug}
+          placeholder={slugFromTitle(title)}
+          onChange={(event) => {
+            setSlug(event.target.value);
+          }}
+        />
       </label>
       <p className="admin-hint">{problem ?? `Will be created at ${path} as a draft.`}</p>
       <div className="admin-actions">
-        <button type="button" onClick={onCancel}>
+        <button
+          type="button"
+          onClick={() => {
+            onCancel();
+          }}
+        >
           Cancel
         </button>
         <button type="submit" className="admin-primary" disabled={problem !== null}>
