@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { thoughtSearchableText } from '../../../src/features/thoughts/thought-view';
+import { thoughtAnchorId, thoughtSearchableText } from '../../../src/features/thoughts/thought-view';
 
 describe('thoughtSearchableText', () => {
   it('searches the body and the tags', () => {
@@ -14,5 +14,11 @@ describe('thoughtSearchableText', () => {
         isPublic: true,
       }),
     ).toBe('Ship small.\nwork\nlife');
+  });
+});
+
+describe('thoughtAnchorId', () => {
+  it('prefixes the thought id so it is a valid fragment target', () => {
+    expect(thoughtAnchorId('legacy-2026-02-01')).toBe('thought-legacy-2026-02-01');
   });
 });

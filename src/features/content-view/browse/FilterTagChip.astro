@@ -1,0 +1,14 @@
+---
+interface Props {
+  tag: string;
+  count: number;
+  href: string;
+  isSelected: boolean;
+}
+
+const { tag, count, href, isSelected } = Astro.props;
+---
+
+<a class="filter-tag" href={href} aria-current={isSelected ? 'true' : undefined}>
+  {tag} <span class="filter-count">{count}</span>
+</a>

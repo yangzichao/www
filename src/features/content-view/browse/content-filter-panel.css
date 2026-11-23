@@ -1,0 +1,248 @@
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.75rem;
+  font-size: 0.85rem;
+}
+
+.filter-search {
+  position: relative;
+}
+
+.filter-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.7rem;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.filter-search .filter-search-input {
+  height: 2.4rem;
+  padding-left: 2.1rem;
+  padding-right: 2rem;
+  border-radius: 10px;
+  background: var(--muted);
+  border-color: transparent;
+}
+
+.filter-search .filter-search-input:focus-visible {
+  background: var(--color-background);
+}
+
+.filter-search-shortcut {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+  min-width: 1.25rem;
+  padding: 0.05rem 0.35rem;
+  font-family: var(--font-stack);
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.filter-search:focus-within .filter-search-shortcut {
+  display: none;
+}
+
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.filter-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-muted);
+}
+
+.filter-segments {
+  display: flex;
+  padding: 3px;
+  background: var(--muted);
+  border-radius: 10px;
+}
+
+.filter-segment {
+  flex: 1 1 auto;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: 7px;
+  transition:
+    color var(--transition),
+    background var(--transition);
+}
+
+.filter-segment:hover {
+  color: var(--color-text-main);
+}
+
+.filter-segment[aria-current='true'] {
+  color: var(--color-text-main);
+  background: var(--color-background);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 8%),
+    0 0 0 1px rgb(0 0 0 / 4%);
+}
+
+.filter-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  list-style: none;
+}
+
+.filter-topic {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: 8px;
+  transition:
+    color var(--transition),
+    background var(--transition);
+}
+
+.filter-topic:hover {
+  color: var(--color-text-main);
+  background: var(--color-card-hover);
+}
+
+.filter-topic[aria-current='true'] {
+  font-weight: 600;
+  color: var(--color-text-main);
+  background: var(--muted);
+}
+
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.filter-tag {
+  padding: 0.22rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  transition:
+    color var(--transition),
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.filter-tag:hover {
+  color: var(--color-text-main);
+  border-color: #bbb;
+}
+
+.filter-tag[aria-current='true'] {
+  color: var(--color-background);
+  background: var(--color-text-main);
+  border-color: var(--color-text-main);
+}
+
+.filter-more-tags {
+  display: contents;
+}
+
+.filter-more-tags-toggle {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-more-tags-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.filter-more-tags[open] > .filter-more-tags-toggle {
+  display: none;
+}
+
+.filter-count {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.filter-clear {
+  color: var(--color-text-main);
+}
+
+@media (width <= 1000px) {
+  .filter-panel {
+    gap: 1.1rem;
+  }
+
+  .filter-section {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .filter-label {
+    flex: 0 0 3rem;
+  }
+
+  .filter-segments {
+    flex: 0 1 auto;
+  }
+
+  .filter-topics,
+  .filter-tags {
+    flex-flow: row nowrap;
+    gap: 0.4rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .filter-topic {
+    flex-shrink: 0;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.22rem 0.65rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+  }
+
+  .filter-tag {
+    flex-shrink: 0;
+  }
+}

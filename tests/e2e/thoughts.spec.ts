@@ -118,7 +118,7 @@ test('readers sort oldest first and filter by tag', async ({ page }) => {
   await page.locator('.thought-card').first().getByRole('link', { name: 'ai' }).click();
   await expect(page).toHaveURL('/thoughts/?sort=oldest&tag=ai');
   await expect(page.locator('.thought-card')).toHaveCount(4);
-  await expect(page.locator('.thoughts-count')).toHaveText(/^4 of \d+ thoughts$/);
+  await expect(page.locator('.filter-result-count')).toHaveText(/^4 of \d+ thoughts$/);
 
   await page.getByRole('link', { name: 'Clear filters' }).click();
   await expect(page).toHaveURL('/thoughts/?sort=oldest');

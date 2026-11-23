@@ -1,0 +1,61 @@
+---
+import BrowseLayout from '../../content-view/browse/BrowseLayout.astro';
+import ContentFilterPanel from '../../content-view/browse/ContentFilterPanel.astro';
+import type { ContentViewQuery } from '../../content-view/content-view-query';
+import type { TagCount } from '../../content-view/content-view-selection';
+import type { CategoryChoice } from '../../content-view/browse/filter-choices';
+import { BLOG_BASE_PATH } from '../post-path';
+import type { PostSummary } from '../post-types';
+import { NEW_POST_URL } from '../post-view';
+import PostCard from './PostCard.astro';
+import { splitFeaturedPost } from './post-index-view';
+import './post-index.css';
+
+interface Props {
+  shownPosts: PostSummary[];
+  totalCount: number;
+  query: ContentViewQuery;
+  tagCounts: TagCount[];
+  categoryChoices: CategoryChoice[];
+  countLabel: string;
+  isAdmin: boolean;
+  subtitle: string;
+}
+
+const { shownPosts, totalCount, query, tagCounts, categoryChoices, countLabel, isAdmin, subtitle } = Astro.props;
+const { featuredPost, gridPosts } = splitFeaturedPost(shownPosts, query);
+---
+
+<BrowseLayout title="Writing" subtitle={subtitle}>
+  {isAdmin && (
+    <p class="post-index-admin" slot="panel-actions">
+      <a class="post-index-new" href={NEW_POST_URL}>
+        <i class="ph ph-pencil-simple" aria-hidden="true"></i>
+        New post
+      </a>
+      <a href="/api/posts/export" download>
+        Export JSON
+      </a>
+    </p>
+  )}
+
+  <ContentFilterPanel
+    slot="filters"
+    basePath={BLOG_BASE_PATH}
+    query={query}
+    tagCounts={tagCounts}
+    categoryChoices={categoryChoices}
+    totalCount={totalCount}
+    showVisibilityFilter={isAdmin}
+    searchLabel="Search posts"
+    countLabel={countLabel}
+  />
+
+  <ul class="post-grid" data-depth-stagger>
+    {featuredPost && <PostCard post={featuredPost} featured />}
+    {gridPosts.map((post) => (
+      <PostCard post={post} />
+    ))}
+  </ul>
+  {shownPosts.length === 0 && <p class="post-index-empty">No posts match.</p>}
+</BrowseLayout>

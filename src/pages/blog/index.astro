@@ -1,12 +1,12 @@
 ---
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import PostIndex from '../../components/blog/PostIndex.astro';
+import PostIndex from '../../features/posts/index-page/PostIndex.astro';
 import { loadCurrentUser } from '../../features/auth/current-session';
 import { parseContentViewQuery } from '../../features/content-view/content-view-query';
 import { countTags, selectContentForView } from '../../features/content-view/content-view-selection';
+import { filterPostsByCategory, listCategoryChoices } from '../../features/posts/index-page/post-index-view';
 import { describePostCount } from '../../features/posts/post-count';
-import { groupByCategory } from '../../features/posts/post-grouping';
 import { postSearchableText } from '../../features/posts/post-view';
 import { listPostSummaries } from '../../features/posts/store/post-store';
 
@@ -15,18 +15,24 @@ export const prerender = false;
 const viewer = await loadCurrentUser(Astro.cookies);
 const isAdmin = viewer?.isAdmin ?? false;
 const visiblePosts = await listPostSummaries(env.DB, { includePrivate: isAdmin });
-const query = parseContentViewQuery(Astro.url.searchParams, isAdmin);
-const shownPosts = selectContentForView(visiblePosts, query, postSearchableText);
+const categoryChoices = listCategoryChoices(visiblePosts);
+const query = parseContentViewQuery(Astro.url.searchParams, {
+  viewerIsAdmin: isAdmin,
+  allowedCategories: categoryChoices.map((choice) => choice.category),
+});
+const postsInCategory = filterPostsByCategory(visiblePosts, query.category);
+const shownPosts = selectContentForView(postsInCategory, query, postSearchableText);
 const subtitle = 'Notes and essays on physics, systems, AI, and life.';
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
 <BaseLayout title="Writing — Zichao Yang" description={subtitle}>
   <PostIndex
-    sidebarGroups={groupByCategory(visiblePosts)}
-    shownGroups={groupByCategory(shownPosts)}
+    shownPosts={shownPosts}
+    totalCount={visiblePosts.length}
     query={query}
-    tagCounts={countTags(visiblePosts)}
+    tagCounts={countTags(postsInCategory)}
+    categoryChoices={categoryChoices}
     countLabel={describePostCount(shownPosts.length, visiblePosts.length)}
     isAdmin={isAdmin}
     subtitle={subtitle}

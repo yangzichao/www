@@ -23,8 +23,8 @@ test('private posts are hidden from readers and visitors', async ({ page, reques
 test('readers cannot reveal private posts through the visibility filter', async ({ page }) => {
   await page.goto('/blog/?visibility=private');
 
-  await expect(page.locator('a.post-row-link').first()).toBeVisible();
-  await expect(page.locator('.post-row-private')).toHaveCount(0);
+  await expect(page.locator('a.post-card-link').first()).toBeVisible();
+  await expect(page.locator('.post-card-private')).toHaveCount(0);
 });
 
 test('old archive URLs redirect into the blog', async ({ request }) => {
@@ -48,11 +48,13 @@ test('the admin sees private posts without caching or indexing', async ({ reques
 test('the admin filters the blog down to private posts', async ({ context, page }) => {
   await signInAsAdmin(context);
   await page.goto('/blog/');
-  await page.getByRole('navigation', { name: 'Sort and filter' }).getByRole('link', { name: 'Private' }).click();
+  const filterPanel = page.getByRole('navigation', { name: 'Sort and filter' });
+  await filterPanel.getByRole('link', { name: 'Private' }).click();
 
   await expect(page).toHaveURL('/blog/?visibility=private');
-  await expect(page.getByRole('heading', { name: 'System Design' })).toBeVisible();
-  await expect(page.locator(`a.post-row-link[href="/blog/physics/11be-proton-emission/"]`)).toHaveCount(0);
+  await expect(filterPanel.getByRole('link', { name: /^System Design/ })).toBeVisible();
+  await expect(page.locator('.post-card-private').first()).toBeVisible();
+  await expect(page.locator(`a.post-card-link[href="/blog/physics/11be-proton-emission/"]`)).toHaveCount(0);
 });
 
 test('private diagrams arrive as stored whiteboard SVG without loading a renderer', async ({ context, page }) => {

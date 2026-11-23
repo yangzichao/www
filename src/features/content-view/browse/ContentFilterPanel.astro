@@ -1,0 +1,148 @@
+---
+import { Input } from '@/components/ui/input';
+import { buildContentViewHref, isFilteredContentView, type ContentViewQuery } from '../content-view-query';
+import type { TagCount } from '../content-view-selection';
+import FilterTagChip from './FilterTagChip.astro';
+import { SORT_CHOICES, splitTagCounts, VISIBILITY_CHOICES, type CategoryChoice } from './filter-choices';
+import './content-filter-panel.css';
+
+interface Props {
+  basePath: string;
+  query: ContentViewQuery;
+  tagCounts: TagCount[];
+  categoryChoices?: CategoryChoice[];
+  totalCount: number;
+  showVisibilityFilter: boolean;
+  searchLabel: string;
+  countLabel: string;
+}
+
+const {
+  basePath,
+  query,
+  tagCounts,
+  categoryChoices = [],
+  totalCount,
+  showVisibilityFilter,
+  searchLabel,
+  countLabel,
+} = Astro.props;
+const hrefWith = (changes: Partial<ContentViewQuery>) => buildContentViewHref(basePath, query, changes);
+const currentWhen = (isCurrent: boolean) => (isCurrent ? 'true' : undefined);
+const tagToggleHref = (tag: string) => hrefWith({ tag: query.tag === tag ? null : tag });
+const { leadingTags, overflowTags, selectedTagIsInOverflow } = splitTagCounts(tagCounts, query.tag);
+---
+
+<nav class="filter-panel" aria-label="Sort and filter">
+  <form class="filter-search" method="get" action={basePath} role="search">
+    {query.sort !== 'newest' && <input type="hidden" name="sort" value={query.sort} />}
+    {query.category !== null && <input type="hidden" name="category" value={query.category} />}
+    {query.tag !== null && <input type="hidden" name="tag" value={query.tag} />}
+    {query.visibility !== 'all' && <input type="hidden" name="visibility" value={query.visibility} />}
+    <i class="ph ph-magnifying-glass filter-search-icon" aria-hidden="true"></i>
+    <Input
+      className="filter-search-input"
+      type="search"
+      name="q"
+      value={query.search}
+      placeholder={searchLabel}
+      aria-label={searchLabel}
+      data-content-search
+    />
+    <kbd class="filter-search-shortcut" aria-hidden="true">
+      /
+    </kbd>
+  </form>
+
+  <div class="filter-section">
+    <span class="filter-label">Sort</span>
+    <div class="filter-segments">
+      {SORT_CHOICES.map((choice) => (
+        <a
+          class="filter-segment"
+          href={hrefWith({ sort: choice.value })}
+          aria-current={currentWhen(query.sort === choice.value)}
+        >
+          {choice.label}
+        </a>
+      ))}
+    </div>
+  </div>
+
+  {showVisibilityFilter && (
+    <div class="filter-section">
+      <span class="filter-label">Show</span>
+      <div class="filter-segments">
+        {VISIBILITY_CHOICES.map((choice) => (
+          <a
+            class="filter-segment"
+            href={hrefWith({ visibility: choice.value })}
+            aria-current={currentWhen(query.visibility === choice.value)}
+          >
+            {choice.label}
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {categoryChoices.length > 0 && (
+    <div class="filter-section">
+      <span class="filter-label">Topic</span>
+      <ul class="filter-topics">
+        <li>
+          <a
+            class="filter-topic"
+            href={hrefWith({ category: null })}
+            aria-current={currentWhen(query.category === null)}
+          >
+            <span>Everything</span>
+            <span class="filter-count">{totalCount}</span>
+          </a>
+        </li>
+        {categoryChoices.map((choice) => (
+          <li>
+            <a
+              class="filter-topic"
+              href={hrefWith({ category: choice.category })}
+              aria-current={currentWhen(query.category === choice.category)}
+            >
+              <span>{choice.label}</span>
+              <span class="filter-count">{choice.count}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+
+  {tagCounts.length > 0 && (
+    <div class="filter-section">
+      <span class="filter-label">Tags</span>
+      <div class="filter-tags">
+        {leadingTags.map(({ tag, count }) => (
+          <FilterTagChip tag={tag} count={count} href={tagToggleHref(tag)} isSelected={query.tag === tag} />
+        ))}
+        {overflowTags.length > 0 && (
+          <details class="filter-more-tags" open={selectedTagIsInOverflow}>
+            <summary class="filter-tag filter-more-tags-toggle">+{overflowTags.length} more</summary>
+            <div class="filter-tags">
+              {overflowTags.map(({ tag, count }) => (
+                <FilterTagChip tag={tag} count={count} href={tagToggleHref(tag)} isSelected={query.tag === tag} />
+              ))}
+            </div>
+          </details>
+        )}
+      </div>
+    </div>
+  )}
+
+  <p class="filter-summary">
+    <span class="filter-result-count">{countLabel}</span>
+    {isFilteredContentView(query) && (
+      <a class="filter-clear" href={hrefWith({ category: null, tag: null, visibility: 'all', search: '' })}>
+        Clear filters
+      </a>
+    )}
+  </p>
+</nav>

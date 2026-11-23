@@ -1,9 +1,10 @@
 ---
 import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import BrowseLayout from '../../features/content-view/browse/BrowseLayout.astro';
+import ContentFilterPanel from '../../features/content-view/browse/ContentFilterPanel.astro';
 import ThoughtComposer from '../../features/thoughts/components/ThoughtComposer';
 import ThoughtCard from '../../features/thoughts/components/ThoughtCard.astro';
-import ContentViewToolbar from '../../features/content-view/ContentViewToolbar.astro';
 import { loadCurrentUser } from '../../features/auth/current-session';
 import { listThoughtsNewestFirst } from '../../features/thoughts/thought-store';
 import { describeThoughtCount, toThoughtFeedItem } from '../../features/thoughts/thought-feed';
@@ -16,103 +17,62 @@ export const prerender = false;
 const viewer = await loadCurrentUser(Astro.cookies);
 const isAdmin = viewer?.isAdmin ?? false;
 const visibleThoughts = await listThoughtsNewestFirst(env.DB, { includePrivate: isAdmin });
-const query = parseContentViewQuery(Astro.url.searchParams, isAdmin);
+const query = parseContentViewQuery(Astro.url.searchParams, { viewerIsAdmin: isAdmin, allowedCategories: [] });
 const feedItems = selectContentForView(visibleThoughts, query, thoughtSearchableText).map(toThoughtFeedItem);
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
 <BaseLayout title="Thoughts — Zichao Yang" description="Short thoughts, observations, and fragments.">
-  <div class="thoughts-layout">
-    <header class="thoughts-head">
-      <a class="back-home" href="/">
-        ← Home
-      </a>
-      <h1 class="thoughts-title">Thoughts</h1>
-      <p class="thoughts-sub">Short observations, posted as they come.</p>
-    </header>
-
+  <BrowseLayout title="Thoughts" subtitle="Short observations, posted as they come.">
     {isAdmin && (
-      <section class="thoughts-admin" aria-label="Post a thought">
-        <ThoughtComposer client:load />
-        <p class="thoughts-export">
-          Export all:
-          <a href="/api/thoughts/export?format=markdown" download>
-            Markdown
-          </a>
-          ·
-          <a href="/api/thoughts/export?format=json" download>
-            JSON
-          </a>
-        </p>
-      </section>
+      <p class="thoughts-export" slot="panel-actions">
+        Export all:
+        <a href="/api/thoughts/export?format=markdown" download>
+          Markdown
+        </a>
+        ·
+        <a href="/api/thoughts/export?format=json" download>
+          JSON
+        </a>
+      </p>
     )}
 
-    <ContentViewToolbar
+    <ContentFilterPanel
+      slot="filters"
       basePath={THOUGHTS_PAGE_PATH}
       query={query}
       tagCounts={countTags(visibleThoughts)}
+      totalCount={visibleThoughts.length}
       showVisibilityFilter={isAdmin}
       searchLabel="Search thoughts"
+      countLabel={describeThoughtCount(feedItems.length, visibleThoughts.length)}
     />
+
+    {isAdmin && (
+      <section class="thoughts-composer" aria-label="Post a thought">
+        <ThoughtComposer client:load />
+      </section>
+    )}
 
     <div class="thoughts-feed">
       {feedItems.map((item) => (
         <ThoughtCard item={item} query={query} isAdmin={isAdmin} />
       ))}
-      {feedItems.length === 0 && visibleThoughts.length > 0 && <p class="thoughts-empty">No thoughts match.</p>}
     </div>
-
-    <footer class="thoughts-footer">
-      <span class="thoughts-count">{describeThoughtCount(feedItems.length, visibleThoughts.length)}</span>
-    </footer>
-  </div>
+    {feedItems.length === 0 && visibleThoughts.length > 0 && <p class="thoughts-empty">No thoughts match.</p>}
+  </BrowseLayout>
 </BaseLayout>
 
+<script>
+  import { collapseLongThoughts } from '../../scripts/thoughts/collapse-long-thoughts';
+  collapseLongThoughts(document);
+</script>
+
 <style>
-  .thoughts-layout {
-    max-width: 620px;
-  }
-
-  .thoughts-head {
-    margin-bottom: 3rem;
-  }
-
-  .back-home {
-    display: inline-block;
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    text-decoration: none;
-    margin-bottom: 1.5rem;
-    transition: color var(--transition);
-  }
-
-  .back-home:hover {
-    color: var(--color-text-main);
-  }
-
-  .thoughts-title {
-    font-size: 2.75rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-    color: var(--color-text-main);
-  }
-
-  .thoughts-sub {
-    margin-top: 0.75rem;
-    font-size: 1.125rem;
-    color: var(--color-text-muted);
-  }
-
-  .thoughts-admin {
-    margin-bottom: 1rem;
-  }
-
   .thoughts-export {
     display: flex;
     gap: 0.4rem;
-    margin-top: -1.5rem;
-    margin-bottom: 2rem;
+    margin-top: 1rem;
     font-size: 0.8rem;
     color: var(--color-text-muted);
   }
@@ -121,23 +81,21 @@ Astro.response.headers.set('cache-control', 'no-store');
     color: var(--color-text-main);
   }
 
+  .thoughts-composer {
+    max-width: calc(700px + 120px + 4rem);
+    margin-bottom: 3rem;
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+  }
+
+  .thoughts-composer :global(.thought-composer) {
+    margin-bottom: 0;
+  }
+
   .thoughts-empty {
-    padding: 1.75rem 0;
+    padding: 3rem 0;
     color: var(--color-text-muted);
-  }
-
-  .thoughts-footer {
-    padding: 1.75rem 0 0;
-  }
-
-  .thoughts-count {
-    font-size: 0.85rem;
-    color: var(--color-text-muted);
-  }
-
-  @media (width <= 640px) {
-    .thoughts-title {
-      font-size: 2.25rem;
-    }
+    text-align: center;
   }
 </style>

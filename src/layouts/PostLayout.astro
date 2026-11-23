@@ -8,6 +8,7 @@ import PostPagerLink from '../components/blog/post-pager/PostPagerLink';
 import { cn } from 'cn';
 import { badgeVariants } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
+import { buildContentViewHref, DEFAULT_CONTENT_VIEW_QUERY } from '../features/content-view/content-view-query';
 import { categoryLabel } from '../features/posts/post-categories';
 import { formatPostCreatedDate, formatPostEditedDate } from '../features/posts/post-date-format';
 import { adjacentPostsInCategory, groupByCategory } from '../features/posts/post-grouping';
@@ -34,6 +35,7 @@ const adjacent = adjacentPostsInCategory(visiblePosts, post.path);
 
 const categorySlug = categoryOfPostPath(post.path);
 const categoryName = categoryLabel(categorySlug);
+const categoryIndexUrl = buildContentViewHref(BLOG_BASE_PATH, DEFAULT_CONTENT_VIEW_QUERY, { category: categorySlug });
 
 const hasTableOfContents = shouldShowToc(post.headings);
 const formattedDate = formatPostCreatedDate(post, 'long');
@@ -69,7 +71,7 @@ const postTagClass = cn(
             <span class="post-breadcrumb-separator" aria-hidden="true">
               /
             </span>
-            <a href={`${BLOG_BASE_PATH}#${categorySlug}`}>{categoryName}</a>
+            <a href={categoryIndexUrl}>{categoryName}</a>
           </nav>
           <h1 class="post-title">{post.title}</h1>
           <div class="post-meta">

@@ -1,0 +1,44 @@
+---
+import { categoryLabel } from '../post-categories';
+import { formatPostCreatedDate, formatPostEditedDate } from '../post-date-format';
+import { categoryOfPostPath, postUrl } from '../post-path';
+import type { PostSummary } from '../post-types';
+
+interface Props {
+  post: PostSummary;
+  featured?: boolean;
+}
+
+const { post, featured = false } = Astro.props;
+const dateStyle = featured ? 'long' : 'short';
+const visibleTags = post.tags.slice(0, featured ? 6 : 3);
+---
+
+<li class:list={['post-card', { 'is-featured': featured }]} data-post-path={post.path} data-depth-reveal>
+  <a class="post-card-link" href={postUrl(post.path)}>
+    <span class="post-card-eyebrow">
+      {featured && <span class="post-card-latest">Latest</span>}
+      <span class="post-card-category">{categoryLabel(categoryOfPostPath(post.path))}</span>
+      <time class="post-card-date" datetime={post.createdAt}>
+        {formatPostCreatedDate(post, dateStyle)}
+      </time>
+    </span>
+    <span class="post-card-title">
+      {post.title}
+      {!post.isPublic && <span class="post-card-private">Private</span>}
+    </span>
+    {post.description && <span class="post-card-desc">{post.description}</span>}
+    <span class="post-card-footer">
+      {post.venue && <span class="post-card-venue">{post.venue}</span>}
+      {visibleTags.map((tag) => (
+        <span class="post-card-tag">{tag}</span>
+      ))}
+      {post.updatedAt && (
+        <span class="post-card-edited">
+          Edited <time datetime={post.updatedAt}>{formatPostEditedDate(post.updatedAt, 'short')}</time>
+        </span>
+      )}
+      <i class="ph ph-arrow-right post-card-arrow" aria-hidden="true"></i>
+    </span>
+  </a>
+</li>

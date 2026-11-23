@@ -8,6 +8,7 @@ import {
   selectContentForView,
   type ViewableContent,
 } from '../../../src/features/content-view/content-view-selection';
+import { LEADING_TAG_LIMIT, splitTagCounts } from '../../../src/features/content-view/browse/filter-choices';
 
 interface Note extends ViewableContent {
   body: string;
@@ -84,6 +85,28 @@ describe('countTags', () => {
       { tag: 'ai', count: 2 },
       { tag: 'physics', count: 2 },
       { tag: 'life', count: 1 },
+    ]);
+  });
+});
+
+describe('splitTagCounts', () => {
+  const manyTags = Array.from({ length: LEADING_TAG_LIMIT + 2 }, (_, index) => ({ tag: `tag-${index}`, count: 1 }));
+
+  it('keeps every tag up front when there are only a few', () => {
+    expect(splitTagCounts(manyTags.slice(0, 3), null)).toStrictEqual({
+      leadingTags: manyTags.slice(0, 3),
+      overflowTags: [],
+      selectedTagIsInOverflow: false,
+    });
+  });
+
+  it('moves the rarest tags into the overflow and notices when the selected tag is there', () => {
+    const { leadingTags, overflowTags, selectedTagIsInOverflow } = splitTagCounts(manyTags, `tag-${LEADING_TAG_LIMIT}`);
+
+    expect([leadingTags.length, overflowTags.map(({ tag }) => tag), selectedTagIsInOverflow]).toStrictEqual([
+      LEADING_TAG_LIMIT,
+      [`tag-${LEADING_TAG_LIMIT}`, `tag-${LEADING_TAG_LIMIT + 1}`],
+      true,
     ]);
   });
 });

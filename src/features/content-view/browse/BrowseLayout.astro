@@ -1,0 +1,31 @@
+---
+import './browse-layout.css';
+
+interface Props {
+  title: string;
+  subtitle: string;
+}
+
+const { title, subtitle } = Astro.props;
+---
+
+<div class="browse-layout">
+  <aside class="browse-panel">
+    <a class="browse-home" href="/">
+      <i class="ph ph-arrow-left" aria-hidden="true"></i>
+      Home
+    </a>
+    <h1 class="browse-title">{title}</h1>
+    <p class="browse-subtitle">{subtitle}</p>
+    <slot name="panel-actions" />
+    <slot name="filters" />
+  </aside>
+  <div class="browse-stream">
+    <slot />
+  </div>
+</div>
+
+<script>
+  import { initFocusSearchShortcut } from '../../../scripts/content-view/focus-search-shortcut';
+  initFocusSearchShortcut(document);
+</script>

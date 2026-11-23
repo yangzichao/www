@@ -18,7 +18,7 @@ test('homepage renders the profile without errors', async ({ page }) => {
 test('blog index links to posts that render with breadcrumbs and a view count', async ({ page }) => {
   const errors = collectPageErrors(page);
   await page.goto('/blog/');
-  const firstPostLink = page.locator('a.post-row-link').first();
+  const firstPostLink = page.locator('a.post-card-link').first();
   const postPath = await firstPostLink.getAttribute('href');
   await firstPostLink.click();
 
@@ -35,7 +35,7 @@ test('readers sort and filter the blog index', async ({ page }) => {
   await toolbar.getByRole('link', { name: /^halo eft/ }).click();
 
   await expect(page).toHaveURL('/blog/?tag=halo+eft');
-  await expect(page.locator('a.post-row-link')).toHaveCount(1);
+  await expect(page.locator('a.post-card-link')).toHaveCount(1);
   await expect(page.getByText('1 of 5 posts')).toBeVisible();
 
   await toolbar.getByRole('link', { name: 'Clear filters' }).click();
@@ -43,11 +43,33 @@ test('readers sort and filter the blog index', async ({ page }) => {
   await toolbar.getByRole('searchbox', { name: 'Search posts' }).press('Enter');
 
   await expect(page).toHaveURL('/blog/?q=attention');
-  await expect(page.locator('a.post-row-link')).toHaveAttribute('href', '/blog/life/four-traps-of-attention/');
+  await expect(page.locator('a.post-card-link')).toHaveAttribute('href', '/blog/life/four-traps-of-attention/');
+
+  await toolbar.getByRole('link', { name: 'Clear filters' }).click();
+  await toolbar.getByRole('link', { name: /^Physics/ }).click();
+
+  await expect(page).toHaveURL('/blog/?category=physics');
+  await expect(page.locator('a.post-card-link')).toHaveAttribute('href', '/blog/physics/11be-proton-emission/');
 
   await page.goto('/blog/?sort=oldest');
 
-  await expect(page.locator('a.post-row-link').first()).toBeVisible();
+  await expect(page.locator('a.post-card-link').first()).toBeVisible();
+});
+
+test('a post breadcrumb leads back to its topic on the index', async ({ page }) => {
+  await page.goto('/blog/physics/11be-proton-emission/');
+  await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Physics' }).click();
+
+  await expect(page).toHaveURL('/blog/?category=physics');
+  const topicLink = page.getByRole('navigation', { name: 'Sort and filter' }).getByRole('link', { name: /^Physics/ });
+  await expect(topicLink).toHaveAttribute('aria-current', 'true');
+});
+
+test('pressing slash jumps to the search box', async ({ page }) => {
+  await page.goto('/thoughts/');
+  await page.keyboard.press('/');
+
+  await expect(page.getByRole('searchbox', { name: 'Search thoughts' })).toBeFocused();
 });
 
 test('view counts go up on each visit', async ({ page }) => {

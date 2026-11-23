@@ -13,8 +13,13 @@ function hrefFor(query: ContentViewQuery, changes?: Partial<ContentViewQuery>) {
   return buildContentViewHref(BASE_PATH, query, changes);
 }
 
+const ALLOWED_CATEGORIES = ['physics', 'life'];
+
 function parse(queryString: string, viewerIsAdmin = true) {
-  return parseContentViewQuery(new URLSearchParams(queryString), viewerIsAdmin);
+  return parseContentViewQuery(new URLSearchParams(queryString), {
+    viewerIsAdmin,
+    allowedCategories: ALLOWED_CATEGORIES,
+  });
 }
 
 describe('parseContentViewQuery', () => {
@@ -22,9 +27,10 @@ describe('parseContentViewQuery', () => {
     expect(parse('')).toStrictEqual(DEFAULT_CONTENT_VIEW_QUERY);
   });
 
-  it('reads sort, tag, visibility, and a trimmed search', () => {
-    expect(parse('sort=oldest&tag=ai&visibility=private&q=%20field%20theory%20')).toStrictEqual({
+  it('reads sort, category, tag, visibility, and a trimmed search', () => {
+    expect(parse('sort=oldest&category=physics&tag=ai&visibility=private&q=%20field%20theory%20')).toStrictEqual({
       sort: 'oldest',
+      category: 'physics',
       tag: 'ai',
       visibility: 'private',
       search: 'field theory',
@@ -32,7 +38,9 @@ describe('parseContentViewQuery', () => {
   });
 
   it('falls back to defaults for unknown values and blank tags', () => {
-    expect(parse('sort=random&visibility=secret&tag=%20%20')).toStrictEqual(DEFAULT_CONTENT_VIEW_QUERY);
+    expect(parse('sort=random&visibility=secret&tag=%20%20&category=cooking')).toStrictEqual(
+      DEFAULT_CONTENT_VIEW_QUERY,
+    );
   });
 
   it('ignores the visibility filter for non-admin viewers', () => {
@@ -44,6 +52,7 @@ describe('isFilteredContentView', () => {
   it.each([
     { queryString: '', expected: false },
     { queryString: 'sort=oldest', expected: false },
+    { queryString: 'category=life', expected: true },
     { queryString: 'tag=ai', expected: true },
     { queryString: 'visibility=public', expected: true },
     { queryString: 'q=idea', expected: true },
@@ -62,5 +71,6 @@ describe('buildContentViewHref', () => {
 
     expect(hrefFor(current, { tag: 'life & work' })).toBe('/notes/?sort=recently-edited&tag=life+%26+work&q=ai');
     expect(hrefFor(current, { sort: 'newest', search: '', visibility: 'private' })).toBe('/notes/?visibility=private');
+    expect(hrefFor(current, { category: 'life' })).toBe('/notes/?sort=recently-edited&category=life&q=ai');
   });
 });
