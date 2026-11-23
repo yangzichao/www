@@ -1,36 +1,29 @@
 ---
 import type { WorkItem } from '../data/site';
 
-export type WorkCardTone = 'violet' | 'coral' | 'green' | 'neutral';
-
 interface Props {
   item: WorkItem;
-  tone: WorkCardTone;
 }
 
-const { item, tone } = Astro.props;
+const { item } = Astro.props;
+const contentClass = item.image ? 'work-card-content' : 'work-card-content-only';
 ---
 
-<a href={item.url} class="work-card" data-tone={tone} data-tilt>
-  <span class="work-card-tab">
-    {item.type}
-    <span class="work-card-year">{item.year}</span>
-  </span>
-  <div class="work-card-panel">
-    {item.image && (
-      <div class="work-card-image-container">
-        <img
-          src={item.image}
-          class="work-card-image"
-          style={item.imageFit ? `object-fit: ${item.imageFit}` : undefined}
-          loading="lazy"
-          alt={item.imageAlt ?? item.title}
-        />
-      </div>
-    )}
-    <div class="work-card-content">
-      <h3 class="work-card-title">{item.title}</h3>
-      <p class="work-card-description">{item.description}</p>
+<a href={item.url} class="work-card" data-tilt>
+  {item.image && (
+    <div class="work-card-image-container">
+      <img
+        src={item.image}
+        class="work-card-image"
+        style={item.imageFit ? `object-fit: ${item.imageFit}` : undefined}
+        loading="lazy"
+        alt={item.imageAlt ?? item.title}
+      />
     </div>
+  )}
+  <div class={contentClass}>
+    <span class="work-card-type">{item.type}</span>
+    <h3 class="work-card-title">{item.title}</h3>
+    <p class="work-card-description">{item.description}</p>
   </div>
 </a>

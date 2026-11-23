@@ -17,11 +17,11 @@ const { section, groups, subtitle } = Astro.props;
   <BlogSidebar groups={groups} section={section} />
   <div class="blog-main" data-depth-stagger>
     <header class="writing-head" data-depth-reveal>
-      <a class="page-back-link" href="/">
+      <a class="back-home" href="/">
         ← Home
       </a>
-      <h1 class="page-title">{section.label}</h1>
-      <p class="page-subtitle">{subtitle}</p>
+      <h1 class="writing-title">{section.label}</h1>
+      <p class="writing-sub">{subtitle}</p>
     </header>
 
     {groups.map((group) => (
@@ -53,6 +53,33 @@ const { section, groups, subtitle } = Astro.props;
     margin-bottom: 3.5rem;
   }
 
+  .back-home {
+    display: inline-block;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    margin-bottom: 1.5rem;
+    transition: color var(--transition);
+  }
+
+  .back-home:hover {
+    color: var(--color-text-main);
+  }
+
+  .writing-title {
+    font-size: 2.75rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--color-text-main);
+  }
+
+  .writing-sub {
+    margin-top: 0.75rem;
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
   .category {
     margin-bottom: 3.5rem;
   }
@@ -82,44 +109,47 @@ const { section, groups, subtitle } = Astro.props;
   }
 
   .post-row-title {
-    font-size: 1.125rem;
-    font-weight: 550;
-    line-height: 1.35;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
     transition: color var(--transition);
   }
 
   .post-row-draft {
     margin-left: 0.6rem;
-    font-family: var(--font-mono);
     font-size: 0.7rem;
-    font-weight: 500;
-    padding: 2px 6px;
-    color: var(--tone-coral-ink);
-    background: var(--tone-coral-surface);
-    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
     vertical-align: middle;
   }
 
   .post-row-link:hover .post-row-title {
-    color: var(--color-link);
+    color: var(--color-text-muted);
   }
 
   .post-row-date {
     flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
   }
 
   .post-row-desc {
     margin-top: 0.4rem;
     font-size: 0.95rem;
     line-height: 1.55;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     max-width: 65ch;
   }
 
   @media (width <= 640px) {
+    .writing-title {
+      font-size: 2.25rem;
+    }
+
     .post-row-link {
       flex-direction: column;
       gap: 0.25rem;

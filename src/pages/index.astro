@@ -1,13 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
-import WorkCard, { type WorkCardTone } from '../components/WorkCard.astro';
+import WorkCard from '../components/WorkCard.astro';
 import Footer from '../components/Footer.astro';
 import { siteData } from '../data/site';
-
-const workCardToneCycle: WorkCardTone[] = ['violet', 'coral', 'green', 'neutral'];
-const toneForPosition = (position: number): WorkCardTone =>
-  workCardToneCycle[position % workCardToneCycle.length] ?? 'neutral';
 ---
 
 <BaseLayout>
@@ -18,9 +14,9 @@ const toneForPosition = (position: number): WorkCardTone =>
       Public Interface
     </h2>
     <div class="work-grid" data-depth-stagger data-scroll-tilt>
-      {siteData.items.map((item, position) => (
+      {siteData.items.map((item) => (
         <div class="work-grid-item" data-depth-reveal>
-          <WorkCard item={item} tone={toneForPosition(position)} />
+          <WorkCard item={item} />
         </div>
       ))}
     </div>

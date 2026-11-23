@@ -83,7 +83,7 @@
 .admin-editor-textarea {
   flex: 1;
   min-height: 65vh;
-  font-family: var(--font-mono);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9rem;
   line-height: 1.6;
   border: 1px solid var(--color-border);

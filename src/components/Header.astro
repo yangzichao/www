@@ -22,7 +22,7 @@ const { profile, sitePages } = Astro.props;
         </a>
       ))}
       {sitePages.map((page) => (
-        <a href={page.url} class="link-button link-button-primary">
+        <a href={page.url} class="link-button">
           <i class={`ph ${page.icon}`} />
           {page.label}
         </a>
