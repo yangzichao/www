@@ -7,7 +7,7 @@ import { POST as approve } from '../../../src/pages/api/comments/[id]/approve';
 import { DELETE as remove } from '../../../src/pages/api/comments/[id]/index';
 import { PUBLISHED_TEST_PAGE } from '../../support/published-pages';
 import { callRoute } from '../support/api-context';
-import { resetDatabase, signInAdminWithoutRepositoryAccess, signInVisitor } from '../support/database';
+import { resetDatabase, signInAdmin, signInVisitor } from '../support/database';
 
 async function seedComment(status: PublicComment['status']) {
   return insertComment(env.DB, {
@@ -32,7 +32,7 @@ describe('POST /api/comments/:id/approve', () => {
       method: 'POST',
       path: `/api/comments/${pending.id}/approve`,
       params: { id: pending.id },
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
 
     expect(response.status).toBe(200);
@@ -45,7 +45,7 @@ describe('POST /api/comments/:id/approve', () => {
       method: 'POST',
       path: `/api/comments/${published.id}/approve`,
       params: { id: published.id },
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
 
     expect(response.status).toBe(404);
@@ -74,7 +74,7 @@ describe('POST /api/comments/:id/approve', () => {
       path: `/api/comments/${pending.id}/approve`,
       params: { id: pending.id },
       sameOrigin: false,
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
 
     expect(response.status).toBe(403);
@@ -92,7 +92,7 @@ describe('DELETE /api/comments/:id', () => {
       method: 'DELETE',
       path: `/api/comments/${published.id}`,
       params: { id: published.id },
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
 
     expect(response.status).toBe(200);
@@ -104,7 +104,7 @@ describe('DELETE /api/comments/:id', () => {
       method: 'DELETE',
       path: '/api/comments/missing',
       params: { id: 'missing' },
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
 
     expect(response.status).toBe(404);
@@ -129,7 +129,7 @@ describe('DELETE /api/comments/:id', () => {
       path: `/api/comments/${published.id}`,
       params: { id: published.id },
       sameOrigin: false,
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
 
     expect(response.status).toBe(403);
@@ -146,7 +146,7 @@ describe('GET /api/admin/comments', () => {
     await seedComment('published');
     const { response } = await callRoute(listModerationQueue, {
       path: '/api/admin/comments',
-      cookies: await signInAdminWithoutRepositoryAccess(),
+      cookies: await signInAdmin(),
     });
     const queue = await response.json<{ pending: PublicComment[]; recent: PublicComment[] }>();
 

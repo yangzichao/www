@@ -1,0 +1,145 @@
+---
+import { Input } from '@/components/ui/input';
+import {
+  buildContentViewHref,
+  isFilteredContentView,
+  type ContentSortOrder,
+  type ContentViewQuery,
+  type ContentVisibilityFilter,
+} from './content-view-query';
+import type { TagCount } from './content-view-selection';
+
+interface Props {
+  basePath: string;
+  query: ContentViewQuery;
+  tagCounts: TagCount[];
+  showVisibilityFilter: boolean;
+  searchLabel: string;
+}
+
+const { basePath, query, tagCounts, showVisibilityFilter, searchLabel } = Astro.props;
+const hrefWith = (changes: Partial<ContentViewQuery>) => buildContentViewHref(basePath, query, changes);
+
+const sortChoices: { value: ContentSortOrder; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'recently-edited', label: 'Recently edited' },
+];
+
+const visibilityChoices: { value: ContentVisibilityFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+];
+---
+
+<nav class="content-toolbar" aria-label="Sort and filter">
+  <form class="toolbar-search" method="get" action={basePath} role="search">
+    {query.sort !== 'newest' && <input type="hidden" name="sort" value={query.sort} />}
+    {query.tag !== null && <input type="hidden" name="tag" value={query.tag} />}
+    {query.visibility !== 'all' && <input type="hidden" name="visibility" value={query.visibility} />}
+    <Input type="search" name="q" value={query.search} placeholder={searchLabel} aria-label={searchLabel} />
+  </form>
+
+  <div class="toolbar-row">
+    <span class="toolbar-label">Sort</span>
+    {sortChoices.map((choice) => (
+      <a
+        class="toolbar-choice"
+        href={hrefWith({ sort: choice.value })}
+        aria-current={query.sort === choice.value ? 'true' : undefined}
+      >
+        {choice.label}
+      </a>
+    ))}
+  </div>
+
+  {showVisibilityFilter && (
+    <div class="toolbar-row">
+      <span class="toolbar-label">Show</span>
+      {visibilityChoices.map((choice) => (
+        <a
+          class="toolbar-choice"
+          href={hrefWith({ visibility: choice.value })}
+          aria-current={query.visibility === choice.value ? 'true' : undefined}
+        >
+          {choice.label}
+        </a>
+      ))}
+    </div>
+  )}
+
+  {tagCounts.length > 0 && (
+    <div class="toolbar-row">
+      <span class="toolbar-label">Tag</span>
+      <a class="toolbar-choice" href={hrefWith({ tag: null })} aria-current={query.tag === null ? 'true' : undefined}>
+        Any
+      </a>
+      {tagCounts.map(({ tag, count }) => (
+        <a class="toolbar-choice" href={hrefWith({ tag })} aria-current={query.tag === tag ? 'true' : undefined}>
+          {tag} <span class="toolbar-count">{count}</span>
+        </a>
+      ))}
+    </div>
+  )}
+
+  {isFilteredContentView(query) && (
+    <a class="toolbar-clear" href={hrefWith({ tag: null, visibility: 'all', search: '' })}>
+      Clear filters
+    </a>
+  )}
+</nav>
+
+<style>
+  .content-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 2rem;
+    font-size: 0.85rem;
+  }
+
+  .toolbar-row {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+  }
+
+  .toolbar-label {
+    min-width: 2.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+  }
+
+  .toolbar-choice {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition);
+  }
+
+  .toolbar-choice:hover {
+    color: var(--color-text-main);
+  }
+
+  .toolbar-choice[aria-current='true'] {
+    color: var(--color-text-main);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+
+  .toolbar-count {
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+  }
+
+  .toolbar-clear {
+    align-self: flex-start;
+    color: var(--color-text-main);
+  }
+</style>

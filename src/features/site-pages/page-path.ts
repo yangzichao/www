@@ -1,6 +1,13 @@
+import { postPathFromPagePath } from '../posts/post-path';
+
 const MAX_PAGE_PATH_LENGTH = 300;
 const PAGE_PATH_PATTERN = /^\/[\w\-./%]*$/;
-const SERVER_RENDERED_PUBLIC_PAGES: ReadonlySet<string> = new Set(['/thoughts/']);
+const SERVER_RENDERED_PUBLIC_PAGES: ReadonlySet<string> = new Set(['/thoughts/', '/blog/']);
+
+export interface PublishedPageSources {
+  assets: Fetcher;
+  isPublicPostPath: (postPath: string) => Promise<boolean>;
+}
 
 export function parsePagePath(rawPath: string): string | null {
   const path = rawPath.trim();
@@ -9,8 +16,14 @@ export function parsePagePath(rawPath: string): string | null {
   return path;
 }
 
-export async function isPublishedPage(assets: Fetcher, path: string, siteOrigin: string): Promise<boolean> {
+export async function isPublishedPage(
+  sources: PublishedPageSources,
+  path: string,
+  siteOrigin: string,
+): Promise<boolean> {
   if (SERVER_RENDERED_PUBLIC_PAGES.has(path)) return true;
-  const response = await assets.fetch(new URL(path, siteOrigin), { method: 'HEAD', redirect: 'manual' });
+  const postPath = postPathFromPagePath(path);
+  if (postPath !== null) return sources.isPublicPostPath(postPath);
+  const response = await sources.assets.fetch(new URL(path, siteOrigin), { method: 'HEAD', redirect: 'manual' });
   return response.status === 200;
 }

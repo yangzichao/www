@@ -19,39 +19,29 @@ Personal homepage and blog. Built with [Astro](https://astro.build) and React is
 
 Use the Node version in `.node-version` (`engine-strict` is on, so `npm ci` refuses other versions).
 
-## Writing a new blog post
+## Writing a blog post
 
-1. Drop a markdown file anywhere under `src/content/blog/`. Folders become URL segments:
+Posts live in the D1 `posts` table, not in the repo. Sign in at `/admin/` (GitHub, admin account only) to list every post, then open one or click **New post**.
 
-   ```
-   src/content/blog/hello-world.md                       → /blog/hello-world/
-   src/content/blog/meta/about-this-blog.md              → /blog/meta/about-this-blog/
-   src/content/blog/physics/halo-eft/some-note.md        → /blog/physics/halo-eft/some-note/
-   ```
+- The editor is Markdown on the left and a live preview on the right. ⌘/Ctrl+S saves.
+- Each post has a title, a path (`category/slug`, which becomes `/blog/category/slug/`), tags, an optional venue and description, and a visibility. New posts start **Private**.
+- Private posts are visible only to the admin, never cached or indexed, and have no comments or view counts. Switch to **Public** to publish; no deploy is needed.
+- Every post records when it was created and when its content was last edited. Changing only the visibility does not count as an edit.
+- `/blog/` sorts by newest, oldest, or recently edited, and filters by tag and search text. The admin also gets a Public / Private filter.
+- **Export JSON** on `/admin/` downloads every post's Markdown source and metadata.
 
-2. Frontmatter schema (validated at build time by `src/content.config.ts`):
+The browser renders Markdown to HTML when you save, and the Worker stores both. Pages only read the stored HTML, so the Worker never renders Markdown. Supported Markdown:
 
-   ```yaml
-   ---
-   title: My post title              # required
-   date: 2026-05-07                  # required (YYYY-MM-DD)
-   description: Short summary.       # optional, used for <meta name="description">
-   draft: false                      # optional, default false; true = skip during build
-   tags: [meta, astro]               # optional, list of strings
-   venue: Physics Letters B          # optional, shown for paper entries
-   ---
-   ```
+- GitHub-flavored Markdown with smart quotes
+- **KaTeX math**: inline `$...$` and display `$$...$$`
+- **Whiteboard diagrams**: fenced ```` ```mermaid ```` blocks using `flowchart` or `sequenceDiagram` syntax, drawn as hand-drawn SVG (see [Diagrams](#diagrams))
+- **Code blocks**: highlighted with Shiki (`github-light`) for bash, http, java, json, python, sql, typescript, and yaml; other languages render as plain text
 
-3. Body is plain GitHub-flavored markdown plus:
-   - **KaTeX math** — inline `$...$` and display `$$...$$`
-   - **Whiteboard diagrams** — fenced ```` ```mermaid ```` blocks using `flowchart` or `sequenceDiagram` syntax, drawn at build time as hand-drawn SVG (see [Diagrams](#diagrams))
-   - **Code blocks** — syntax-highlighted by Astro's bundled Shiki
-
-4. `git add . && git commit -m "post: …" && git push`. CI verifies, builds, and deploys; the post is live in a few minutes.
+Changing a post's path changes its URL. Comments and view counts are keyed by URL, so they stay with the old path.
 
 ## Diagrams
 
-Diagrams use a subset of Mermaid syntax, but Mermaid never runs. `src/markdown/whiteboard/` parses the block, lays it out with ELK, and draws it with rough.js and the Virgil font in an Excalidraw-like style. The output is a static `<figure>` with inline SVG, a `<title>`, and a `<desc>`. No client JS is involved, and the same source always produces the same bytes.
+Diagrams use a subset of Mermaid syntax, but Mermaid never runs. `src/markdown/whiteboard/` parses the block, lays it out with ELK, and draws it with rough.js and the Virgil font in an Excalidraw-like style. The output is a static `<figure>` with inline SVG, a `<title>`, and a `<desc>`. Readers load no diagram JS, and the same source always produces the same bytes. Text widths come from `virgil-advance-widths.generated.ts`; run `npm run generate:virgil-widths` if the font changes.
 
 Supported syntax:
 
@@ -61,18 +51,17 @@ Supported syntax:
 
 The component kind sets the icon, color, and silhouette, such as a cylinder for a database, a browser window for a client, or a queue with slots. It is inferred from the node's title line. Add `:::kind` to override it, for example `Q[Ingest]:::stream` or `participant W:::gpu as Worker`. The kinds are `client`, `cdn`, `lb`, `api`, `service`, `compute`, `container`, `queue`, `stream`, `cache`, `db`, `nosql`, `objectstore`, `search`, `scheduler`, `external`, `gpu`, and `process`.
 
-Anything outside this subset, such as `classDef`, `style`, `loop`, or other diagram types, fails the build with the file and line number.
+Anything outside this subset, such as `classDef`, `style`, `loop`, or other diagram types, shows an error in the editor preview and blocks the save.
 
 ## Project layout
 
 ```
 src/
   pages/                 ← routes: homepage, blog, thoughts, admin, auth, api
-  features/              ← one folder per feature: admin, auth, comments, page-views, http, site-pages
+  features/              ← one folder per feature: posts, thoughts, content-view, admin, auth, comments, page-views, http, site-pages
   layouts/, components/  ← Astro shells and shared UI
-  content/               ← markdown posts
-  lib/, loaders/, markdown/, scripts/, styles/
-migrations/              ← D1 schema
+  lib/, markdown/, scripts/, styles/
+migrations/              ← D1 schema and data imports (apply remotely by hand before pushing)
 tests/
   unit/                  ← pure logic, Node
   components/            ← React islands and browser scripts, happy-dom
@@ -100,17 +89,17 @@ verify (format, lint, types, knip, coverage)   e2e (build + Playwright)
                        └──────────── deploy (main only) ────────────┘
 ```
 
-Deploy runs `npm run build`, then `wrangler deploy`, and needs both jobs to pass. Dependabot opens grouped weekly update PRs for npm and Actions.
+Deploy runs `npm run build`, then `wrangler deploy`, and needs both jobs to pass. CI does not apply D1 migrations: run `CI=true npx wrangler d1 migrations apply zichaoyang-com --remote` before pushing a change that needs one. Dependabot opens grouped weekly update PRs for npm and Actions.
 
 ## Tech stack
 
 - **Astro 7** with React 19 islands, on Cloudflare Workers
-- **D1** for page views, sessions, comments, and thoughts
-- **GitHub OAuth** for sign-in and the admin post editor; **Turnstile** for anonymous comments
+- **D1** for posts, thoughts, page views, sessions, and comments
+- **GitHub OAuth** (public profile only) for sign-in; **Turnstile** for anonymous comments
 - **Tailwind 4** + `@tailwindcss/typography` for `prose` styling
-- **remark-math + rehype-katex** for build-time LaTeX
-- **ELK.js + rough.js + Virgil** for build-time whiteboard diagrams (`remarkWhiteboardDiagrams`)
+- **unified** (remark, rehype, KaTeX, Shiki) to render posts in the editor at save time
+- **ELK.js + rough.js + Virgil** for whiteboard diagrams (`remarkWhiteboardDiagrams`)
 
 ## Permalink stability
 
-The legacy `/research/11be-proton-emission/` URL is preserved as a static redirect to the new `/blog/physics/11be-proton-emission/` location (`astro.config.mjs` → `redirects`). Add new entries there if more URLs ever move.
+The legacy `/research/11be-proton-emission/` URL is preserved as a static redirect to the new `/blog/physics/11be-proton-emission/` location (`astro.config.mjs` → `redirects`). Old `/archive/blog/…` URLs redirect to the same path under `/blog/`. Add new entries there if more URLs ever move.

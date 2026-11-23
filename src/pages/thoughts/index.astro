@@ -3,20 +3,21 @@ import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ThoughtComposer from '../../features/thoughts/components/ThoughtComposer';
 import ThoughtCard from '../../features/thoughts/components/ThoughtCard.astro';
-import ThoughtsToolbar from '../../features/thoughts/components/ThoughtsToolbar.astro';
+import ContentViewToolbar from '../../features/content-view/ContentViewToolbar.astro';
 import { loadCurrentUser } from '../../features/auth/current-session';
 import { listThoughtsNewestFirst } from '../../features/thoughts/thought-store';
 import { describeThoughtCount, toThoughtFeedItem } from '../../features/thoughts/thought-feed';
-import { parseThoughtViewQuery } from '../../features/thoughts/view/thought-view-query';
-import { countThoughtTags, selectThoughtsForView } from '../../features/thoughts/view/thought-view-selection';
+import { parseContentViewQuery } from '../../features/content-view/content-view-query';
+import { countTags, selectContentForView } from '../../features/content-view/content-view-selection';
+import { THOUGHTS_PAGE_PATH, thoughtSearchableText } from '../../features/thoughts/thought-view';
 
 export const prerender = false;
 
 const viewer = await loadCurrentUser(Astro.cookies);
 const isAdmin = viewer?.isAdmin ?? false;
 const visibleThoughts = await listThoughtsNewestFirst(env.DB, { includePrivate: isAdmin });
-const query = parseThoughtViewQuery(Astro.url.searchParams, isAdmin);
-const feedItems = selectThoughtsForView(visibleThoughts, query).map(toThoughtFeedItem);
+const query = parseContentViewQuery(Astro.url.searchParams, isAdmin);
+const feedItems = selectContentForView(visibleThoughts, query, thoughtSearchableText).map(toThoughtFeedItem);
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
@@ -46,7 +47,13 @@ Astro.response.headers.set('cache-control', 'no-store');
       </section>
     )}
 
-    <ThoughtsToolbar query={query} tagCounts={countThoughtTags(visibleThoughts)} showVisibilityFilter={isAdmin} />
+    <ContentViewToolbar
+      basePath={THOUGHTS_PAGE_PATH}
+      query={query}
+      tagCounts={countTags(visibleThoughts)}
+      showVisibilityFilter={isAdmin}
+      searchLabel="Search thoughts"
+    />
 
     <div class="thoughts-feed">
       {feedItems.map((item) => (

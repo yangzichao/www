@@ -15,11 +15,13 @@ export function callbackUrlFor(siteOrigin: string): string {
   return new URL('/auth/github/callback', siteOrigin).toString();
 }
 
-export function buildAuthorizeUrl(options: { siteOrigin: string; scope: string; state: string }): string {
+const PUBLIC_PROFILE_ONLY_SCOPE = '';
+
+export function buildAuthorizeUrl(options: { siteOrigin: string; state: string }): string {
   const url = new URL(GITHUB_AUTHORIZE_URL);
   url.searchParams.set('client_id', GITHUB_OAUTH_CLIENT_ID);
   url.searchParams.set('redirect_uri', callbackUrlFor(options.siteOrigin));
-  url.searchParams.set('scope', options.scope);
+  url.searchParams.set('scope', PUBLIC_PROFILE_ONLY_SCOPE);
   url.searchParams.set('state', options.state);
   url.searchParams.set('allow_signup', 'true');
   return url.toString();

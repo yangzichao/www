@@ -1,4 +1,5 @@
-import { formatExactTimestamp, formatThoughtTimestamp } from './thought-date-format';
+import { formatSiteTimestamp } from '../dates/site-timestamp-format';
+import { formatThoughtTimestamp } from './thought-date-format';
 import { renderThoughtMarkdown } from './thought-markdown';
 import type { Thought } from './thought-types';
 
@@ -23,7 +24,7 @@ export function toThoughtFeedItem(thought: Thought): ThoughtFeedItem {
     createdAt: thought.createdAt,
     displayTimestamp: formatThoughtTimestamp(thought),
     updatedAt: thought.updatedAt,
-    displayEditedTimestamp: thought.updatedAt ? formatExactTimestamp(thought.updatedAt) : null,
+    displayEditedTimestamp: thought.updatedAt ? formatSiteTimestamp(thought.updatedAt) : null,
     html: renderThoughtMarkdown(thought.body),
   };
 }

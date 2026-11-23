@@ -8,10 +8,12 @@ import PostPagerLink from '../components/blog/post-pager/PostPagerLink';
 import { cn } from 'cn';
 import { badgeVariants } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import type { CollectionEntry } from 'astro:content';
-import type { MarkdownHeading } from 'astro';
-import { postsInSection, groupByCategory, getAdjacentPostsInCategory, categoryOfId, categoryLabel } from '../lib/posts';
-import { categoryUrl, postUrl, WRITING_SECTION, type PostSection } from '../lib/post-sections';
+import { categoryLabel } from '../features/posts/post-categories';
+import { formatPostCreatedDate, formatPostEditedDate } from '../features/posts/post-date-format';
+import { adjacentPostsInCategory, groupByCategory } from '../features/posts/post-grouping';
+import { BLOG_BASE_PATH, categoryOfPostPath, postUrl } from '../features/posts/post-path';
+import type { Post, PostSummary } from '../features/posts/post-types';
+import { editPostUrl } from '../features/posts/post-view';
 import { shouldShowToc } from '../lib/toc';
 import 'katex/dist/katex.min.css';
 import '../styles/post.css';
@@ -20,33 +22,22 @@ import '../styles/blog-layout.css';
 import '../styles/print.css';
 
 interface Props {
-  frontmatter: CollectionEntry<'blog'>['data'];
-  id: string;
-  headings?: MarkdownHeading[];
-  section?: PostSection;
+  post: Post;
+  visiblePosts: PostSummary[];
+  isAdmin: boolean;
 }
 
-const { frontmatter, id, headings = [], section = WRITING_SECTION } = Astro.props;
+const { post, visiblePosts, isAdmin } = Astro.props;
 
-const posts = await postsInSection(section);
-const groups = groupByCategory(posts);
-const adjacent = getAdjacentPostsInCategory(posts, id);
+const groups = groupByCategory(visiblePosts);
+const adjacent = adjacentPostsInCategory(visiblePosts, post.path);
 
-const categorySlug = categoryOfId(id);
+const categorySlug = categoryOfPostPath(post.path);
 const categoryName = categoryLabel(categorySlug);
 
-const hasTableOfContents = shouldShowToc(headings);
-
-/* External: the YAML loader parses a date-only frontmatter value like
- * `2026-05-02` as midnight UTC, so formatting in local time would show the
- * previous day in any negative-offset timezone. */
-const formattedDate = frontmatter.date.toLocaleDateString('en-US', {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  timeZone: 'UTC',
-});
-const isoDate = frontmatter.date.toISOString();
+const hasTableOfContents = shouldShowToc(post.headings);
+const formattedDate = formatPostCreatedDate(post, 'long');
+const formattedEditedDate = post.updatedAt ? formatPostEditedDate(post.updatedAt, 'long') : null;
 const pdfDownloadButtonClass = cn(
   buttonVariants({ variant: 'outline', size: 'sm' }),
   'pdf-download h-auto bg-clip-border leading-[inherit]',
@@ -57,15 +48,11 @@ const postTagClass = cn(
 );
 ---
 
-<BaseLayout
-  title={frontmatter.title}
-  description={frontmatter.description ?? frontmatter.title}
-  recordsPageView={section.isPublic}
->
+<BaseLayout title={post.title} description={post.description ?? post.title} recordsPageView={post.isPublic}>
   <div class:list={['blog-layout', { 'has-toc': hasTableOfContents }]}>
-    <BlogSidebar groups={groups} currentId={id} section={section} />
+    <BlogSidebar groups={groups} currentPath={post.path} />
     <div class="blog-main">
-      <TableOfContentsInline headings={headings} />
+      <TableOfContentsInline headings={post.headings} />
       <article class="prose prose-lg post-article">
         <header class="not-prose post-header">
           <button
@@ -78,63 +65,77 @@ const postTagClass = cn(
             <span>Download PDF</span>
           </button>
           <nav class="post-breadcrumb" aria-label="Breadcrumb">
-            <a href={section.basePath}>{section.label}</a>
+            <a href={BLOG_BASE_PATH}>Writing</a>
             <span class="post-breadcrumb-separator" aria-hidden="true">
               /
             </span>
-            <a href={categoryUrl(section, categorySlug)}>{categoryName}</a>
+            <a href={`${BLOG_BASE_PATH}#${categorySlug}`}>{categoryName}</a>
           </nav>
-          <h1 class="post-title">{frontmatter.title}</h1>
+          <h1 class="post-title">{post.title}</h1>
           <div class="post-meta">
-            <time datetime={isoDate}>{formattedDate}</time>
-            {frontmatter.venue && <span class="post-meta-separator">·</span>}
-            {frontmatter.venue && <span class="post-venue">{frontmatter.venue}</span>}
-            {section.isPublic && (
+            <time datetime={post.createdAt}>{formattedDate}</time>
+            {post.updatedAt && formattedEditedDate && (
+              <span class="post-edited">
+                <span class="post-meta-separator">·</span>
+                Edited <time datetime={post.updatedAt}>{formattedEditedDate}</time>
+              </span>
+            )}
+            {post.venue && <span class="post-meta-separator">·</span>}
+            {post.venue && <span class="post-venue">{post.venue}</span>}
+            {post.isPublic && (
               <span class="post-views" data-page-view-count hidden>
                 <span class="post-meta-separator">·</span>
                 <span data-page-view-count-value></span>
               </span>
             )}
-            {frontmatter.draft && <span class="post-meta-separator">·</span>}
-            {frontmatter.draft && <span class="post-draft-badge">Draft</span>}
+            {!post.isPublic && <span class="post-meta-separator">·</span>}
+            {!post.isPublic && <span class="post-private-badge">Private</span>}
+            {isAdmin && <span class="post-meta-separator">·</span>}
+            {isAdmin && (
+              <a class="post-edit-link" href={editPostUrl(post.id)}>
+                Edit
+              </a>
+            )}
           </div>
-          {frontmatter.tags.length > 0 && (
+          {post.tags.length > 0 && (
             <ul class="post-tags">
-              {frontmatter.tags.map((tag) => (
-                <li class={postTagClass}>{tag}</li>
+              {post.tags.map((tag) => (
+                <li class={postTagClass}>
+                  <a href={`${BLOG_BASE_PATH}?tag=${encodeURIComponent(tag)}`}>{tag}</a>
+                </li>
               ))}
             </ul>
           )}
         </header>
-        <slot />
+        <Fragment set:html={post.bodyHtml} />
       </article>
 
-      {section.isPublic && <CommentsSection client:visible pagePath={postUrl(section, id)} />}
+      {post.isPublic && <CommentsSection client:visible pagePath={postUrl(post.path)} />}
 
       {(adjacent.newer || adjacent.older) && (
         <nav class="post-pager" aria-label={`More in ${categoryName}`}>
           {adjacent.newer ? (
             <PostPagerLink
-              href={postUrl(section, adjacent.newer.id)}
+              href={postUrl(adjacent.newer.path)}
               direction="newer"
               categoryName={categoryName}
-              postTitle={adjacent.newer.data.title}
+              postTitle={adjacent.newer.title}
             />
           ) : (
             <span class="post-pager-spacer" />
           )}
           {adjacent.older && (
             <PostPagerLink
-              href={postUrl(section, adjacent.older.id)}
+              href={postUrl(adjacent.older.path)}
               direction="older"
               categoryName={categoryName}
-              postTitle={adjacent.older.data.title}
+              postTitle={adjacent.older.title}
             />
           )}
         </nav>
       )}
     </div>
-    <TableOfContentsRail headings={headings} />
+    <TableOfContentsRail headings={post.headings} />
   </div>
 
   <script>
@@ -207,6 +208,11 @@ const postTagClass = cn(
     color: var(--color-text-muted, #666);
   }
 
+  .post-tag a {
+    color: inherit;
+    text-decoration: none;
+  }
+
   .post-breadcrumb a {
     color: var(--color-text-muted, #666);
     text-decoration: none;
@@ -248,7 +254,16 @@ const postTagClass = cn(
     font-style: italic;
   }
 
-  .post-draft-badge {
+  .post-edited {
+    display: contents;
+    font-style: italic;
+  }
+
+  .post-edit-link {
+    color: var(--color-text-main, #111);
+  }
+
+  .post-private-badge {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;

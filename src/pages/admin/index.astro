@@ -1,16 +1,21 @@
 ---
+import { env } from 'cloudflare:workers';
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import AdminEditor from '../../features/admin/components/AdminEditor';
+import AdminPostTable from '../../features/posts/admin/AdminPostTable.astro';
 import { checkAdminPageAccess } from '../../features/admin/admin-page-guard';
-import { adminSignInUrl } from '../../features/auth/admin-sign-in-url';
+import { DEFAULT_CONTENT_VIEW_QUERY } from '../../features/content-view/content-view-query';
+import { selectContentForView } from '../../features/content-view/content-view-selection';
+import { listPostSummaries } from '../../features/posts/store/post-store';
 
 export const prerender = false;
 
-const access = await checkAdminPageAccess(Astro.cookies, '/admin/', { requiresRepositoryAccess: true });
+const access = await checkAdminPageAccess(Astro.cookies, '/admin/');
 if (access.kind === 'redirect') return Astro.redirect(access.location);
 Astro.response.headers.set('cache-control', 'no-store');
+const allPosts = await listPostSummaries(env.DB, { includePrivate: true });
+const posts = selectContentForView(allPosts, { ...DEFAULT_CONTENT_VIEW_QUERY, sort: 'recently-edited' }, () => '');
 ---
 
 <AdminLayout title="Posts" activeSection="posts" signedInAs={access.user.githubLogin}>
-  <AdminEditor client:load signInUrl={adminSignInUrl('/admin/')} />
+  <AdminPostTable posts={posts} />
 </AdminLayout>

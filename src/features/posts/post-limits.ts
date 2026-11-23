@@ -1,0 +1,9 @@
+export const MAX_POST_PATH_LENGTH = 120;
+export const MAX_POST_TITLE_LENGTH = 200;
+export const MAX_POST_DESCRIPTION_LENGTH = 600;
+export const MAX_POST_VENUE_LENGTH = 200;
+export const MAX_POST_TAG_COUNT = 10;
+export const MAX_POST_TAG_LENGTH = 40;
+export const MAX_POST_MARKDOWN_LENGTH = 200_000;
+export const MAX_POST_HTML_LENGTH = 1_800_000;
+export const MAX_POST_HEADING_COUNT = 500;

@@ -1,8 +1,6 @@
-import { fileURLToPath } from 'node:url';
-import { openSync, type Font } from 'fontkit';
 import type { TextStyle } from './text-styles.ts';
+import { VIRGIL_ADVANCE_WIDTHS, VIRGIL_UNITS_PER_EM } from './virgil-advance-widths.generated.ts';
 
-const VIRGIL_FONT_PATH = fileURLToPath(new URL('../../../../public/fonts/Virgil.woff2', import.meta.url));
 const FULL_WIDTH_EM = 1;
 const MISSING_GLYPH_EM = 0.6;
 
@@ -20,30 +18,19 @@ const FULL_WIDTH_RANGES: readonly (readonly [number, number])[] = [
   [0xffe0, 0xffe6],
 ];
 
-let virgilFont: Font | null = null;
-
-function loadVirgilFont(): Font {
-  if (virgilFont) return virgilFont;
-  const opened = openSync(VIRGIL_FONT_PATH);
-  if (!('unitsPerEm' in opened)) throw new Error('Virgil.woff2 must contain a single font');
-  virgilFont = opened;
-  return opened;
-}
-
 function isFullWidth(codePoint: number): boolean {
   return FULL_WIDTH_RANGES.some(([first, last]) => codePoint >= first && codePoint <= last);
 }
 
-function characterWidthEm(font: Font, codePoint: number): number {
+function characterWidthEm(codePoint: number): number {
   if (isFullWidth(codePoint)) return FULL_WIDTH_EM;
-  if (!font.hasGlyphForCodePoint(codePoint)) return MISSING_GLYPH_EM;
-  return font.glyphForCodePoint(codePoint).advanceWidth / font.unitsPerEm;
+  const advanceWidth = VIRGIL_ADVANCE_WIDTHS.get(codePoint);
+  return advanceWidth === undefined ? MISSING_GLYPH_EM : advanceWidth / VIRGIL_UNITS_PER_EM;
 }
 
 export function measureTextWidth(text: string, fontSizePx: number): number {
-  const font = loadVirgilFont();
   let widthEm = 0;
-  for (const character of text) widthEm += characterWidthEm(font, character.codePointAt(0) ?? 0);
+  for (const character of text) widthEm += characterWidthEm(character.codePointAt(0) ?? 0);
   return widthEm * fontSizePx;
 }
 

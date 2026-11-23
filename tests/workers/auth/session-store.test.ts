@@ -4,7 +4,7 @@ import {
   createSession,
   deleteExpiredSessions,
   deleteSession,
-  findSession,
+  findSessionUser,
   sessionLifetimeSeconds,
 } from '../../../src/features/auth/session-store';
 import { ADMIN_PROFILE, resetDatabase, VISITOR_PROFILE } from '../support/database';
@@ -27,42 +27,35 @@ describe('session store', () => {
   });
 
   it('stores only a hash of the session token', async () => {
-    const token = await createSession(env.DB, VISITOR_PROFILE, null);
+    const token = await createSession(env.DB, VISITOR_PROFILE);
     const stored = await env.DB.prepare('SELECT id_hash FROM sessions').first<{ id_hash: string }>();
 
     expect(stored?.id_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(stored?.id_hash).not.toContain(token);
   });
 
-  it('finds a live session and derives admin and repository access', async () => {
-    const visitorToken = await createSession(env.DB, VISITOR_PROFILE, null);
-    const adminToken = await createSession(env.DB, ADMIN_PROFILE, 'encrypted');
+  it('finds a live session and derives admin access', async () => {
+    const visitorToken = await createSession(env.DB, VISITOR_PROFILE);
+    const adminToken = await createSession(env.DB, ADMIN_PROFILE);
 
-    await expect(findSession(env.DB, visitorToken)).resolves.toStrictEqual({
-      user: {
-        githubUserId: VISITOR_PROFILE.id,
-        githubLogin: VISITOR_PROFILE.login,
-        githubAvatarUrl: VISITOR_PROFILE.avatarUrl,
-        isAdmin: false,
-        hasRepositoryAccess: false,
-      },
-      encryptedAccessToken: null,
+    await expect(findSessionUser(env.DB, visitorToken)).resolves.toStrictEqual({
+      githubUserId: VISITOR_PROFILE.id,
+      githubLogin: VISITOR_PROFILE.login,
+      githubAvatarUrl: VISITOR_PROFILE.avatarUrl,
+      isAdmin: false,
     });
-    await expect(findSession(env.DB, adminToken)).resolves.toMatchObject({
-      user: { isAdmin: true, hasRepositoryAccess: true },
-      encryptedAccessToken: 'encrypted',
-    });
+    await expect(findSessionUser(env.DB, adminToken)).resolves.toMatchObject({ isAdmin: true });
   });
 
   it('ignores unknown tokens', async () => {
-    await expect(findSession(env.DB, 'not-a-session')).resolves.toBeNull();
+    await expect(findSessionUser(env.DB, 'not-a-session')).resolves.toBeNull();
   });
 
   it('stops finding a session once it expires and cleans it up', async () => {
-    const token = await createSession(env.DB, VISITOR_PROFILE, null);
+    const token = await createSession(env.DB, VISITOR_PROFILE);
     vi.setSystemTime(new Date('2026-12-01T00:00:00.000Z'));
 
-    await expect(findSession(env.DB, token)).resolves.toBeNull();
+    await expect(findSessionUser(env.DB, token)).resolves.toBeNull();
 
     await deleteExpiredSessions(env.DB);
 
@@ -70,16 +63,16 @@ describe('session store', () => {
   });
 
   it('keeps live sessions when cleaning up expired ones', async () => {
-    const token = await createSession(env.DB, VISITOR_PROFILE, null);
+    const token = await createSession(env.DB, VISITOR_PROFILE);
     await deleteExpiredSessions(env.DB);
 
-    await expect(findSession(env.DB, token)).resolves.not.toBeNull();
+    await expect(findSessionUser(env.DB, token)).resolves.not.toBeNull();
   });
 
   it('deletes a session by token', async () => {
-    const token = await createSession(env.DB, VISITOR_PROFILE, null);
+    const token = await createSession(env.DB, VISITOR_PROFILE);
     await deleteSession(env.DB, token);
 
-    await expect(findSession(env.DB, token)).resolves.toBeNull();
+    await expect(findSessionUser(env.DB, token)).resolves.toBeNull();
   });
 });

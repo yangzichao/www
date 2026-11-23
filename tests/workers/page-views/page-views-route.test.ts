@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { POST } from '../../../src/pages/api/page-views';
-import { PUBLISHED_TEST_PAGE } from '../../support/published-pages';
+import { PRIVATE_TEST_POST_PAGE, PUBLISHED_TEST_PAGE, STATIC_TEST_PAGE } from '../../support/published-pages';
 import { callRoute } from '../support/api-context';
 import { resetDatabase } from '../support/database';
 
@@ -29,12 +29,22 @@ describe('POST /api/page-views', () => {
     expect(response.status).toBe(403);
   });
 
-  it.each(['/blog/not-a-real-post/', 'not-a-path', '/blog/../etc/passwd', ''])(
-    'rejects %j because it is not a published page',
-    async (path) => {
-      const { response } = await callRoute(POST, { method: 'POST', path: '/api/page-views', body: path });
+  it('counts views on static pages served from the assets', async () => {
+    const { response } = await callRoute(POST, { method: 'POST', path: '/api/page-views', body: STATIC_TEST_PAGE });
 
-      expect(response.status).toBe(400);
-    },
-  );
+    await expect(response.json()).resolves.toStrictEqual({ path: STATIC_TEST_PAGE, totalViews: 1 });
+  });
+
+  it.each([
+    '/blog/not-a-real-post/',
+    '/blog/physics/missing-post/',
+    PRIVATE_TEST_POST_PAGE,
+    'not-a-path',
+    '/blog/../etc/passwd',
+    '',
+  ])('rejects %j because it is not a published page', async (path) => {
+    const { response } = await callRoute(POST, { method: 'POST', path: '/api/page-views', body: path });
+
+    expect(response.status).toBe(400);
+  });
 });

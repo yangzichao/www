@@ -1,6 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["tests/support/astro-content-stub.ts"],
   "project": ["**/*.{ts,tsx,mjs,astro,css}"],
   "ignore": [".claude/**"],
   "ignoreExportsUsedInFile": true

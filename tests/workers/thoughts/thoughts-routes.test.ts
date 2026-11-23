@@ -6,7 +6,7 @@ import { DELETE as deleteRoute, PATCH as patchRoute } from '../../../src/pages/a
 import { GET as exportRoute } from '../../../src/pages/api/thoughts/export';
 import { POST as postRoute } from '../../../src/pages/api/thoughts/index';
 import { callRoute } from '../support/api-context';
-import { resetDatabase, signInAdminWithoutRepositoryAccess, signInVisitor } from '../support/database';
+import { resetDatabase, signInAdmin, signInVisitor } from '../support/database';
 
 const FIXED_NOW = '2026-11-22T21:30:00.000Z';
 const LATER = '2026-11-23T08:00:00.000Z';
@@ -14,7 +14,7 @@ const ADMIN_AUDIENCE = { includePrivate: true };
 
 async function cookiesFor(viewer: 'nobody' | 'a visitor' | 'the admin'): Promise<Record<string, string>> {
   if (viewer === 'a visitor') return signInVisitor();
-  if (viewer === 'the admin') return signInAdminWithoutRepositoryAccess();
+  if (viewer === 'the admin') return signInAdmin();
   return {};
 }
 

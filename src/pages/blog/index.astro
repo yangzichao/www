@@ -1,13 +1,34 @@
 ---
+import { env } from 'cloudflare:workers';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostIndex from '../../components/blog/PostIndex.astro';
-import { getPublishedPosts, groupByCategory } from '../../lib/posts';
-import { WRITING_SECTION } from '../../lib/post-sections';
+import { loadCurrentUser } from '../../features/auth/current-session';
+import { parseContentViewQuery } from '../../features/content-view/content-view-query';
+import { countTags, selectContentForView } from '../../features/content-view/content-view-selection';
+import { describePostCount } from '../../features/posts/post-count';
+import { groupByCategory } from '../../features/posts/post-grouping';
+import { postSearchableText } from '../../features/posts/post-view';
+import { listPostSummaries } from '../../features/posts/store/post-store';
 
+export const prerender = false;
+
+const viewer = await loadCurrentUser(Astro.cookies);
+const isAdmin = viewer?.isAdmin ?? false;
+const visiblePosts = await listPostSummaries(env.DB, { includePrivate: isAdmin });
+const query = parseContentViewQuery(Astro.url.searchParams, isAdmin);
+const shownPosts = selectContentForView(visiblePosts, query, postSearchableText);
 const subtitle = 'Notes and essays on physics, systems, AI, and life.';
-const groups = groupByCategory(await getPublishedPosts());
+Astro.response.headers.set('cache-control', 'no-store');
 ---
 
 <BaseLayout title="Writing — Zichao Yang" description={subtitle}>
-  <PostIndex section={WRITING_SECTION} groups={groups} subtitle={subtitle} />
+  <PostIndex
+    sidebarGroups={groupByCategory(visiblePosts)}
+    shownGroups={groupByCategory(shownPosts)}
+    query={query}
+    tagCounts={countTags(visiblePosts)}
+    countLabel={describePostCount(shownPosts.length, visiblePosts.length)}
+    isAdmin={isAdmin}
+    subtitle={subtitle}
+  />
 </BaseLayout>

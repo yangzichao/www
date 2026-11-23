@@ -22,31 +22,47 @@ describe('parsePagePath', () => {
 });
 
 describe('isPublishedPage', () => {
-  function assetsReturning(status: number) {
+  function sourcesWithAssetStatus(status: number, publicPostPaths: readonly string[] = []) {
     const fetchStub = vi.fn<Fetcher['fetch']>().mockResolvedValue(new Response(null, { status }));
-    return { assets: { fetch: fetchStub, connect: vi.fn() } satisfies Fetcher, fetchStub };
+    const assets = { fetch: fetchStub, connect: vi.fn() } satisfies Fetcher;
+    const isPublicPostPath = vi.fn((postPath: string) => Promise.resolve(publicPostPaths.includes(postPath)));
+    return { sources: { assets, isPublicPostPath }, fetchStub, isPublicPostPath };
   }
 
   it('asks the static assets with a HEAD request that does not follow redirects', async () => {
-    const { assets, fetchStub } = assetsReturning(200);
+    const { sources, fetchStub } = sourcesWithAssetStatus(200);
 
-    await expect(isPublishedPage(assets, '/blog/a/', 'https://zichaoyang.com')).resolves.toBe(true);
-    expect(fetchStub).toHaveBeenCalledWith(new URL('https://zichaoyang.com/blog/a/'), {
+    await expect(isPublishedPage(sources, '/notes/a/', 'https://zichaoyang.com')).resolves.toBe(true);
+    expect(fetchStub).toHaveBeenCalledWith(new URL('https://zichaoyang.com/notes/a/'), {
       method: 'HEAD',
       redirect: 'manual',
     });
   });
 
-  it('counts server-rendered public pages as published without asking the static assets', async () => {
-    const { assets, fetchStub } = assetsReturning(404);
+  it.each(['/thoughts/', '/blog/'])(
+    'counts the server-rendered page %s as published without asking the static assets',
+    async (path) => {
+      const { sources, fetchStub } = sourcesWithAssetStatus(404);
 
-    await expect(isPublishedPage(assets, '/thoughts/', 'https://zichaoyang.com')).resolves.toBe(true);
+      await expect(isPublishedPage(sources, path, 'https://zichaoyang.com')).resolves.toBe(true);
+      expect(fetchStub).not.toHaveBeenCalled();
+    },
+  );
+
+  it('asks the post store whether a blog post path is public', async () => {
+    const { sources, fetchStub, isPublicPostPath } = sourcesWithAssetStatus(200, ['physics/11be-proton-emission']);
+
+    await expect(isPublishedPage(sources, '/blog/physics/11be-proton-emission/', 'https://site.test')).resolves.toBe(
+      true,
+    );
+    await expect(isPublishedPage(sources, '/blog/system-design/kv-store/', 'https://site.test')).resolves.toBe(false);
+    expect(isPublicPostPath.mock.calls).toStrictEqual([['physics/11be-proton-emission'], ['system-design/kv-store']]);
     expect(fetchStub).not.toHaveBeenCalled();
   });
 
   it.each([301, 307, 404])('treats status %i as unpublished', async (status) => {
-    await expect(isPublishedPage(assetsReturning(status).assets, '/blog/a', 'https://zichaoyang.com')).resolves.toBe(
-      false,
-    );
+    await expect(
+      isPublishedPage(sourcesWithAssetStatus(status).sources, '/blog/a', 'https://zichaoyang.com'),
+    ).resolves.toBe(false);
   });
 });

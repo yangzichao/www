@@ -1,56 +1,89 @@
 ---
 import BlogSidebar from '../BlogSidebar.astro';
-import { formatPostDate, type CategoryGroup } from '../../lib/posts';
-import { postUrl, type PostSection } from '../../lib/post-sections';
+import ContentViewToolbar from '../../features/content-view/ContentViewToolbar.astro';
+import type { ContentViewQuery } from '../../features/content-view/content-view-query';
+import type { TagCount } from '../../features/content-view/content-view-selection';
+import { formatPostCreatedDate, formatPostEditedDate } from '../../features/posts/post-date-format';
+import type { CategoryGroup } from '../../features/posts/post-grouping';
+import { BLOG_BASE_PATH, postUrl } from '../../features/posts/post-path';
+import { NEW_POST_URL } from '../../features/posts/post-view';
 import '../../styles/blog-layout.css';
 
 interface Props {
-  section: PostSection;
-  groups: CategoryGroup[];
+  sidebarGroups: CategoryGroup[];
+  shownGroups: CategoryGroup[];
+  query: ContentViewQuery;
+  tagCounts: TagCount[];
+  countLabel: string;
+  isAdmin: boolean;
   subtitle: string;
 }
 
-const { section, groups, subtitle } = Astro.props;
+const { sidebarGroups, shownGroups, query, tagCounts, countLabel, isAdmin, subtitle } = Astro.props;
 ---
 
 <div class="blog-layout">
-  <BlogSidebar groups={groups} section={section} />
+  <BlogSidebar groups={sidebarGroups} />
   <div class="blog-main" data-depth-stagger>
     <header class="writing-head" data-depth-reveal>
       <a class="back-home" href="/">
         ← Home
       </a>
-      <h1 class="writing-title">{section.label}</h1>
+      <h1 class="writing-title">Writing</h1>
       <p class="writing-sub">{subtitle}</p>
+      {isAdmin && (
+        <p class="writing-admin">
+          <a href={NEW_POST_URL}>New post</a>
+          <a href="/api/posts/export" download>
+            Export JSON
+          </a>
+        </p>
+      )}
     </header>
 
-    {groups.map((group) => (
-      <section class="category" id={group.slug} data-depth-reveal>
+    <ContentViewToolbar
+      basePath={BLOG_BASE_PATH}
+      query={query}
+      tagCounts={tagCounts}
+      showVisibilityFilter={isAdmin}
+      searchLabel="Search posts"
+    />
+
+    {shownGroups.map((group) => (
+      <section class="category" id={group.category} data-depth-reveal>
         <h2 class="section-title">{group.label}</h2>
         <ul class="post-list">
           {group.posts.map((post) => (
-            <li class="post-row">
-              <a class="post-row-link" href={postUrl(section, post.id)}>
+            <li class="post-row" data-post-path={post.path}>
+              <a class="post-row-link" href={postUrl(post.path)}>
                 <span class="post-row-title">
-                  {post.data.title}
-                  {post.data.draft && <span class="post-row-draft">Draft</span>}
+                  {post.title}
+                  {!post.isPublic && <span class="post-row-private">Private</span>}
                 </span>
-                <time class="post-row-date" datetime={post.data.date.toISOString()}>
-                  {formatPostDate(post.data.date)}
-                </time>
+                <span class="post-row-dates">
+                  <time datetime={post.createdAt}>{formatPostCreatedDate(post, 'short')}</time>
+                  {post.updatedAt && (
+                    <span class="post-row-edited">
+                      Edited <time datetime={post.updatedAt}>{formatPostEditedDate(post.updatedAt, 'short')}</time>
+                    </span>
+                  )}
+                </span>
               </a>
-              {post.data.description && <p class="post-row-desc">{post.data.description}</p>}
+              {post.description && <p class="post-row-desc">{post.description}</p>}
             </li>
           ))}
         </ul>
       </section>
     ))}
+    {shownGroups.length === 0 && <p class="writing-empty">No posts match.</p>}
+
+    <p class="writing-count">{countLabel}</p>
   </div>
 </div>
 
 <style>
   .writing-head {
-    margin-bottom: 3.5rem;
+    margin-bottom: 2rem;
   }
 
   .back-home {
@@ -77,6 +110,23 @@ const { section, groups, subtitle } = Astro.props;
   .writing-sub {
     margin-top: 0.75rem;
     font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
+  .writing-admin {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .writing-admin a {
+    color: var(--color-text-main);
+  }
+
+  .writing-empty,
+  .writing-count {
+    font-size: 0.85rem;
     color: var(--color-text-muted);
   }
 
@@ -116,7 +166,7 @@ const { section, groups, subtitle } = Astro.props;
     transition: color var(--transition);
   }
 
-  .post-row-draft {
+  .post-row-private {
     margin-left: 0.6rem;
     font-size: 0.7rem;
     font-weight: 600;
@@ -130,11 +180,19 @@ const { section, groups, subtitle } = Astro.props;
     color: var(--color-text-muted);
   }
 
-  .post-row-date {
+  .post-row-dates {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
     flex-shrink: 0;
     font-size: 0.85rem;
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  .post-row-edited {
+    font-size: 0.75rem;
+    font-style: italic;
   }
 
   .post-row-desc {
@@ -153,6 +211,10 @@ const { section, groups, subtitle } = Astro.props;
     .post-row-link {
       flex-direction: column;
       gap: 0.25rem;
+    }
+
+    .post-row-dates {
+      align-items: flex-start;
     }
   }
 </style>

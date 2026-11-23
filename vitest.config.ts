@@ -2,11 +2,7 @@ import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-plugin';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { respondLikeStaticAssets } from './tests/support/published-pages.ts';
-import {
-  ALWAYS_PASSING_TURNSTILE_SECRET,
-  TEST_GITHUB_CLIENT_SECRET,
-  TEST_TOKEN_ENCRYPTION_KEY,
-} from './tests/support/test-secrets.ts';
+import { ALWAYS_PASSING_TURNSTILE_SECRET, TEST_GITHUB_CLIENT_SECRET } from './tests/support/test-secrets.ts';
 
 process.env.TZ = 'UTC';
 
@@ -34,7 +30,6 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        resolve: { alias: { 'astro:content': fromRoot('./tests/support/astro-content-stub.ts') } },
         test: { name: 'unit', include: ['tests/unit/**/*.test.ts'], environment: 'node' },
       },
       {
@@ -66,7 +61,6 @@ export default defineConfig({
               serviceBindings: { ASSETS: respondLikeStaticAssets },
               bindings: {
                 GITHUB_CLIENT_SECRET: TEST_GITHUB_CLIENT_SECRET,
-                TOKEN_ENCRYPTION_KEY: TEST_TOKEN_ENCRYPTION_KEY,
                 TURNSTILE_SECRET_KEY: ALWAYS_PASSING_TURNSTILE_SECRET,
                 TEST_MIGRATIONS: await readD1Migrations(fromRoot('./migrations')),
               },

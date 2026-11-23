@@ -2,18 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { ADMIN_GITHUB_USER_ID, isAdminGitHubUser } from '../../../src/features/auth/admin-identity';
 import { adminSignInUrl, commentSignInUrl } from '../../../src/features/auth/admin-sign-in-url';
 import { toPublicViewer } from '../../../src/features/auth/session-user';
-import { oauthScopeForIntent, parseSignInIntent } from '../../../src/features/auth/sign-in-intent';
+import { parseSignInIntent } from '../../../src/features/auth/sign-in-intent';
 
 describe('sign-in intent', () => {
   it('only grants the admin intent when asked for exactly', () => {
     expect(parseSignInIntent('admin')).toBe('admin');
     expect(parseSignInIntent('ADMIN')).toBe('comment');
     expect(parseSignInIntent(null)).toBe('comment');
-  });
-
-  it('requests repository scope only for the admin', () => {
-    expect(oauthScopeForIntent('admin')).toBe('public_repo');
-    expect(oauthScopeForIntent('comment')).toBe('');
   });
 });
 
@@ -41,7 +36,6 @@ describe('toPublicViewer', () => {
         githubLogin: 'octo',
         githubAvatarUrl: 'https://avatars.test/7',
         isAdmin: false,
-        hasRepositoryAccess: true,
       }),
     ).toStrictEqual({ login: 'octo', avatarUrl: 'https://avatars.test/7', isAdmin: false });
     expect(toPublicViewer(null)).toBeNull();

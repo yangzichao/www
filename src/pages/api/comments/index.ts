@@ -9,6 +9,7 @@ import { verifyTurnstileToken } from '../../../features/comments/turnstile-verif
 import { jsonError, jsonNoStore } from '../../../features/http/json-responses';
 import { isSameOriginRequest } from '../../../features/http/same-origin';
 import { isPublishedPage, parsePagePath } from '../../../features/site-pages/page-path';
+import { sitePublishedPageSources } from '../../../features/site-pages/site-published-page-sources';
 
 export const prerender = false;
 
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request, url, cookies, clientAddress }) =
   if (typeof submission === 'string') return jsonError(400, submission);
 
   const pagePath = parsePagePath(submission.pagePath);
-  if (!pagePath || !(await isPublishedPage(env.ASSETS, pagePath, url.origin))) {
+  if (!pagePath || !(await isPublishedPage(sitePublishedPageSources(), pagePath, url.origin))) {
     return jsonError(400, 'Comments are only allowed on published pages.');
   }
 

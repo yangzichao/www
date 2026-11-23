@@ -1,26 +1,24 @@
 ---
-import type { CategoryGroup } from '../lib/posts';
 import { cn } from 'cn';
 import { buttonVariants } from '@/components/ui/button';
-import { categoryOfId } from '../lib/posts';
-import { postUrl, WRITING_SECTION, type PostSection } from '../lib/post-sections';
+import type { CategoryGroup } from '../features/posts/post-grouping';
+import { BLOG_BASE_PATH, categoryOfPostPath, postUrl } from '../features/posts/post-path';
 
 interface Props {
   groups: CategoryGroup[];
-  currentId?: string;
-  section?: PostSection;
+  currentPath?: string;
 }
 
-const { groups, currentId, section = WRITING_SECTION } = Astro.props;
+const { groups, currentPath } = Astro.props;
 
-const currentCategory = currentId ? categoryOfId(currentId) : null;
+const currentCategory = currentPath ? categoryOfPostPath(currentPath) : null;
 const sidebarToggleClass = cn(
   buttonVariants({ variant: 'outline' }),
   'sidebar-toggle h-auto bg-clip-border leading-[inherit]',
 );
 
 function isExpanded(group: CategoryGroup): boolean {
-  return currentCategory === null || group.slug === currentCategory;
+  return currentCategory === null || group.category === currentCategory;
 }
 ---
 
@@ -34,9 +32,9 @@ function isExpanded(group: CategoryGroup): boolean {
 <div class="sidebar-overlay" data-sidebar-overlay aria-hidden="true"></div>
 
 <aside class="blog-sidebar" data-blog-sidebar>
-  <nav class="sidebar-nav" aria-label={section.label}>
-    <a class="sidebar-home" href={section.basePath}>
-      {section.label}
+  <nav class="sidebar-nav" aria-label="Writing">
+    <a class="sidebar-home" href={BLOG_BASE_PATH}>
+      Writing
     </a>
     {groups.map((group) => (
       <details class="sidebar-group" open={isExpanded(group)}>
@@ -58,11 +56,11 @@ function isExpanded(group: CategoryGroup): boolean {
           {group.posts.map((post) => (
             <li>
               <a
-                class:list={['sidebar-post-link', { 'is-active': post.id === currentId }]}
-                href={postUrl(section, post.id)}
-                aria-current={post.id === currentId ? 'page' : undefined}
+                class:list={['sidebar-post-link', { 'is-active': post.path === currentPath }]}
+                href={postUrl(post.path)}
+                aria-current={post.path === currentPath ? 'page' : undefined}
               >
-                {post.data.title}
+                {post.title}
               </a>
             </li>
           ))}

@@ -3,7 +3,6 @@ export interface SessionUser {
   githubLogin: string;
   githubAvatarUrl: string;
   isAdmin: boolean;
-  hasRepositoryAccess: boolean;
 }
 
 export interface PublicViewer {

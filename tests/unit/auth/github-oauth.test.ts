@@ -18,13 +18,13 @@ describe('GitHub OAuth', () => {
     expect(callbackUrlFor('https://zichaoyang.com')).toBe('https://zichaoyang.com/auth/github/callback');
   });
 
-  it('builds the authorize URL', () => {
-    const url = new URL(buildAuthorizeUrl({ siteOrigin: 'https://zichaoyang.com', scope: 'public_repo', state: 's1' }));
+  it('builds an authorize URL that asks for no extra scopes', () => {
+    const url = new URL(buildAuthorizeUrl({ siteOrigin: 'https://zichaoyang.com', state: 's1' }));
 
     expect(Object.fromEntries(url.searchParams)).toStrictEqual({
       client_id: GITHUB_OAUTH_CLIENT_ID,
       redirect_uri: 'https://zichaoyang.com/auth/github/callback',
-      scope: 'public_repo',
+      scope: '',
       state: 's1',
       allow_signup: 'true',
     });

@@ -1,0 +1,48 @@
+---
+import { buttonVariants } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { formatPostCreatedDate, formatPostEditedDate } from '../post-date-format';
+import { postUrl } from '../post-path';
+import type { PostSummary } from '../post-types';
+import { editPostUrl, NEW_POST_URL } from '../post-view';
+import './admin-post-table.css';
+
+interface Props {
+  posts: PostSummary[];
+}
+
+const { posts } = Astro.props;
+const publicPostCount = posts.filter((post) => post.isPublic).length;
+---
+
+<section class="admin-posts">
+  <header class="admin-posts-head">
+    <p class="admin-posts-count">
+      {posts.length} posts · {publicPostCount} public · {posts.length - publicPostCount} private
+    </p>
+    <a class="admin-posts-export" href="/api/posts/export" download>
+      Export JSON
+    </a>
+    <a class={buttonVariants({ size: 'sm' })} href={NEW_POST_URL}>
+      New post
+    </a>
+  </header>
+  <ul class="admin-posts-list">
+    {posts.map((post) => (
+      <li class="admin-post-row" data-post-id={post.id}>
+        <a class="admin-post-title" href={editPostUrl(post.id)}>
+          {post.title}
+        </a>
+        {!post.isPublic && <Badge variant="secondary">Private</Badge>}
+        <span class="admin-post-path">{post.path}</span>
+        <span class="admin-post-dates">
+          {formatPostCreatedDate(post, 'short')}
+          {post.updatedAt && ` · Edited ${formatPostEditedDate(post.updatedAt, 'short')}`}
+        </span>
+        <a class="admin-post-view" href={postUrl(post.path)}>
+          View
+        </a>
+      </li>
+    ))}
+  </ul>
+</section>

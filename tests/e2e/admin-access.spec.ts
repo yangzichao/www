@@ -12,13 +12,13 @@ test('the admin editor sends signed-out readers to GitHub sign-in', async ({ req
   expect(response.headers().location).toBe('/auth/github/login?intent=admin&return_to=%2Fadmin%2F');
 });
 
-test('admin sign-in asks GitHub for public repository access with a state cookie', async ({ request }) => {
+test('admin sign-in asks GitHub for no extra scopes and sets a state cookie', async ({ request }) => {
   const response = await request.get('/auth/github/login?intent=admin&return_to=%2Fadmin%2F', { maxRedirects: 0 });
   const authorizeUrl = new URL(response.headers().location ?? '');
 
   expect(response.status()).toBe(302);
   expect(authorizeUrl.origin + authorizeUrl.pathname).toBe('https://github.com/login/oauth/authorize');
-  expect(authorizeUrl.searchParams.get('scope')).toBe('public_repo');
+  expect(authorizeUrl.searchParams.get('scope')).toBe('');
   expect(authorizeUrl.searchParams.get('redirect_uri')).toBe('http://localhost:8790/auth/github/callback');
   expect(response.headers()['set-cookie']).toMatch(/oauth_state=.*HttpOnly/i);
 });
@@ -32,10 +32,26 @@ test('visitors cannot reach the moderation page', async ({ request }) => {
   expect(response.status()).toBe(302);
 });
 
-test('the editor needs repository access even for the admin', async ({ request }) => {
-  const response = await request.get('/admin/', { maxRedirects: 0, headers: sessionCookie(ADMIN_SESSION.token) });
+test('visitors cannot reach the post editor', async ({ request }) => {
+  const response = await request.get('/admin/posts/new/', {
+    maxRedirects: 0,
+    headers: sessionCookie(VISITOR_SESSION.token),
+  });
 
   expect(response.status()).toBe(302);
+});
+
+test('the posts page opens for the admin', async ({ request }) => {
+  const response = await request.get('/admin/', { maxRedirects: 0, headers: sessionCookie(ADMIN_SESSION.token) });
+
+  expect(response.status()).toBe(200);
+  expect(response.headers()['cache-control']).toBe('no-store');
+});
+
+test('an unknown post id is 404 in the editor', async ({ request }) => {
+  const response = await request.get('/admin/posts/not-a-post/', { headers: sessionCookie(ADMIN_SESSION.token) });
+
+  expect(response.status()).toBe(404);
 });
 
 test('the moderation page opens for the admin', async ({ request }) => {

@@ -1,10 +1,10 @@
 ---
-import type { MarkdownHeading } from 'astro';
+import type { PostHeading } from '../../features/posts/rendering/post-heading';
 import TocList from './TocList.astro';
 import { tocHeadingsOf, shouldShowToc } from '../../lib/toc';
 
 interface Props {
-  headings: MarkdownHeading[];
+  headings: PostHeading[];
 }
 
 const { headings } = Astro.props;

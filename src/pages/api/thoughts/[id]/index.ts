@@ -1,18 +1,12 @@
-import type { APIContext, APIRoute } from 'astro';
+import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
-import { rejectUnlessAdmin } from '../../../../features/auth/require-admin';
+import { rejectUnlessSameOriginAdmin } from '../../../../features/auth/require-same-origin-admin';
 import { jsonError, jsonNoStore } from '../../../../features/http/json-responses';
-import { isSameOriginRequest } from '../../../../features/http/same-origin';
 import { parseThoughtSubmission } from '../../../../features/thoughts/thought-input';
 import { deleteThought, updateThought } from '../../../../features/thoughts/thought-store';
 import type { ThoughtResponse } from '../../../../features/thoughts/thought-types';
 
 export const prerender = false;
-
-async function rejectUnlessSameOriginAdmin({ request, url, cookies }: APIContext): Promise<Response | null> {
-  if (!isSameOriginRequest(request, url)) return jsonError(403, 'Cross-origin request rejected.');
-  return rejectUnlessAdmin(cookies);
-}
 
 export const PATCH: APIRoute = async (context) => {
   const rejection = await rejectUnlessSameOriginAdmin(context);

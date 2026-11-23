@@ -1,0 +1,18 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import PostEditorApp from '../../../features/posts/editor/PostEditorApp';
+import { checkAdminPageAccess } from '../../../features/admin/admin-page-guard';
+import 'katex/dist/katex.min.css';
+import '../../../styles/post.css';
+import '../../../styles/whiteboard-diagram.css';
+
+export const prerender = false;
+
+const access = await checkAdminPageAccess(Astro.cookies, Astro.url.pathname);
+if (access.kind === 'redirect') return Astro.redirect(access.location);
+Astro.response.headers.set('cache-control', 'no-store');
+---
+
+<AdminLayout title="New post" activeSection="posts" signedInAs={access.user.githubLogin}>
+  <PostEditorApp client:only="react" initialPost={null} />
+</AdminLayout>

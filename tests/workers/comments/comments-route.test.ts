@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { CommentThreadResponse, CreateCommentResponse } from '../../../src/features/comments/comment-types';
 import { insertComment } from '../../../src/features/comments/comment-store';
 import { GET, POST } from '../../../src/pages/api/comments/index';
-import { PUBLISHED_TEST_PAGE } from '../../support/published-pages';
+import { PRIVATE_TEST_POST_PAGE, PUBLISHED_TEST_PAGE } from '../../support/published-pages';
 import { ALWAYS_PASSING_TURNSTILE_SECRET } from '../../support/test-secrets';
 import { callRoute } from '../support/api-context';
-import { resetDatabase, signInAdminWithoutRepositoryAccess, signInVisitor, VISITOR_PROFILE } from '../support/database';
+import { resetDatabase, signInAdmin, signInVisitor, VISITOR_PROFILE } from '../support/database';
 import { stubOutboundFetch } from '../support/fetch-stub';
 
 const TURNSTILE_SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
@@ -61,7 +61,7 @@ describe('GET /api/comments', () => {
 
   it('shows pending comments to the admin', async () => {
     await seedPendingComment();
-    const { thread } = await fetchThread(await signInAdminWithoutRepositoryAccess());
+    const { thread } = await fetchThread(await signInAdmin());
 
     expect(thread.viewer?.isAdmin).toBe(true);
     expect(thread.comments.map((comment) => comment.status)).toStrictEqual(['pending']);
@@ -128,7 +128,7 @@ describe('POST /api/comments', () => {
     });
 
     expect(response.status).toBe(400);
-    await expect(fetchThread(await signInAdminWithoutRepositoryAccess())).resolves.toMatchObject({
+    await expect(fetchThread(await signInAdmin())).resolves.toMatchObject({
       thread: { comments: [] },
     });
   });
@@ -145,12 +145,12 @@ describe('POST /api/comments', () => {
     expect(outbound).toHaveLength(0);
   });
 
-  it('rejects comments on pages that are not published', async () => {
+  it.each(['/blog/does-not-exist/', PRIVATE_TEST_POST_PAGE])('rejects comments on %s', async (pagePath) => {
     const { response } = await callRoute(POST, {
       method: 'POST',
       path: '/api/comments',
       cookies: await signInVisitor(),
-      body: { pagePath: '/blog/does-not-exist/', body: 'Hello' },
+      body: { pagePath, body: 'Hello' },
     });
 
     expect(response.status).toBe(400);

@@ -1,0 +1,21 @@
+---
+import { env } from 'cloudflare:workers';
+import PostLayout from '../../layouts/PostLayout.astro';
+import { loadCurrentUser } from '../../features/auth/current-session';
+import { markAsPrivatePage, privateNotFoundResponse } from '../../features/http/private-page-headers';
+import { findPostByPath, listPostSummaries } from '../../features/posts/store/post-store';
+
+export const prerender = false;
+
+const viewer = await loadCurrentUser(Astro.cookies);
+const isAdmin = viewer?.isAdmin ?? false;
+const audience = { includePrivate: isAdmin };
+const post = Astro.params.path ? await findPostByPath(env.DB, Astro.params.path, audience) : null;
+if (!post) return privateNotFoundResponse();
+
+if (post.isPublic) Astro.response.headers.set('cache-control', 'no-store');
+else markAsPrivatePage(Astro.response.headers);
+const visiblePosts = await listPostSummaries(env.DB, audience);
+---
+
+<PostLayout post={post} visiblePosts={visiblePosts} isAdmin={isAdmin} />

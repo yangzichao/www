@@ -5,7 +5,6 @@ import { exchangeCodeForAccessToken, fetchGitHubProfile } from '../../../feature
 import { takePendingSignIn } from '../../../features/auth/oauth-state-cookie';
 import { writeSessionCookie } from '../../../features/auth/session-cookie';
 import { createSession, deleteExpiredSessions } from '../../../features/auth/session-store';
-import { encryptToken } from '../../../features/auth/token-encryption';
 
 export const prerender = false;
 
@@ -30,13 +29,11 @@ export const GET: APIRoute = async ({ url, cookies, redirect, locals }) => {
     return plainTextResponse(502, 'GitHub sign-in failed. Please try again.');
   }
 
-  const wantsRepositoryAccess = pending.intent === 'admin';
-  if (wantsRepositoryAccess && !isAdminGitHubUser(profile.id)) {
+  if (pending.intent === 'admin' && !isAdminGitHubUser(profile.id)) {
     return plainTextResponse(403, 'Only the site owner can sign in to the admin area.');
   }
 
-  const encryptedAccessToken = wantsRepositoryAccess ? await encryptToken(accessToken, env.TOKEN_ENCRYPTION_KEY) : null;
-  const sessionToken = await createSession(env.DB, profile, encryptedAccessToken);
+  const sessionToken = await createSession(env.DB, profile);
   writeSessionCookie(cookies, sessionToken, url.protocol === 'https:');
   locals.cfContext.waitUntil(deleteExpiredSessions(env.DB));
   return redirect(pending.returnPath);

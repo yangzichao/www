@@ -3,11 +3,12 @@ import { cn } from 'cn';
 import { badgeVariants } from '@/components/ui/badge';
 import ThoughtAdminControls from './ThoughtAdminControls';
 import type { ThoughtFeedItem } from '../thought-feed';
-import { buildThoughtViewHref, type ThoughtViewQuery } from '../view/thought-view-query';
+import { buildContentViewHref, type ContentViewQuery } from '../../content-view/content-view-query';
+import { THOUGHTS_PAGE_PATH } from '../thought-view';
 
 interface Props {
   item: ThoughtFeedItem;
-  query: ThoughtViewQuery;
+  query: ContentViewQuery;
   isAdmin: boolean;
 }
 
@@ -30,7 +31,7 @@ const privateBadgeClass = cn(badgeVariants({ variant: 'secondary' }), 'thought-p
     {item.tags.length > 0 && (
       <div class="thought-tags">
         {item.tags.map((tag) => (
-          <a class={thoughtTagClass} href={buildThoughtViewHref(query, { tag })}>
+          <a class={thoughtTagClass} href={buildContentViewHref(THOUGHTS_PAGE_PATH, query, { tag })}>
             {tag}
           </a>
         ))}

@@ -1,8 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { GITHUB_OAUTH_CLIENT_ID } from '../../../src/features/auth/github-oauth';
-import { findSession } from '../../../src/features/auth/session-store';
-import { decryptToken } from '../../../src/features/auth/token-encryption';
+import { findSessionUser } from '../../../src/features/auth/session-store';
 import { GET as callback } from '../../../src/pages/auth/github/callback';
 import { GET as login } from '../../../src/pages/auth/github/login';
 import { POST as logout } from '../../../src/pages/auth/logout';
@@ -36,6 +35,13 @@ async function finishSignIn(query: string, stateCookie: string) {
   return callRoute(callback, { path: `/auth/github/callback?${query}`, cookies: { oauth_state: stateCookie } });
 }
 
+async function storedAccessTokenCount(): Promise<number> {
+  const row = await env.DB.prepare(
+    'SELECT COUNT(*) AS stored FROM sessions WHERE encrypted_access_token IS NOT NULL',
+  ).first<{ stored: number }>();
+  return row?.stored ?? 0;
+}
+
 describe('GET /auth/github/login', () => {
   it('redirects a commenter to GitHub with no extra scopes', async () => {
     const { response, authorizeUrl } = await startSignIn('intent=comment&return_to=/blog/a/%23comments');
@@ -47,10 +53,10 @@ describe('GET /auth/github/login', () => {
     expect(authorizeUrl.searchParams.get('redirect_uri')).toBe(`${TEST_SITE_ORIGIN}/auth/github/callback`);
   });
 
-  it('asks for public repository access when signing in to the admin area', async () => {
+  it('asks for no extra scopes when signing in to the admin area either', async () => {
     const { authorizeUrl } = await startSignIn('intent=admin&return_to=/admin/');
 
-    expect(authorizeUrl.searchParams.get('scope')).toBe('public_repo');
+    expect(authorizeUrl.searchParams.get('scope')).toBe('');
   });
 
   it('stores a state cookie scoped to the callback that matches the state sent to GitHub', async () => {
@@ -72,29 +78,23 @@ describe('GET /auth/github/callback', () => {
     stubGitHub(VISITOR_PROFILE);
     const { state, stateCookie } = await startSignIn('intent=comment&return_to=/blog/a/%23comments');
     const { response, cookies } = await finishSignIn(`code=abc&state=${state}`, stateCookie);
-    const session = await findSession(env.DB, cookies.valueOf('session') ?? '');
+    const session = await findSessionUser(env.DB, cookies.valueOf('session') ?? '');
 
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('/blog/a/#comments');
-    expect(session?.user).toMatchObject({
-      githubLogin: VISITOR_PROFILE.login,
-      isAdmin: false,
-      hasRepositoryAccess: false,
-    });
-    expect(session?.encryptedAccessToken).toBeNull();
+    expect(session).toMatchObject({ githubLogin: VISITOR_PROFILE.login, isAdmin: false });
+    await expect(storedAccessTokenCount()).resolves.toBe(0);
   });
 
-  it('signs in the admin with an encrypted repository token', async () => {
+  it('signs in the admin with only their public profile', async () => {
     const outbound = stubGitHub(ADMIN_PROFILE);
     const { state, stateCookie } = await startSignIn('intent=admin&return_to=/admin/');
     const { response, cookies } = await finishSignIn(`code=abc&state=${state}`, stateCookie);
-    const session = await findSession(env.DB, cookies.valueOf('session') ?? '');
+    const session = await findSessionUser(env.DB, cookies.valueOf('session') ?? '');
 
     expect(response.headers.get('location')).toBe('/admin/');
-    expect(session?.user).toMatchObject({ isAdmin: true, hasRepositoryAccess: true });
-    await expect(decryptToken(session?.encryptedAccessToken ?? '', env.TOKEN_ENCRYPTION_KEY)).resolves.toBe(
-      ISSUED_ACCESS_TOKEN,
-    );
+    expect(session).toMatchObject({ isAdmin: true });
+    await expect(storedAccessTokenCount()).resolves.toBe(0);
     expect(JSON.parse(outbound[0]?.body ?? '{}')).toMatchObject({
       client_secret: TEST_GITHUB_CLIENT_SECRET,
       code: 'abc',
@@ -154,7 +154,7 @@ describe('POST /auth/logout', () => {
 
     expect(response.status).toBe(200);
     expect(jar.deletions).toStrictEqual(['session']);
-    await expect(findSession(env.DB, cookies.session ?? '')).resolves.toBeNull();
+    await expect(findSessionUser(env.DB, cookies.session ?? '')).resolves.toBeNull();
   });
 
   it('rejects cross-origin sign-out', async () => {
@@ -162,6 +162,6 @@ describe('POST /auth/logout', () => {
     const { response } = await callRoute(logout, { method: 'POST', path: '/auth/logout', cookies, sameOrigin: false });
 
     expect(response.status).toBe(403);
-    await expect(findSession(env.DB, cookies.session ?? '')).resolves.not.toBeNull();
+    await expect(findSessionUser(env.DB, cookies.session ?? '')).resolves.not.toBeNull();
   });
 });

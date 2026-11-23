@@ -29,6 +29,27 @@ test('blog index links to posts that render with breadcrumbs and a view count', 
   expect(errors).toStrictEqual([]);
 });
 
+test('readers sort and filter the blog index', async ({ page }) => {
+  await page.goto('/blog/');
+  const toolbar = page.getByRole('navigation', { name: 'Sort and filter' });
+  await toolbar.getByRole('link', { name: /^halo eft/ }).click();
+
+  await expect(page).toHaveURL('/blog/?tag=halo+eft');
+  await expect(page.locator('a.post-row-link')).toHaveCount(1);
+  await expect(page.getByText('1 of 5 posts')).toBeVisible();
+
+  await toolbar.getByRole('link', { name: 'Clear filters' }).click();
+  await toolbar.getByRole('searchbox', { name: 'Search posts' }).fill('attention');
+  await toolbar.getByRole('searchbox', { name: 'Search posts' }).press('Enter');
+
+  await expect(page).toHaveURL('/blog/?q=attention');
+  await expect(page.locator('a.post-row-link')).toHaveAttribute('href', '/blog/life/four-traps-of-attention/');
+
+  await page.goto('/blog/?sort=oldest');
+
+  await expect(page.locator('a.post-row-link').first()).toBeVisible();
+});
+
 test('view counts go up on each visit', async ({ page }) => {
   const viewCount = page.locator('[data-page-view-count-value]');
   await page.goto('/blog/physics/11be-proton-emission/');

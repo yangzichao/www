@@ -1,0 +1,70 @@
+.admin-posts-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-posts-count {
+  margin: 0 auto 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.admin-posts-export,
+.admin-post-view {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.admin-posts-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-post-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-areas:
+    'title badge dates view'
+    'path path path path';
+  align-items: center;
+  gap: 0.15rem 0.75rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-post-title {
+  grid-area: title;
+  font-weight: 600;
+  color: var(--color-text-main);
+  text-decoration: none;
+}
+
+.admin-post-title:hover {
+  text-decoration: underline;
+}
+
+.admin-post-path {
+  grid-area: path;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.admin-post-dates {
+  grid-area: dates;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.admin-post-view {
+  grid-area: view;
+}
+
+.admin-post-row > [data-slot='badge'] {
+  grid-area: badge;
+}
