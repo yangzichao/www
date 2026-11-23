@@ -1,0 +1,40 @@
+.post-pager-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.post-pager-link:hover {
+  border-color: #bbb;
+  background: var(--color-card-hover);
+}
+
+.post-pager-older {
+  text-align: right;
+}
+
+.post-pager-direction {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.post-pager-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text-main);
+}
+
+@media (width <= 600px) {
+  .post-pager-older {
+    text-align: left;
+  }
+}

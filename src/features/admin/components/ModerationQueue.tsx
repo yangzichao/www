@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { CommentItem } from '../../comments/components/CommentItem';
 import { approveCommentById, deleteCommentById } from '../../comments/components/comments-api';
 import type { PublicComment } from '../../comments/comment-types';
@@ -21,7 +22,10 @@ function CommentGroup({
   return (
     <section className="admin-moderation-group">
       <h2>
-        {title} <span className="comments-count">{comments.length}</span>
+        {title}{' '}
+        <Badge variant="outline" className="comments-count h-auto leading-[inherit]">
+          {comments.length}
+        </Badge>
       </h2>
       {comments.length === 0 ? (
         <p className="admin-hint">Nothing here.</p>

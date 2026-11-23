@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import type { PublicViewer } from '../../auth/session-user';
 import { describeError } from '../../http/describe-error';
 import type { PublicComment } from '../comment-types';
@@ -72,7 +73,12 @@ export default function CommentsSection({ pagePath }: CommentsSectionProps) {
   return (
     <section className="comments" id="comments" aria-labelledby="comments-heading">
       <h2 id="comments-heading" className="comments-heading">
-        Comments{visibleComments.length > 0 && <span className="comments-count">{visibleComments.length}</span>}
+        Comments
+        {visibleComments.length > 0 && (
+          <Badge variant="outline" className="comments-count h-auto leading-[inherit]">
+            {visibleComments.length}
+          </Badge>
+        )}
       </h2>
       {loadError && <p className="comment-status">Comments could not be loaded: {loadError}</p>}
       {actionError && (

@@ -4,6 +4,10 @@ import BlogSidebar from '../components/BlogSidebar.astro';
 import TableOfContentsRail from '../components/blog/TableOfContentsRail.astro';
 import TableOfContentsInline from '../components/blog/TableOfContentsInline.astro';
 import CommentsSection from '../features/comments/components/CommentsSection';
+import PostPagerLink from '../components/blog/post-pager/PostPagerLink';
+import { cn } from 'cn';
+import { badgeVariants } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import type { CollectionEntry } from 'astro:content';
 import type { MarkdownHeading } from 'astro';
 import { postsInSection, groupByCategory, getAdjacentPostsInCategory, categoryOfId, categoryLabel } from '../lib/posts';
@@ -43,6 +47,14 @@ const formattedDate = frontmatter.date.toLocaleDateString('en-US', {
   timeZone: 'UTC',
 });
 const isoDate = frontmatter.date.toISOString();
+const pdfDownloadButtonClass = cn(
+  buttonVariants({ variant: 'outline', size: 'sm' }),
+  'pdf-download h-auto bg-clip-border leading-[inherit]',
+);
+const postTagClass = cn(
+  badgeVariants({ variant: 'secondary' }),
+  'post-tag h-auto border-0 font-normal leading-[inherit]',
+);
 ---
 
 <BaseLayout
@@ -56,7 +68,12 @@ const isoDate = frontmatter.date.toISOString();
       <TableOfContentsInline headings={headings} />
       <article class="prose prose-lg post-article">
         <header class="not-prose post-header">
-          <button type="button" class="pdf-download" aria-label="Download this post as PDF" onclick="window.print()">
+          <button
+            type="button"
+            class={pdfDownloadButtonClass}
+            aria-label="Download this post as PDF"
+            onclick="window.print()"
+          >
             <i class="ph ph-file-pdf" aria-hidden="true"></i>
             <span>Download PDF</span>
           </button>
@@ -84,7 +101,7 @@ const isoDate = frontmatter.date.toISOString();
           {frontmatter.tags.length > 0 && (
             <ul class="post-tags">
               {frontmatter.tags.map((tag) => (
-                <li class="post-tag">{tag}</li>
+                <li class={postTagClass}>{tag}</li>
               ))}
             </ul>
           )}
@@ -97,18 +114,22 @@ const isoDate = frontmatter.date.toISOString();
       {(adjacent.newer || adjacent.older) && (
         <nav class="post-pager" aria-label={`More in ${categoryName}`}>
           {adjacent.newer ? (
-            <a class="post-pager-link post-pager-newer" href={postUrl(section, adjacent.newer.id)}>
-              <span class="post-pager-direction">← Newer in {categoryName}</span>
-              <span class="post-pager-title">{adjacent.newer.data.title}</span>
-            </a>
+            <PostPagerLink
+              href={postUrl(section, adjacent.newer.id)}
+              direction="newer"
+              categoryName={categoryName}
+              postTitle={adjacent.newer.data.title}
+            />
           ) : (
             <span class="post-pager-spacer" />
           )}
           {adjacent.older && (
-            <a class="post-pager-link post-pager-older" href={postUrl(section, adjacent.older.id)}>
-              <span class="post-pager-direction">Older in {categoryName} →</span>
-              <span class="post-pager-title">{adjacent.older.data.title}</span>
-            </a>
+            <PostPagerLink
+              href={postUrl(section, adjacent.older.id)}
+              direction="older"
+              categoryName={categoryName}
+              postTitle={adjacent.older.data.title}
+            />
           )}
         </nav>
       )}
@@ -265,40 +286,6 @@ const isoDate = frontmatter.date.toISOString();
     font-family: var(--font-stack);
   }
 
-  .post-pager-link {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 1rem 1.25rem;
-    border: 1px solid var(--color-border, #e5e5e5);
-    border-radius: var(--radius, 8px);
-    text-decoration: none;
-    transition:
-      border-color var(--transition, 0.15s ease),
-      background var(--transition, 0.15s ease);
-  }
-
-  .post-pager-link:hover {
-    border-color: #bbb;
-    background: var(--color-card-hover, #fafafa);
-  }
-
-  .post-pager-older {
-    text-align: right;
-  }
-
-  .post-pager-direction {
-    font-size: 0.78rem;
-    color: var(--color-text-muted, #666);
-  }
-
-  .post-pager-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    line-height: 1.35;
-    color: var(--color-text-main, #111);
-  }
-
   @media (width <= 600px) {
     .post-pager {
       grid-template-columns: 1fr;
@@ -306,10 +293,6 @@ const isoDate = frontmatter.date.toISOString();
 
     .post-pager-spacer {
       display: none;
-    }
-
-    .post-pager-older {
-      text-align: left;
     }
   }
 </style>

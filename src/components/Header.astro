@@ -1,4 +1,6 @@
 ---
+import { cn } from 'cn';
+import { buttonVariants } from '@/components/ui/button';
 import type { Profile, SitePageLink } from '../data/site';
 
 interface Props {
@@ -7,6 +9,10 @@ interface Props {
 }
 
 const { profile, sitePages } = Astro.props;
+const linkButtonClass = cn(
+  buttonVariants({ variant: 'secondary', size: 'lg' }),
+  'link-button h-auto bg-clip-border leading-[inherit]',
+);
 ---
 
 <header class="header">
@@ -16,13 +22,13 @@ const { profile, sitePages } = Astro.props;
 
     <div class="links">
       {profile.social.map((item) => (
-        <a href={item.url} target="_blank" rel="noopener noreferrer" class="link-button">
+        <a href={item.url} target="_blank" rel="noopener noreferrer" class={linkButtonClass}>
           <i class={`ph ${item.icon}`} />
           {item.label}
         </a>
       ))}
       {sitePages.map((page) => (
-        <a href={page.url} class="link-button">
+        <a href={page.url} class={linkButtonClass}>
           <i class={`ph ${page.icon}`} />
           {page.label}
         </a>

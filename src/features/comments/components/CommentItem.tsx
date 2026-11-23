@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { PublicComment } from '../comment-types';
 import { formatCommentDate } from './format-comment-date';
@@ -47,7 +48,11 @@ export function CommentItem({ comment, canModerate, onApprove, onDelete }: Comme
         <time className="comment-date" dateTime={comment.createdAt}>
           {formatCommentDate(comment.createdAt)}
         </time>
-        {isPending && <span className="comment-badge">Pending review</span>}
+        {isPending && (
+          <Badge variant="outline" className="comment-badge h-auto leading-[inherit] font-normal">
+            Pending review
+          </Badge>
+        )}
       </div>
       <p className="comment-body">{comment.body}</p>
       {canModerate && (

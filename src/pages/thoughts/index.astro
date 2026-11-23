@@ -1,5 +1,7 @@
 ---
 import { env } from 'cloudflare:workers';
+import { cn } from 'cn';
+import { badgeVariants } from '@/components/ui/badge';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ThoughtComposer from '../../features/thoughts/components/ThoughtComposer';
 import ThoughtDeleteButton from '../../features/thoughts/components/ThoughtDeleteButton';
@@ -12,6 +14,7 @@ export const prerender = false;
 const viewer = await loadCurrentUser(Astro.cookies);
 const isAdmin = viewer?.isAdmin ?? false;
 const feedItems = (await listThoughtsNewestFirst(env.DB)).map(toThoughtFeedItem);
+const thoughtTagClass = cn(badgeVariants({ variant: 'outline' }), 'thought-tag h-auto leading-[inherit]');
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
@@ -51,7 +54,7 @@ Astro.response.headers.set('cache-control', 'no-store');
             {item.tags.length > 0 && (
               <div class="thought-tags">
                 {item.tags.map((tag) => (
-                  <span class="thought-tag">{tag}</span>
+                  <span class={thoughtTagClass}>{tag}</span>
                 ))}
               </div>
             )}
