@@ -1,4 +1,4 @@
-import type { PublicThought } from './thought-types';
+import type { Thought } from './thought-types';
 
 export type ThoughtExportFormat = 'markdown' | 'json';
 
@@ -14,30 +14,39 @@ export function parseThoughtExportFormat(rawFormat: string | null): ThoughtExpor
   return null;
 }
 
-function thoughtHeading(thought: PublicThought): string {
+function thoughtHeading(thought: Thought): string {
   return thought.timestampPrecision === 'month' ? thought.createdAt.slice(0, 7) : thought.createdAt;
 }
 
-function thoughtAsMarkdownSection(thought: PublicThought): string {
-  const tagLine = thought.tags.length > 0 ? `Tags: ${thought.tags.join(', ')}\n\n` : '';
-  return `## ${thoughtHeading(thought)}\n\n${tagLine}${thought.body}\n`;
+function thoughtMetadataLines(thought: Thought): string[] {
+  const lines: string[] = [];
+  if (thought.updatedAt) lines.push(`Edited: ${thought.updatedAt}`);
+  if (!thought.isPublic) lines.push('Visibility: private');
+  if (thought.tags.length > 0) lines.push(`Tags: ${thought.tags.join(', ')}`);
+  return lines;
+}
+
+function thoughtAsMarkdownSection(thought: Thought): string {
+  const metadataLines = thoughtMetadataLines(thought);
+  const metadataBlock = metadataLines.length > 0 ? `${metadataLines.join('  \n')}\n\n` : '';
+  return `## ${thoughtHeading(thought)}\n\n${metadataBlock}${thought.body}\n`;
 }
 
 function countLabel(thoughtCount: number): string {
   return `${thoughtCount} ${thoughtCount === 1 ? 'thought' : 'thoughts'}`;
 }
 
-function serializeAsMarkdown(thoughts: readonly PublicThought[], exportedAt: string): string {
+function serializeAsMarkdown(thoughts: readonly Thought[], exportedAt: string): string {
   const header = `# Thoughts\n\nExported ${exportedAt} · ${countLabel(thoughts.length)}\n`;
   return [header, ...thoughts.map(thoughtAsMarkdownSection)].join('\n---\n\n');
 }
 
-function serializeAsJson(thoughts: readonly PublicThought[], exportedAt: string): string {
+function serializeAsJson(thoughts: readonly Thought[], exportedAt: string): string {
   return `${JSON.stringify({ exportedAt, thoughts }, null, 2)}\n`;
 }
 
 export function buildThoughtExportFile(
-  thoughts: readonly PublicThought[],
+  thoughts: readonly Thought[],
   format: ThoughtExportFormat,
   exportedAt: Date,
 ): ThoughtExportFile {

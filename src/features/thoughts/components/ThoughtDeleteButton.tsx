@@ -55,7 +55,7 @@ export default function ThoughtDeleteButton({ thoughtId }: ThoughtDeleteButtonPr
         {labelByStep[step]}
       </Button>
       {errorMessage && (
-        <span className="thought-composer-error" role="alert">
+        <span className="thought-form-error" role="alert">
           {errorMessage}
         </span>
       )}

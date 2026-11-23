@@ -1,36 +1,55 @@
 .thought-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
   margin-bottom: 2.5rem;
 }
 
-.thought-composer-body {
+.thought-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.thought-form-body {
   resize: vertical;
   min-height: 5.5rem;
   font-size: 1.05rem;
   line-height: 1.6;
 }
 
-.thought-composer-footer {
+.thought-form-footer {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.thought-composer-tags {
+.thought-form-tags {
   flex: 1 1 12rem;
   width: auto;
 }
 
-.thought-composer-error {
+.thought-form-error {
   font-size: 0.85rem;
   color: #b42318;
 }
 
-.thought-composer-hint {
+.thought-form-hint {
   font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.thought-editor {
+  margin-top: 0.25rem;
+}
+
+.thought-admin-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+.thought-edit-button,
+.thought-delete-button[data-step='idle'] {
   color: var(--color-text-muted);
 }
 
@@ -38,8 +57,4 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.thought-delete-button[data-step='idle'] {
-  color: var(--color-text-muted);
 }

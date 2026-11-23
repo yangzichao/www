@@ -12,7 +12,9 @@ const CREATED_THOUGHT = {
   body: 'Ship small.',
   tags: ['work'],
   createdAt: '2026-11-22T21:30:00.000Z',
+  updatedAt: null,
   timestampPrecision: 'exact',
+  isPublic: true,
 };
 
 function renderComposer() {
@@ -21,6 +23,7 @@ function renderComposer() {
     user: userEvent.setup(),
     bodyInput: screen.getByRole('textbox', { name: 'New thought' }),
     tagInput: screen.getByRole('textbox', { name: 'Tags' }),
+    visibilitySelect: screen.getByRole('combobox', { name: 'Visibility' }),
     postButton: screen.getByRole('button', { name: 'Post' }),
   };
 }
@@ -46,11 +49,28 @@ describe('ThoughtComposer', () => {
     await user.click(postButton);
 
     expect(observed).toStrictEqual([
-      { method: 'POST', pathWithQuery: '/api/thoughts', body: { body: 'Ship small.', tags: ['work', 'life'] } },
+      {
+        method: 'POST',
+        pathWithQuery: '/api/thoughts',
+        body: { body: 'Ship small.', tags: ['work', 'life'], isPublic: true },
+      },
     ]);
     expect(reloadPage).toHaveBeenCalledExactlyOnceWith();
     expect(bodyInput).toHaveValue('');
     expect(tagInput).toHaveValue('');
+  });
+
+  it('posts a private thought and resets the visibility afterwards', async () => {
+    const observed = stubBrowserFetch({
+      'POST /api/thoughts': () => Response.json({ thought: { ...CREATED_THOUGHT, isPublic: false } }, { status: 201 }),
+    });
+    const { user, bodyInput, visibilitySelect, postButton } = renderComposer();
+    await user.type(bodyInput, 'Just for me.');
+    await user.selectOptions(visibilitySelect, 'Private');
+    await user.click(postButton);
+
+    expect(observed.map(({ body }) => body)).toStrictEqual([{ body: 'Just for me.', tags: [], isPublic: false }]);
+    expect(visibilitySelect).toHaveValue('public');
   });
 
   it('posts with Cmd+Enter from the text box', async () => {
@@ -68,6 +88,9 @@ describe('ThoughtComposer', () => {
   it('ignores a plain Enter and an empty Cmd+Enter', async () => {
     const observed = stubBrowserFetch({});
     const { user, bodyInput } = renderComposer();
+
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+
     await user.type(bodyInput, '{Control>}{Enter}{/Control}');
     await user.type(bodyInput, 'line one{Enter}line two');
 

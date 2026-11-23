@@ -5,7 +5,7 @@ import { jsonError, jsonNoStore } from '../../../features/http/json-responses';
 import { isSameOriginRequest } from '../../../features/http/same-origin';
 import { parseThoughtSubmission } from '../../../features/thoughts/thought-input';
 import { insertThought } from '../../../features/thoughts/thought-store';
-import type { CreateThoughtResponse } from '../../../features/thoughts/thought-types';
+import type { ThoughtResponse } from '../../../features/thoughts/thought-types';
 
 export const prerender = false;
 
@@ -17,6 +17,6 @@ export const POST: APIRoute = async ({ request, url, cookies }) => {
   const submission = parseThoughtSubmission(await request.json().catch(() => null));
   if (typeof submission === 'string') return jsonError(400, submission);
 
-  const created: CreateThoughtResponse = { thought: await insertThought(env.DB, submission) };
+  const created: ThoughtResponse = { thought: await insertThought(env.DB, submission) };
   return jsonNoStore(created, 201);
 };

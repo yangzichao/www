@@ -1,4 +1,4 @@
-import type { PublicThought } from './thought-types';
+import type { Thought } from './thought-types';
 
 const SITE_TIME_ZONE = 'America/New_York';
 
@@ -13,7 +13,11 @@ const exactTimestampFormat = new Intl.DateTimeFormat('en-US', {
 
 const monthTimestampFormat = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', timeZone: 'UTC' });
 
-export function formatThoughtTimestamp(thought: Pick<PublicThought, 'createdAt' | 'timestampPrecision'>): string {
-  const format = thought.timestampPrecision === 'month' ? monthTimestampFormat : exactTimestampFormat;
-  return format.format(new Date(thought.createdAt));
+export function formatExactTimestamp(isoTimestamp: string): string {
+  return exactTimestampFormat.format(new Date(isoTimestamp));
+}
+
+export function formatThoughtTimestamp(thought: Pick<Thought, 'createdAt' | 'timestampPrecision'>): string {
+  if (thought.timestampPrecision === 'month') return monthTimestampFormat.format(new Date(thought.createdAt));
+  return formatExactTimestamp(thought.createdAt);
 }

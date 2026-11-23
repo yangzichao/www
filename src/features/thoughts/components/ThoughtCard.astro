@@ -1,0 +1,125 @@
+---
+import { cn } from 'cn';
+import { badgeVariants } from '@/components/ui/badge';
+import ThoughtAdminControls from './ThoughtAdminControls';
+import type { ThoughtFeedItem } from '../thought-feed';
+import { buildThoughtViewHref, type ThoughtViewQuery } from '../view/thought-view-query';
+
+interface Props {
+  item: ThoughtFeedItem;
+  query: ThoughtViewQuery;
+  isAdmin: boolean;
+}
+
+const { item, query, isAdmin } = Astro.props;
+const thoughtTagClass = cn(badgeVariants({ variant: 'outline' }), 'thought-tag h-auto leading-[inherit]');
+const privateBadgeClass = cn(badgeVariants({ variant: 'secondary' }), 'thought-private h-auto leading-[inherit]');
+---
+
+<article class="thought-card" data-thought-id={item.id} data-visibility={item.isPublic ? 'public' : 'private'}>
+  <div class="thought-meta">
+    <time class="thought-date" datetime={item.createdAt}>
+      {item.displayTimestamp}
+    </time>
+    {item.updatedAt && (
+      <span class="thought-edited">
+        Edited <time datetime={item.updatedAt}>{item.displayEditedTimestamp}</time>
+      </span>
+    )}
+    {!item.isPublic && <span class={privateBadgeClass}>Private</span>}
+    {item.tags.length > 0 && (
+      <div class="thought-tags">
+        {item.tags.map((tag) => (
+          <a class={thoughtTagClass} href={buildThoughtViewHref(query, { tag })}>
+            {tag}
+          </a>
+        ))}
+      </div>
+    )}
+  </div>
+  <div class="thought-body prose" set:html={item.html} />
+  {isAdmin && (
+    <ThoughtAdminControls
+      client:visible
+      thoughtId={item.id}
+      body={item.body}
+      tags={item.tags}
+      isPublic={item.isPublic}
+    />
+  )}
+</article>
+
+<style>
+  .thought-card {
+    padding: 1.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .thought-card:first-child {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .thought-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .thought-date,
+  .thought-edited {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
+
+  .thought-edited {
+    font-style: italic;
+  }
+
+  .thought-tags {
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .thought-tag,
+  .thought-private {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+  }
+
+  .thought-tag {
+    color: var(--color-text-muted);
+    background: var(--color-card-hover);
+    border: 1px solid var(--color-border);
+    text-decoration: none;
+  }
+
+  .thought-tag:hover {
+    color: var(--color-text-main);
+  }
+
+  .thought-body {
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--color-text-main);
+  }
+
+  .thought-body :global(p) {
+    margin: 0;
+  }
+
+  .thought-body :global(p + p) {
+    margin-top: 0.9em;
+  }
+
+  .thought-card:has([data-editing='true']) .thought-body {
+    display: none;
+  }
+</style>

@@ -9,14 +9,17 @@ import { normalizeTags, splitTagInput } from '../../../src/features/thoughts/tho
 
 describe('parseThoughtSubmission', () => {
   it('trims the body and normalizes tags', () => {
-    expect(parseThoughtSubmission({ body: '  An idea.  ', tags: ['#ai', ' ai ', 'life', 7] })).toStrictEqual({
-      body: 'An idea.',
-      tags: ['ai', 'life'],
-    });
+    expect(
+      parseThoughtSubmission({ body: '  An idea.  ', tags: ['#ai', ' ai ', 'life', 7], isPublic: false }),
+    ).toStrictEqual({ body: 'An idea.', tags: ['ai', 'life'], isPublic: false });
   });
 
   it('treats missing tags as none', () => {
-    expect(parseThoughtSubmission({ body: 'An idea.', tags: 'ai' })).toStrictEqual({ body: 'An idea.', tags: [] });
+    expect(parseThoughtSubmission({ body: 'An idea.', tags: 'ai', isPublic: true })).toStrictEqual({
+      body: 'An idea.',
+      tags: [],
+      isPublic: true,
+    });
   });
 
   it.each([
@@ -28,6 +31,8 @@ describe('parseThoughtSubmission', () => {
       payload: { body: 'x'.repeat(MAX_THOUGHT_BODY_LENGTH + 1) },
       expectedError: `Thought must be at most ${MAX_THOUGHT_BODY_LENGTH} characters.`,
     },
+    { payload: { body: 'An idea.' }, expectedError: 'isPublic must be true or false.' },
+    { payload: { body: 'An idea.', isPublic: 'yes' }, expectedError: 'isPublic must be true or false.' },
   ])('rejects $payload', ({ payload, expectedError }) => {
     expect(parseThoughtSubmission(payload)).toBe(expectedError);
   });

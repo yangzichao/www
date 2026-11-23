@@ -1,0 +1,3 @@
+ALTER TABLE thoughts ADD COLUMN updated_at TEXT;
+
+ALTER TABLE thoughts ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1 CHECK (is_public IN (0, 1));

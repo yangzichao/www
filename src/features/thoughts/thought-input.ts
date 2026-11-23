@@ -1,10 +1,6 @@
 import { MAX_THOUGHT_BODY_LENGTH } from './thought-limits';
 import { normalizeTags } from './thought-tags';
-
-export interface ThoughtSubmission {
-  body: string;
-  tags: string[];
-}
+import type { ThoughtSubmission } from './thought-types';
 
 function readStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -17,5 +13,6 @@ export function parseThoughtSubmission(payload: unknown): ThoughtSubmission | st
   const body = typeof fields.body === 'string' ? fields.body.trim() : '';
   if (body.length === 0) return 'Thought cannot be empty.';
   if (body.length > MAX_THOUGHT_BODY_LENGTH) return `Thought must be at most ${MAX_THOUGHT_BODY_LENGTH} characters.`;
-  return { body, tags: normalizeTags(readStringList(fields.tags)) };
+  if (typeof fields.isPublic !== 'boolean') return 'isPublic must be true or false.';
+  return { body, tags: normalizeTags(readStringList(fields.tags)), isPublic: fields.isPublic };
 }

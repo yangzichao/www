@@ -13,7 +13,11 @@ export const GET: APIRoute = async ({ url, cookies }) => {
   const format = parseThoughtExportFormat(url.searchParams.get('format'));
   if (!format) return jsonError(400, 'Export format must be markdown or json.');
 
-  const exportFile = buildThoughtExportFile(await listThoughtsNewestFirst(env.DB), format, new Date());
+  const exportFile = buildThoughtExportFile(
+    await listThoughtsNewestFirst(env.DB, { includePrivate: true }),
+    format,
+    new Date(),
+  );
   return new Response(exportFile.content, {
     headers: {
       'content-type': exportFile.contentType,

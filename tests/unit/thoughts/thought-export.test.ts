@@ -1,23 +1,37 @@
 import { describe, expect, it } from 'vitest';
 import { buildThoughtExportFile, parseThoughtExportFormat } from '../../../src/features/thoughts/thought-export';
-import type { PublicThought } from '../../../src/features/thoughts/thought-types';
+import type { Thought } from '../../../src/features/thoughts/thought-types';
 
 const EXPORTED_AT = new Date('2026-11-22T21:30:00.000Z');
 
-const exactThought: PublicThought = {
+const exactThought: Thought = {
   id: 'exact-id',
   body: 'A *fresh* idea.',
   tags: ['ai', 'systems'],
   createdAt: '2026-11-22T20:00:00.000Z',
+  updatedAt: null,
   timestampPrecision: 'exact',
+  isPublic: true,
 };
 
-const legacyThought: PublicThought = {
+const editedPrivateThought: Thought = {
+  id: 'private-id',
+  body: 'A revised secret.',
+  tags: ['life'],
+  createdAt: '2026-11-20T10:00:00.000Z',
+  updatedAt: '2026-11-21T09:00:00.000Z',
+  timestampPrecision: 'exact',
+  isPublic: false,
+};
+
+const legacyThought: Thought = {
   id: 'legacy-2026-03-01',
   body: 'An old idea.',
   tags: [],
   createdAt: '2026-03-01T00:00:00.000Z',
+  updatedAt: null,
   timestampPrecision: 'month',
+  isPublic: true,
 };
 
 describe('parseThoughtExportFormat', () => {
@@ -43,6 +57,12 @@ describe('buildThoughtExportFile', () => {
         '## 2026-11-22T20:00:00.000Z\n\nTags: ai, systems\n\nA *fresh* idea.\n',
         '## 2026-03\n\nAn old idea.\n',
       ].join('\n---\n\n'),
+    );
+  });
+
+  it('lists the edit time, private visibility, and tags as metadata lines', () => {
+    expect(buildThoughtExportFile([editedPrivateThought], 'markdown', EXPORTED_AT).content).toContain(
+      '## 2026-11-20T10:00:00.000Z\n\nEdited: 2026-11-21T09:00:00.000Z  \nVisibility: private  \nTags: life\n\nA revised secret.\n',
     );
   });
 

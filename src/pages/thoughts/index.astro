@@ -1,20 +1,22 @@
 ---
 import { env } from 'cloudflare:workers';
-import { cn } from 'cn';
-import { badgeVariants } from '@/components/ui/badge';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ThoughtComposer from '../../features/thoughts/components/ThoughtComposer';
-import ThoughtDeleteButton from '../../features/thoughts/components/ThoughtDeleteButton';
+import ThoughtCard from '../../features/thoughts/components/ThoughtCard.astro';
+import ThoughtsToolbar from '../../features/thoughts/components/ThoughtsToolbar.astro';
 import { loadCurrentUser } from '../../features/auth/current-session';
 import { listThoughtsNewestFirst } from '../../features/thoughts/thought-store';
 import { describeThoughtCount, toThoughtFeedItem } from '../../features/thoughts/thought-feed';
+import { parseThoughtViewQuery } from '../../features/thoughts/view/thought-view-query';
+import { countThoughtTags, selectThoughtsForView } from '../../features/thoughts/view/thought-view-selection';
 
 export const prerender = false;
 
 const viewer = await loadCurrentUser(Astro.cookies);
 const isAdmin = viewer?.isAdmin ?? false;
-const feedItems = (await listThoughtsNewestFirst(env.DB)).map(toThoughtFeedItem);
-const thoughtTagClass = cn(badgeVariants({ variant: 'outline' }), 'thought-tag h-auto leading-[inherit]');
+const visibleThoughts = await listThoughtsNewestFirst(env.DB, { includePrivate: isAdmin });
+const query = parseThoughtViewQuery(Astro.url.searchParams, isAdmin);
+const feedItems = selectThoughtsForView(visibleThoughts, query).map(toThoughtFeedItem);
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
@@ -44,33 +46,17 @@ Astro.response.headers.set('cache-control', 'no-store');
       </section>
     )}
 
+    <ThoughtsToolbar query={query} tagCounts={countThoughtTags(visibleThoughts)} showVisibilityFilter={isAdmin} />
+
     <div class="thoughts-feed">
       {feedItems.map((item) => (
-        <article class="thought-card" data-thought-id={item.id}>
-          <div class="thought-meta">
-            <time class="thought-date" datetime={item.createdAt}>
-              {item.displayTimestamp}
-            </time>
-            {item.tags.length > 0 && (
-              <div class="thought-tags">
-                {item.tags.map((tag) => (
-                  <span class={thoughtTagClass}>{tag}</span>
-                ))}
-              </div>
-            )}
-            {isAdmin && (
-              <span class="thought-actions">
-                <ThoughtDeleteButton client:visible thoughtId={item.id} />
-              </span>
-            )}
-          </div>
-          <div class="thought-body prose" set:html={item.html} />
-        </article>
+        <ThoughtCard item={item} query={query} isAdmin={isAdmin} />
       ))}
+      {feedItems.length === 0 && visibleThoughts.length > 0 && <p class="thoughts-empty">No thoughts match.</p>}
     </div>
 
     <footer class="thoughts-footer">
-      <span class="thoughts-count">{describeThoughtCount(feedItems.length)}</span>
+      <span class="thoughts-count">{describeThoughtCount(feedItems.length, visibleThoughts.length)}</span>
     </footer>
   </div>
 </BaseLayout>
@@ -116,6 +102,8 @@ Astro.response.headers.set('cache-control', 'no-store');
   }
 
   .thoughts-export {
+    display: flex;
+    gap: 0.4rem;
     margin-top: -1.5rem;
     margin-bottom: 2rem;
     font-size: 0.8rem;
@@ -126,63 +114,9 @@ Astro.response.headers.set('cache-control', 'no-store');
     color: var(--color-text-main);
   }
 
-  .thought-card {
+  .thoughts-empty {
     padding: 1.75rem 0;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .thoughts-feed .thought-card:first-child {
-    border-top: 1px solid var(--color-border);
-  }
-
-  .thought-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.85rem;
-    flex-wrap: wrap;
-  }
-
-  .thought-date {
-    font-size: 0.8rem;
     color: var(--color-text-muted);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
-  }
-
-  .thought-tags {
-    display: flex;
-    gap: 0.4rem;
-  }
-
-  .thought-tag {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
-    background: var(--color-card-hover);
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.15rem 0.5rem;
-  }
-
-  .thought-actions {
-    margin-left: auto;
-  }
-
-  .thought-body {
-    font-size: 1.05rem;
-    line-height: 1.7;
-    color: var(--color-text-main);
-  }
-
-  .thought-body :global(p) {
-    margin: 0;
-  }
-
-  .thought-body :global(p + p) {
-    margin-top: 0.9em;
   }
 
   .thoughts-footer {
