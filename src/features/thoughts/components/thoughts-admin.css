@@ -5,16 +5,6 @@
   margin-bottom: 2.5rem;
 }
 
-.thought-composer-input {
-  font: inherit;
-  font-size: 0.95rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 0.6rem 0.75rem;
-  background: var(--color-background);
-  color: var(--color-text-main);
-}
-
 .thought-composer-body {
   resize: vertical;
   min-height: 5.5rem;
@@ -31,29 +21,12 @@
 
 .thought-composer-tags {
   flex: 1 1 12rem;
-  font-size: 0.875rem;
+  width: auto;
 }
 
 .thought-composer-error {
   font-size: 0.85rem;
   color: #b42318;
-}
-
-.thought-composer-submit {
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border: 1px solid var(--color-accent);
-  border-radius: 6px;
-  background: var(--color-accent);
-  color: var(--color-background);
-  padding: 0.45rem 1.1rem;
-  cursor: pointer;
-}
-
-.thought-composer-submit:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .thought-composer-hint {
@@ -67,17 +40,6 @@
   gap: 0.5rem;
 }
 
-.thought-delete-button {
-  font: inherit;
-  font-size: 0.75rem;
+.thought-delete-button[data-step='idle'] {
   color: var(--color-text-muted);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.thought-delete-button:hover,
-.thought-delete-button[data-step='confirming'] {
-  color: #b42318;
 }

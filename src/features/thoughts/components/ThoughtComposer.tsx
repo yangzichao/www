@@ -1,4 +1,7 @@
 import { useState, type KeyboardEvent, type SubmitEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '../../http/describe-error';
 import { MAX_THOUGHT_BODY_LENGTH } from '../thought-limits';
 import { splitTagInput } from '../thought-tags';
@@ -47,8 +50,8 @@ export default function ThoughtComposer() {
 
   return (
     <form className="thought-composer" onSubmit={handleSubmit}>
-      <textarea
-        className="thought-composer-input thought-composer-body"
+      <Textarea
+        className="thought-composer-body"
         placeholder="What's on your mind?"
         aria-label="New thought"
         rows={3}
@@ -60,8 +63,8 @@ export default function ThoughtComposer() {
         onKeyDown={handleBodyKeyDown}
       />
       <div className="thought-composer-footer">
-        <input
-          className="thought-composer-input thought-composer-tags"
+        <Input
+          className="thought-composer-tags"
           type="text"
           placeholder="tags, comma separated"
           aria-label="Tags"
@@ -75,9 +78,9 @@ export default function ThoughtComposer() {
             {errorMessage}
           </span>
         )}
-        <button type="submit" className="thought-composer-submit" disabled={!canSubmit}>
+        <Button type="submit" disabled={!canSubmit}>
           {isSubmitting ? 'Posting…' : 'Post'}
-        </button>
+        </Button>
       </div>
       <p className="thought-composer-hint">Markdown supported · ⌘/Ctrl + Enter to post</p>
     </form>

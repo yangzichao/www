@@ -1,4 +1,7 @@
 import { useEffect, useEffectEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { publicUrlForPostFile } from '../post-file-path';
 
 export interface EditorDocument {
@@ -54,7 +57,7 @@ export function PostEditor({
           </a>
         )}
       </div>
-      <textarea
+      <Textarea
         className="admin-editor-textarea"
         aria-label="Post markdown"
         value={draftContent}
@@ -64,7 +67,7 @@ export function PostEditor({
         }}
       />
       <div className="admin-editor-footer">
-        <input
+        <Input
           className="admin-commit-message"
           value={commitMessage}
           placeholder="Commit message"
@@ -73,14 +76,13 @@ export function PostEditor({
             onCommitMessageChange(event.target.value);
           }}
         />
-        <button
+        <Button
           type="button"
-          className="admin-primary"
           disabled={isSaving || (!hasUnsavedChanges && editorDocument.sha !== null)}
           onClick={onSave}
         >
           {isSaving ? 'Committing…' : 'Commit (⌘S)'}
-        </button>
+        </Button>
       </div>
       {statusMessage && <p className="admin-hint">{statusMessage}</p>}
     </div>

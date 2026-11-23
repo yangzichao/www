@@ -1,4 +1,7 @@
 import { useCallback, useState, type SubmitEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import type { PublicViewer } from '../../auth/session-user';
 import { commentSignInUrl } from '../../auth/admin-sign-in-url';
 import { describeError } from '../../http/describe-error';
@@ -59,21 +62,22 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
       {viewer ? (
         <p className="comment-identity">
           Commenting as <strong>@{viewer.login}</strong> ·{' '}
-          <button type="button" className="comment-link-button" onClick={onSignOut}>
+          <Button type="button" variant="link" className="comment-link-button" onClick={onSignOut}>
             Sign out
-          </button>
+          </Button>
         </p>
       ) : (
         <div className="comment-identity">
-          <a className="comment-github-sign-in" href={commentSignInUrl(`${pagePath}#comments`)}>
-            <i className="ph ph-github-logo" aria-hidden="true"></i> Sign in with GitHub
-          </a>
+          <Button asChild variant="outline">
+            <a href={commentSignInUrl(`${pagePath}#comments`)}>
+              <i className="ph ph-github-logo" aria-hidden="true"></i> Sign in with GitHub
+            </a>
+          </Button>
           <span className="comment-identity-hint">or comment anonymously below (reviewed before it appears)</span>
         </div>
       )}
       {isAnonymous && (
-        <input
-          className="comment-input"
+        <Input
           type="text"
           placeholder="Name (optional)"
           aria-label="Name (optional)"
@@ -84,8 +88,8 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
           }}
         />
       )}
-      <textarea
-        className="comment-input comment-textarea"
+      <Textarea
+        className="comment-textarea"
         placeholder="Leave a comment"
         aria-label="Comment"
         rows={4}
@@ -104,9 +108,9 @@ export function CommentForm({ pagePath, viewer, onPosted, onSignOut }: CommentFo
       )}
       <div className="comment-form-footer">
         {statusMessage && <span className="comment-status">{statusMessage}</span>}
-        <button type="submit" className="comment-submit" disabled={!canSubmit}>
+        <Button type="submit" disabled={!canSubmit}>
           {isSubmitting ? 'Posting…' : 'Post comment'}
-        </button>
+        </Button>
       </div>
     </form>
   );

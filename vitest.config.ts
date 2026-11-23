@@ -16,6 +16,7 @@ const WORKER_COMPATIBILITY_DATE = '2026-11-17';
 const fromRoot = (relativePath: string) => fileURLToPath(new URL(relativePath, import.meta.url));
 
 export default defineConfig({
+  resolve: { alias: { '@': fromRoot('./src') } },
   test: {
     sequence: { shuffle: { files: false, tests: true }, seed: FIXED_SHUFFLE_SEED },
     restoreMocks: true,

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { PublicComment } from '../comment-types';
 import { formatCommentDate } from './format-comment-date';
 
@@ -52,24 +53,27 @@ export function CommentItem({ comment, canModerate, onApprove, onDelete }: Comme
       {canModerate && (
         <div className="comment-moderation">
           {isPending && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 onApprove(comment.id);
               }}
             >
               Approve
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
-            className="comment-delete"
+            variant="destructive"
+            size="sm"
             onClick={() => {
               onDelete(comment.id);
             }}
           >
             Delete
-          </button>
+          </Button>
         </div>
       )}
     </li>

@@ -6,6 +6,7 @@ import {
   signInAsVisitor,
 } from './support/browser-guards.ts';
 import { ADMIN_SESSION } from './support/e2e-fixtures.ts';
+import { waitUntilIslandHydrated } from './support/island-hydration.ts';
 
 test.beforeEach(async ({ context }) => {
   await isolateFromThirdParties(context);
@@ -37,7 +38,9 @@ test('the admin posts a thought, sees it first, exports it, and deletes it', asy
   await page.goto('/thoughts/');
   const thoughtText = 'E2E thought posted from the composer';
 
-  await page.getByRole('textbox', { name: 'New thought' }).fill(`${thoughtText} with **markdown**`);
+  const thoughtBox = page.getByRole('textbox', { name: 'New thought' });
+  await waitUntilIslandHydrated(thoughtBox);
+  await thoughtBox.fill(`${thoughtText} with **markdown**`);
   await page.getByRole('textbox', { name: 'Tags' }).fill('e2e');
   await page.getByRole('button', { name: 'Post' }).click();
 

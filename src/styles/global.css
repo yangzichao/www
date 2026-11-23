@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
 
 @plugin '@tailwindcss/typography';
 
@@ -13,6 +17,20 @@
   --font-stack: 'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, helvetica, arial, sans-serif;
   --radius: 8px;
   --transition: 0.2s ease;
+  --background: var(--color-background);
+  --foreground: var(--color-text-main);
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-background);
+  --secondary: #f5f5f5;
+  --secondary-foreground: var(--color-text-main);
+  --muted: #f5f5f5;
+  --muted-foreground: var(--color-text-muted);
+  --accent: #f0f0f0;
+  --accent-foreground: var(--color-text-main);
+  --destructive: #b42318;
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: #a3a3a3;
 }
 
 body {
@@ -255,5 +273,34 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-stack);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
   }
 }

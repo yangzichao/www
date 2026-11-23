@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { PostFileSummary } from '../post-file-types';
 
 interface PostListProps {
@@ -21,15 +22,16 @@ export function PostList({ posts, selectedPath, onSelect }: PostListProps) {
           <ul>
             {categoryPosts.map((post) => (
               <li key={post.path}>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   className={post.path === selectedPath ? 'admin-post-link is-selected' : 'admin-post-link'}
                   onClick={() => {
                     onSelect(post.path);
                   }}
                 >
                   {post.slug}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

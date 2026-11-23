@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { describeError } from '../../http/describe-error';
 import { deleteThoughtById } from './thoughts-api';
 import { reloadPage } from './reload-page';
@@ -39,8 +40,10 @@ export default function ThoughtDeleteButton({ thoughtId }: ThoughtDeleteButtonPr
 
   return (
     <span className="thought-delete">
-      <button
+      <Button
         type="button"
+        variant={step === 'confirming' ? 'destructive' : 'ghost'}
+        size="xs"
         className="thought-delete-button"
         data-step={step}
         disabled={step === 'deleting'}
@@ -50,7 +53,7 @@ export default function ThoughtDeleteButton({ thoughtId }: ThoughtDeleteButtonPr
         }}
       >
         {labelByStep[step]}
-      </button>
+      </Button>
       {errorMessage && (
         <span className="thought-composer-error" role="alert">
           {errorMessage}

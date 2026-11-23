@@ -9,6 +9,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "useUnknownInCatchVariables": true,
+    "paths": { "@/*": ["./src/*"] },
     "types": ["@cloudflare/vitest-plugin/types", "@testing-library/jest-dom/vitest"]
   },
   "include": [".astro/types.d.ts", "**/*", "./worker-configuration.d.ts"],

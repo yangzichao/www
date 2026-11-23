@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { newPostTemplate, slugFromTitle } from '../new-post-template';
 import { postFilePathFor } from '../post-file-path';
 
@@ -38,54 +42,56 @@ export function NewPostForm({ categories, existingPaths, onCreate, onCancel }: N
   return (
     <form className="admin-new-post" onSubmit={handleSubmit}>
       <h2>New post</h2>
-      <label>
+      <Label className="admin-field">
         Title
-        <input
+        <Input
           ref={titleInputRef}
           value={title}
           onChange={(event) => {
             setTitle(event.target.value);
           }}
         />
-      </label>
-      <label>
+      </Label>
+      <Label className="admin-field">
         Category
-        <select
+        <NativeSelect
+          className="w-full"
           value={category}
           onChange={(event) => {
             setCategory(event.target.value);
           }}
         >
           {categories.map((name) => (
-            <option key={name} value={name}>
+            <NativeSelectOption key={name} value={name}>
               {name}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-      </label>
-      <label>
+        </NativeSelect>
+      </Label>
+      <Label className="admin-field">
         Slug
-        <input
+        <Input
           value={slug}
           placeholder={slugFromTitle(title)}
           onChange={(event) => {
             setSlug(event.target.value);
           }}
         />
-      </label>
+      </Label>
       <p className="admin-hint">{problem ?? `Will be created at ${path} as a draft.`}</p>
       <div className="admin-actions">
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => {
             onCancel();
           }}
         >
           Cancel
-        </button>
-        <button type="submit" className="admin-primary" disabled={problem !== null}>
+        </Button>
+        <Button type="submit" disabled={problem !== null}>
           Create draft
-        </button>
+        </Button>
       </div>
     </form>
   );

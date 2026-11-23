@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { describeError } from '../../http/describe-error';
 import { postFileSummaryFor } from '../post-file-path';
 import type { PostFileSummary } from '../post-file-types';
@@ -107,9 +108,9 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
     return (
       <div className="admin-sign-in">
         <p>Your session has no repository access.</p>
-        <a className="admin-primary" href={signInUrl}>
-          Sign in with GitHub
-        </a>
+        <Button asChild>
+          <a href={signInUrl}>Sign in with GitHub</a>
+        </Button>
       </div>
     );
   }
@@ -117,15 +118,15 @@ export default function AdminEditor({ signInUrl }: AdminEditorProps) {
   return (
     <div className="admin-workspace">
       <aside className="admin-sidebar">
-        <button
+        <Button
           type="button"
-          className="admin-primary admin-new-button"
+          className="admin-new-button"
           onClick={() => {
             if (confirmDiscardingChanges()) setIsCreating(true);
           }}
         >
           New post
-        </button>
+        </Button>
         <PostList
           posts={posts}
           selectedPath={openDocument?.path ?? null}

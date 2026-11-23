@@ -6,6 +6,7 @@ import {
   signInAsVisitor,
 } from './support/browser-guards.ts';
 import { COMMENT_TEST_PAGE, SEEDED_PENDING_COMMENT, VISITOR_SESSION } from './support/e2e-fixtures.ts';
+import { waitUntilIslandHydrated } from './support/island-hydration.ts';
 
 test.beforeEach(async ({ context }) => {
   await isolateFromThirdParties(context);
@@ -20,7 +21,9 @@ test('anonymous readers do not see pending comments and must pass Turnstile to p
   await expect(comments.getByRole('link', { name: 'Sign in with GitHub' })).toBeVisible();
   await expect(comments.getByText(SEEDED_PENDING_COMMENT.body)).toHaveCount(0);
 
-  await comments.getByRole('textbox', { name: 'Comment' }).fill('Hello from an anonymous reader');
+  const commentBox = comments.getByRole('textbox', { name: 'Comment' });
+  await waitUntilIslandHydrated(commentBox);
+  await commentBox.fill('Hello from an anonymous reader');
 
   await expect(comments.locator('[data-fake-turnstile="rendered"]')).toBeAttached();
   await expect(comments.getByRole('button', { name: 'Post comment' })).toBeEnabled();
@@ -36,7 +39,9 @@ test('a signed-in visitor posts a comment that is published immediately', async 
 
   await expect(comments.getByText('Commenting as')).toContainText(`@${VISITOR_SESSION.githubLogin}`);
 
-  await comments.getByRole('textbox', { name: 'Comment' }).fill(body);
+  const commentBox = comments.getByRole('textbox', { name: 'Comment' });
+  await waitUntilIslandHydrated(commentBox);
+  await commentBox.fill(body);
   await comments.getByRole('button', { name: 'Post comment' }).click();
 
   await expect(comments.getByText(body)).toBeVisible();
@@ -76,7 +81,9 @@ test('the admin deletes a comment from the post page', async ({ context, page })
   await page.goto(COMMENT_TEST_PAGE);
   const comments = page.locator('#comments');
   await comments.scrollIntoViewIfNeeded();
-  await comments.getByRole('textbox', { name: 'Comment' }).fill(body);
+  const commentBox = comments.getByRole('textbox', { name: 'Comment' });
+  await waitUntilIslandHydrated(commentBox);
+  await commentBox.fill(body);
   await comments.getByRole('button', { name: 'Post comment' }).click();
   const target = comments.getByRole('listitem').filter({ hasText: body });
   await target.getByRole('button', { name: 'Delete' }).click();
