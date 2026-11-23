@@ -76,7 +76,7 @@
     "eslint-plugin-astro": "3.2.1",
     "eslint-plugin-jsx-a11y-x": "0.2.0",
     "eslint-plugin-react-hooks": "7.1.1",
-    "fontkit": "2.0.4",
+    "fontkit": "3.0.0",
     "globals": "17.14.0",
     "happy-dom": "21.0.4",
     "knip": "6.47.0",
