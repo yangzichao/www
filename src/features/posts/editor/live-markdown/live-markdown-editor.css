@@ -1,0 +1,171 @@
+.live-markdown-editor .cm-editor {
+  min-height: 60vh;
+  background: transparent;
+}
+
+.live-markdown-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.live-markdown-editor .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+  overflow: visible;
+}
+
+.live-markdown-editor .cm-content {
+  padding: 0 0 40vh;
+  caret-color: var(--prose-heading);
+}
+
+.live-markdown-editor .cm-line {
+  padding: 0;
+}
+
+.live-markdown-editor [class~='cm-widgetBuffer'] {
+  display: inline;
+  margin: 0;
+  border-radius: 0;
+}
+
+.live-markdown-editor .cm-placeholder {
+  color: var(--prose-muted);
+  font-style: italic;
+}
+
+.live-markdown-editor .cm-live-markup {
+  color: var(--prose-muted);
+  font-family: var(--font-stack);
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.live-markdown-editor .cm-live-heading {
+  font-family: var(--font-stack);
+  color: var(--prose-heading);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.018em;
+}
+
+.live-markdown-editor .cm-live-heading-1 {
+  padding-top: 0.6em;
+  font-size: 2rem;
+}
+
+.live-markdown-editor .cm-live-heading-2 {
+  padding-top: 1.2em;
+  padding-bottom: 0.2em;
+  font-size: 1.6rem;
+}
+
+.live-markdown-editor .cm-live-heading-3 {
+  padding-top: 0.9em;
+  font-size: 1.3rem;
+}
+
+.live-markdown-editor :is(.cm-live-heading-4, .cm-live-heading-5, .cm-live-heading-6) {
+  padding-top: 0.7em;
+  font-size: 1.08rem;
+}
+
+.live-markdown-editor .cm-live-strong {
+  font-weight: 600;
+  color: var(--prose-heading);
+}
+
+.live-markdown-editor .cm-live-emphasis {
+  font-style: italic;
+}
+
+.live-markdown-editor .cm-live-strikethrough {
+  text-decoration: line-through;
+}
+
+.live-markdown-editor .cm-live-link {
+  color: var(--prose-accent);
+  text-decoration: underline;
+  text-decoration-color: var(--prose-link-underline);
+  text-underline-offset: 0.18em;
+}
+
+.live-markdown-editor :is(.cm-live-url, .cm-live-markup .cm-live-link) {
+  color: var(--prose-muted);
+  text-decoration: none;
+}
+
+.live-markdown-editor :is(.cm-live-monospace, .cm-live-math-source) {
+  font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  font-size: 0.86em;
+  font-style: normal;
+}
+
+.live-markdown-editor .cm-live-inline-code {
+  background: var(--prose-code-bg);
+  border: 1px solid var(--prose-code-border);
+  border-radius: 5px;
+  padding: 0.1em 0.3em;
+}
+
+.live-markdown-editor .cm-live-inline-code .cm-live-monospace {
+  font-size: 0.86em;
+}
+
+.live-markdown-editor .cm-live-code-block,
+.live-markdown-editor .cm-live-math-block-source {
+  padding: 0 1.2em;
+  background: var(--prose-code-bg);
+  font-family: 'SF Mono', 'JetBrains Mono', ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.live-markdown-editor .cm-live-blockquote {
+  padding-left: 1.25em;
+  border-left: 3px solid var(--prose-quote-border);
+  color: var(--prose-muted);
+  font-style: italic;
+}
+
+.live-markdown-editor .cm-live-bullet {
+  display: inline-block;
+  width: 1ch;
+  color: var(--prose-muted);
+  text-align: center;
+}
+
+.live-markdown-editor .cm-live-horizontal-rule {
+  display: inline-block;
+  width: 100%;
+  height: 1px;
+  vertical-align: middle;
+  background: var(--prose-rule);
+}
+
+.live-markdown-editor .cm-live-math-block {
+  padding: 0.4em 0;
+  overflow: auto hidden;
+  cursor: text;
+}
+
+.live-markdown-editor .cm-live-math-block .katex-display {
+  margin: 0.6em 0;
+}
+
+.live-markdown-editor .cm-live-image {
+  max-height: 24rem;
+  margin: 0.6em auto;
+  cursor: text;
+}
+
+.live-markdown-editor .cm-live-diagram {
+  margin: 0.6em 0;
+  font-family: var(--font-stack);
+  font-size: 0.85rem;
+  color: var(--prose-muted);
+  cursor: text;
+}
+
+.live-markdown-editor .cm-live-diagram[data-diagram-state='failed'] {
+  color: #b42318;
+}

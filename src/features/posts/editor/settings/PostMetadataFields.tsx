@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import type { PostDraft } from './post-draft';
+import type { PostDraft } from '../post-draft';
 
 interface PostMetadataFieldsProps {
   draft: PostDraft;
@@ -13,15 +13,6 @@ type VisibilityOption = 'public' | 'private';
 export function PostMetadataFields({ draft, onChange }: PostMetadataFieldsProps) {
   return (
     <div className="post-editor-fields">
-      <Input
-        className="post-editor-title"
-        aria-label="Title"
-        placeholder="Title"
-        value={draft.title}
-        onChange={(event) => {
-          onChange({ title: event.target.value });
-        }}
-      />
       <div className="post-editor-field-grid">
         <Label className="post-editor-field">
           Path

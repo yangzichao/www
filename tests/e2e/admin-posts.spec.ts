@@ -19,6 +19,10 @@ test('the admin lists every post with links into the editor', async ({ page }) =
   await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(
     'β-delayed proton emission from ¹¹Be in effective field theory',
   );
+  await expect(page.locator('.live-markdown-editor .katex').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Preview' }).click();
+
   await expect(page.getByRole('region', { name: 'Preview' }).locator('.katex').first()).toBeVisible();
 });
 
@@ -32,7 +36,14 @@ test('the admin writes a private post, publishes it, edits it, and deletes it', 
     .getByRole('textbox', { name: 'Markdown' })
     .fill('## Section\n\nInline math $a^2$.\n\n```ts\nconst x = 1;\n```');
 
+  await expect(page.locator('.live-markdown-editor .cm-live-heading-2')).toHaveText('Section');
+  await expect(page.locator('.live-markdown-editor .cm-live-math-inline .katex')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Preview' }).click();
+
   await expect(page.getByRole('region', { name: 'Preview' }).getByRole('heading', { name: 'Section' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit' }).click();
 
   await page.getByRole('button', { name: 'Save' }).click();
 
@@ -40,6 +51,7 @@ test('the admin writes a private post, publishes it, edits it, and deletes it', 
   await expect(page.getByText(/^Created /)).toBeVisible();
   expect((await request.get(NEW_POST_URL)).status()).toBe(404);
 
+  await page.getByText('Post settings').click();
   await page.getByRole('combobox', { name: 'Visibility' }).selectOption('Public');
   await page.keyboard.press('ControlOrMeta+s');
 

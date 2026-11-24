@@ -7,6 +7,7 @@ import { navigateTo } from '../../../src/features/posts/editor/navigate-to';
 import type { EditablePost } from '../../../src/features/posts/editor/post-draft';
 import { buildPost } from '../../support/post-fixtures';
 import { stubBrowserFetch } from '../support/browser-fetch';
+import { appendToMarkdownEditor, findMarkdownEditorView } from '../support/live-markdown-editor';
 
 vi.mock(import('../../../src/features/posts/editor/navigate-to'), () => ({ navigateTo: vi.fn() }));
 vi.mock(import('../../../src/features/posts/editor/load-post-renderer'), () => ({
@@ -53,13 +54,17 @@ describe('PostEditorApp', () => {
     expect(screen.getByText('New post, not saved yet')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 
+    expect(screen.getByText('Private · no path yet')).toBeInTheDocument();
+
     await user.type(screen.getByRole('textbox', { name: 'Title' }), ' Fresh ');
     await user.type(screen.getByRole('textbox', { name: 'Path' }), 'physics/fresh');
     await user.type(screen.getByRole('textbox', { name: 'Tags' }), 'eft, #nuclear');
     await user.type(screen.getByRole('textbox', { name: 'Venue' }), 'PRC');
     await user.type(screen.getByRole('textbox', { name: 'Description' }), '  ');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Visibility' }), 'Public');
-    await user.type(screen.getByRole('textbox', { name: 'Markdown' }), 'Body');
+    appendToMarkdownEditor('Body');
+
+    expect(screen.getByText('Public · physics/fresh · 2 tags')).toBeInTheDocument();
 
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     expect(wasLeavingBlocked()).toBe(true);
@@ -177,8 +182,38 @@ describe('PostEditorApp', () => {
     expect(navigateTo).not.toHaveBeenCalled();
   });
 
+  it('keeps settings folded for a saved post and loads its body into the live editor', async () => {
+    const { user } = renderEditor(SAVED_POST);
+    const settings = screen.getByText('Post settings').closest('details');
+
+    expect(settings).not.toHaveAttribute('open');
+    expect(screen.getByText('Private · physics/first-post · 2 tags')).toBeInTheDocument();
+    expect(findMarkdownEditorView().state.doc.toString()).toBe('Hello.');
+
+    await user.click(screen.getByText('Post settings'));
+
+    expect(settings).toHaveAttribute('open');
+  });
+
+  it('switches to an exact preview and back without losing the draft', async () => {
+    const { user } = renderEditor(SAVED_POST);
+    appendToMarkdownEditor(' More.');
+
+    await user.click(screen.getByRole('button', { name: 'Preview' }));
+    const preview = screen.getByRole('region', { name: 'Preview' });
+
+    expect(within(preview).getByRole('heading', { name: 'First post' })).toBeInTheDocument();
+    await expect(within(preview).findByText('Hello. More.')).resolves.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+
+    expect(screen.queryByRole('region', { name: 'Preview' })).not.toBeInTheDocument();
+    expect(findMarkdownEditorView().state.doc.toString()).toBe('Hello. More.');
+  });
+
   it('previews the rendered markdown under the title', async () => {
-    renderEditor(SAVED_POST);
+    const { user } = renderEditor(SAVED_POST);
+    await user.click(screen.getByRole('button', { name: 'Preview' }));
     const preview = screen.getByRole('region', { name: 'Preview' });
 
     expect(within(preview).getByRole('heading', { name: 'First post' })).toBeInTheDocument();
@@ -188,7 +223,8 @@ describe('PostEditorApp', () => {
 
   it('explains a preview that failed to render', async () => {
     vi.mocked(renderMarkdownInBrowser).mockRejectedValue(new Error('Bad diagram'));
-    renderEditor(null);
+    const { user } = renderEditor(null);
+    await user.click(screen.getByRole('button', { name: 'Preview' }));
     const preview = screen.getByRole('region', { name: 'Preview' });
 
     expect(within(preview).getByRole('heading', { name: 'Untitled' })).toBeInTheDocument();

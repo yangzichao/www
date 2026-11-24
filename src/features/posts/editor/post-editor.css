@@ -38,23 +38,92 @@
   color: var(--color-text-main);
 }
 
+.post-editor-sheet,
+.post-editor-preview {
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+.post-editor-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-top: 1.5rem;
+}
+
+.post-editor-sheet[hidden] {
+  display: none;
+}
+
+.post-editor-title {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: Newsreader, Georgia, 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', serif;
+  font-size: 2.4rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--color-text-main);
+}
+
+.post-editor-title::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.post-settings-panel {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.post-settings-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  list-style: none;
+}
+
+.post-settings-summary::-webkit-details-marker {
+  display: none;
+}
+
+.post-settings-label {
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.post-settings-label::before {
+  content: '▸ ';
+}
+
+.post-settings-panel[open] .post-settings-label::before {
+  content: '▾ ';
+}
+
+.post-settings-overview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .post-editor-fields {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.post-editor-title {
-  height: auto;
-  padding: 0.5rem 0.75rem;
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  padding-bottom: 1rem;
 }
 
 .post-editor-field-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.75rem;
 }
 
@@ -81,32 +150,8 @@
   width: 100%;
 }
 
-.post-editor-panes {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1.25rem;
-  align-items: start;
-}
-
-.post-editor-markdown {
-  position: sticky;
-  top: 3.5rem;
-  height: calc(100vh - 5rem);
-  min-height: 24rem;
-  resize: none;
-  padding: 1rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.9rem;
-  line-height: 1.65;
-  tab-size: 2;
-  field-sizing: fixed;
-}
-
 .post-editor-preview {
-  min-height: 24rem;
-  padding: 1.5rem 1.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
+  padding: 1.5rem 0;
 }
 
 .post-editor-preview[data-preview-state='rendering'] {
@@ -114,22 +159,20 @@
 }
 
 .post-editor-preview-title {
-  font-size: 2.2rem;
+  font-size: 2.4rem;
   letter-spacing: -0.03em;
 }
 
 .post-editor-hint {
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
 
-@media (width <= 900px) {
-  .post-editor-panes {
-    grid-template-columns: 1fr;
-  }
-
-  .post-editor-markdown {
-    position: static;
-    height: 60vh;
+@media (width <= 768px) {
+  .post-editor-title {
+    font-size: 1.9rem;
   }
 }

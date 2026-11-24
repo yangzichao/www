@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '../../http/describe-error';
 import { postUrl } from '../post-path';
 import type { PostSubmission } from '../post-types';
@@ -17,8 +16,9 @@ import {
 } from './post-draft';
 import { describeSavedPost } from './post-editor-status';
 import { PostDeleteButton } from './PostDeleteButton';
-import { PostMetadataFields } from './PostMetadataFields';
+import { LiveMarkdownEditor } from './live-markdown/LiveMarkdownEditor';
 import { PostPreview } from './PostPreview';
+import { PostSettingsPanel } from './settings/PostSettingsPanel';
 import { createPost, deletePostById, savePost } from './posts-api';
 import { useNavigationAfterRender } from './use-navigation-after-render';
 import { useSaveShortcut } from './use-save-shortcut';
@@ -32,6 +32,9 @@ interface PostEditorAppProps {
 }
 
 type EditorActivity = 'idle' | 'saving' | 'deleting';
+type EditorMode = 'write' | 'preview';
+
+const MARKDOWN_PLACEHOLDER = 'Start writing. Markdown renders as you type: $…$ for math, ```mermaid for diagrams.';
 
 export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
   const [savedPost, setSavedPost] = useState(initialPost);
@@ -39,6 +42,7 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
   const [draft, setDraft] = useState(savedDraft);
   const [activity, setActivity] = useState<EditorActivity>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<EditorMode>('write');
 
   const hasUnsavedChanges = !isSameDraft(draft, savedDraft);
   const isBusy = activity !== 'idle';
@@ -48,6 +52,10 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
   function updateDraft(changes: Partial<PostDraft>) {
     setDraft((current) => ({ ...current, ...changes }));
   }
+
+  const updateBodyMarkdown = useCallback((bodyMarkdown: string) => {
+    setDraft((current) => ({ ...current, bodyMarkdown }));
+  }, []);
 
   async function createFromDraft(submission: PostSubmission, draftBeingSaved: PostDraft) {
     const { post } = await createPost(submission);
@@ -120,27 +128,43 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
             }}
           />
         )}
+        <Button
+          type="button"
+          variant="outline"
+          aria-pressed={mode === 'preview'}
+          onClick={() => {
+            setMode(mode === 'write' ? 'preview' : 'write');
+          }}
+        >
+          {mode === 'write' ? 'Preview' : 'Edit'}
+        </Button>
         <Button type="button" disabled={isBusy} onClick={() => void saveDraft()}>
           {activity === 'saving' ? 'Saving…' : 'Save'}
         </Button>
       </div>
 
-      <PostMetadataFields draft={draft} onChange={updateDraft} />
-
-      <div className="post-editor-panes">
-        <Textarea
-          className="post-editor-markdown"
-          aria-label="Markdown"
-          placeholder="Write in Markdown. Math with $…$, diagrams with ```mermaid fences."
-          spellCheck
-          value={draft.bodyMarkdown}
+      <div className="post-editor-sheet" hidden={mode === 'preview'}>
+        <input
+          className="post-editor-title"
+          aria-label="Title"
+          placeholder="Title"
+          value={draft.title}
           onChange={(event) => {
-            updateDraft({ bodyMarkdown: event.target.value });
+            updateDraft({ title: event.target.value });
           }}
         />
-        <PostPreview title={draft.title} markdown={draft.bodyMarkdown} />
+        <PostSettingsPanel draft={draft} startsOpen={savedPost === null} onChange={updateDraft} />
+        <LiveMarkdownEditor
+          markdown={draft.bodyMarkdown}
+          onMarkdownChange={updateBodyMarkdown}
+          accessibleLabel="Markdown"
+          placeholderText={MARKDOWN_PLACEHOLDER}
+        />
       </div>
-      <p className="post-editor-hint">⌘/Ctrl + S to save · the preview is exactly what readers will see</p>
+      {mode === 'preview' && <PostPreview title={draft.title} markdown={draft.bodyMarkdown} />}
+      <p className="post-editor-hint">
+        ⌘/Ctrl + S save · ⌘/Ctrl + B bold · ⌘/Ctrl + I italic · Preview shows exactly what readers will see
+      </p>
     </div>
   );
 }
