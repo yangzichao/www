@@ -1,6 +1,7 @@
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, type DecorationSet, type WidgetType } from '@codemirror/view';
 import type { SyntaxNode } from '@lezer/common';
+import { editorFocusField } from './editor-focus-field';
 
 const HIDDEN_MARKUP = Decoration.replace({});
 
@@ -10,6 +11,7 @@ export class LivePreviewCollector {
   constructor(readonly state: EditorState) {}
 
   selectionTouches(from: number, to: number): boolean {
+    if (!this.state.field(editorFocusField)) return false;
     return this.state.selection.ranges.some((range) => range.from <= to && range.to >= from);
   }
 

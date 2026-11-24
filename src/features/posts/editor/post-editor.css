@@ -62,9 +62,9 @@
   border: 0;
   outline: none;
   background: transparent;
-  font-family: Newsreader, Georgia, 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', serif;
+  font-family: var(--font-stack);
   font-size: 2.4rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.03em;
   color: var(--color-text-main);

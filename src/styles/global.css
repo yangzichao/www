@@ -14,7 +14,9 @@
   --color-card-background: #fff;
   --color-card-hover: #fafafa;
   --color-accent: #000;
-  --font-stack: 'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, helvetica, arial, sans-serif;
+  --font-stack:
+    'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, helvetica, arial, 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif;
   --radius: 8px;
   --transition: 0.2s ease;
   --background: var(--color-background);

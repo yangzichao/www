@@ -10,13 +10,11 @@
   --prose-code-border: #e6e6e2;
   --prose-quote-border: #d9d9d4;
 
-  font-family: Newsreader, Georgia, 'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC', serif;
-  font-optical-sizing: auto;
-  font-size: 1.1875rem;
-  line-height: 1.72;
+  font-family: var(--font-stack);
+  font-size: 1.0625rem;
+  line-height: 1.8;
   font-weight: 400;
   color: var(--prose-body);
-  letter-spacing: 0.002em;
   max-width: none;
   text-wrap: pretty;
 }
@@ -111,7 +109,7 @@
   padding: 0.15em 0 0.15em 1.25em;
   border-left: 3px solid var(--prose-quote-border);
   color: var(--prose-muted);
-  font-style: italic;
+  font-style: normal;
 }
 
 .post-article blockquote p {
@@ -225,7 +223,7 @@
 
 @media (width <= 768px) {
   .post-article {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 
   .post-article h2 {

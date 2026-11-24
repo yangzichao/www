@@ -124,7 +124,6 @@
   padding-left: 1.25em;
   border-left: 3px solid var(--prose-quote-border);
   color: var(--prose-muted);
-  font-style: italic;
 }
 
 .live-markdown-editor .cm-live-bullet {

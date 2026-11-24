@@ -1,6 +1,7 @@
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { EditorSelection, EditorState } from '@codemirror/state';
 import type { Decoration } from '@codemirror/view';
+import { setEditorFocus } from '../../../../../src/features/posts/editor/live-markdown/preview/editor-focus-field';
 import { livePreviewField } from '../../../../../src/features/posts/editor/live-markdown/preview/live-preview-field';
 import { mathMarkdownSyntax } from '../../../../../src/features/posts/editor/live-markdown/syntax/math-markdown-syntax';
 import { DiagramWidget } from '../../../../../src/features/posts/editor/live-markdown/widgets/diagram-widget';
@@ -21,7 +22,7 @@ export function createLivePreviewState(markdownWithCursors: string): EditorState
   const cursors = (cursorPositions.length > 0 ? cursorPositions : [doc.length]).map((position) =>
     EditorSelection.cursor(position),
   );
-  return EditorState.create({
+  const unfocusedState = EditorState.create({
     doc,
     selection: EditorSelection.create(cursors),
     extensions: [
@@ -30,6 +31,7 @@ export function createLivePreviewState(markdownWithCursors: string): EditorState
       livePreviewField,
     ],
   });
+  return unfocusedState.update({ effects: setEditorFocus.of(true) }).state;
 }
 
 function describeWidget(widget: unknown): string {

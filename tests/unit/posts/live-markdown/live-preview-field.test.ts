@@ -1,5 +1,6 @@
 import { StateEffect } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+import { setEditorFocus } from '../../../../src/features/posts/editor/live-markdown/preview/editor-focus-field';
 import { livePreviewField } from '../../../../src/features/posts/editor/live-markdown/preview/live-preview-field';
 import { createLivePreviewState, describeLivePreview } from './support/describe-live-preview';
 
@@ -16,6 +17,16 @@ describe('livePreviewField', () => {
     const movedIntoBold = state.update({ selection: { anchor: 4 } }).state;
 
     expect(describeLivePreview(movedIntoBold)).toStrictEqual([]);
+  });
+
+  it('shows every construct rendered while the editor is unfocused', () => {
+    const focused = createLivePreviewState('**bo|ld**');
+
+    expect(describeLivePreview(focused)).toStrictEqual([]);
+
+    const blurred = focused.update({ effects: setEditorFocus.of(false) }).state;
+
+    expect(describeLivePreview(blurred)).toStrictEqual(['hide "**"', 'hide "**"']);
   });
 
   it('rebuilds when the document changes', () => {
