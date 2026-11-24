@@ -48,7 +48,10 @@ export const siteData: SiteData = {
       { icon: 'ph-linkedin-logo', url: 'https://www.linkedin.com/in/zichaoyang/', label: 'LinkedIn' },
     ],
   },
-  sitePages: [{ icon: 'ph-lightbulb', url: '/thoughts/', label: 'Thoughts' }],
+  sitePages: [
+    { icon: 'ph-article', url: '/blog/', label: 'Blog' },
+    { icon: 'ph-lightbulb', url: '/thoughts/', label: 'Thoughts' },
+  ],
   items: [
     {
       type: 'Project',

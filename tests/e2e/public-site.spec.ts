@@ -15,6 +15,14 @@ test('homepage renders the profile without errors', async ({ page }) => {
   expect(errors).toStrictEqual([]);
 });
 
+test('the homepage links to the blog', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Blog' }).click();
+
+  await expect(page).toHaveURL('/blog/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Writing' })).toBeVisible();
+});
+
 test('blog index links to posts that render with breadcrumbs and a view count', async ({ page }) => {
   const errors = collectPageErrors(page);
   await page.goto('/blog/');
