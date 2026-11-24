@@ -54,17 +54,23 @@ describe('PostEditorApp', () => {
     expect(screen.getByText('New post, not saved yet')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
 
-    expect(screen.getByText('Private · no path yet')).toBeInTheDocument();
+    expect(screen.getByText('Private', { selector: '.post-editor-visibility' })).toBeInTheDocument();
 
     await user.type(screen.getByRole('textbox', { name: 'Title' }), ' Fresh ');
-    await user.type(screen.getByRole('textbox', { name: 'Path' }), 'physics/fresh');
-    await user.type(screen.getByRole('textbox', { name: 'Tags' }), 'eft, #nuclear');
-    await user.type(screen.getByRole('textbox', { name: 'Venue' }), 'PRC');
     await user.type(screen.getByRole('textbox', { name: 'Description' }), '  ');
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Visibility' }), 'Public');
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const settings = screen.getByRole('complementary', { name: 'Post settings' });
+
+    expect(within(settings).getByRole('textbox', { name: 'Slug' })).toHaveValue('fresh');
+
+    await user.type(within(settings).getByRole('combobox', { name: 'Category' }), 'physics');
+    await user.type(within(settings).getByRole('textbox', { name: 'Tags' }), 'eft, #nuclear');
+    await user.type(within(settings).getByRole('textbox', { name: 'Venue' }), 'PRC');
+    await user.selectOptions(within(settings).getByRole('combobox', { name: 'Visibility' }), 'Public');
     appendToMarkdownEditor('Body');
 
-    expect(screen.getByText('Public · physics/fresh · 2 tags')).toBeInTheDocument();
+    expect(within(settings).getByText('/blog/physics/fresh/')).toBeInTheDocument();
+    expect(screen.getByText('Public', { selector: '.post-editor-visibility' })).toBeInTheDocument();
 
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
     expect(wasLeavingBlocked()).toBe(true);
@@ -101,6 +107,7 @@ describe('PostEditorApp', () => {
         Response.json({ post: buildPost({ ...SAVED_POST, title: 'Renamed', updatedAt: '2026-11-23T08:00:00.000Z' }) }),
     });
     const { user } = renderEditor(SAVED_POST);
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
 
     expect(screen.getByRole('textbox', { name: 'Tags' })).toHaveValue('physics, eft');
     expect(screen.getByRole('textbox', { name: 'Venue' })).toHaveValue('');
@@ -122,7 +129,10 @@ describe('PostEditorApp', () => {
       screen.findByText('Created Nov 22, 2026, 4:30 PM · Edited Nov 23, 2026, 3:00 AM'),
     ).resolves.toBeInTheDocument();
     expect(observed).toMatchObject([
-      { method: 'PATCH', body: { title: 'Renamed', description: 'About it.', isPublic: false } },
+      {
+        method: 'PATCH',
+        body: { title: 'Renamed', path: 'physics/first-post', description: 'About it.', isPublic: false },
+      },
     ]);
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
@@ -153,6 +163,7 @@ describe('PostEditorApp', () => {
   it('asks for a second click before deleting, then returns to the admin home', async () => {
     const observed = stubBrowserFetch({ 'DELETE /api/posts/post%201': () => Response.json({ deleted: true }) });
     const { user } = renderEditor(SAVED_POST);
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     await user.click(screen.getByRole('textbox', { name: 'Title' }));
@@ -174,6 +185,7 @@ describe('PostEditorApp', () => {
       'DELETE /api/posts/post%201': () => Response.json({ error: 'Post not found.' }, { status: 404 }),
     });
     const { user } = renderEditor(SAVED_POST);
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     await user.click(screen.getByRole('button', { name: 'Click again to delete' }));
@@ -182,17 +194,84 @@ describe('PostEditorApp', () => {
     expect(navigateTo).not.toHaveBeenCalled();
   });
 
-  it('keeps settings folded for a saved post and loads its body into the live editor', async () => {
+  it('keeps settings in a closed drawer and loads the body into the live editor', async () => {
     const { user } = renderEditor(SAVED_POST);
-    const settings = screen.getByText('Post settings').closest('details');
 
-    expect(settings).not.toHaveAttribute('open');
-    expect(screen.getByText('Private · physics/first-post · 2 tags')).toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Post settings' })).not.toBeInTheDocument();
     expect(findMarkdownEditorView().state.doc.toString()).toBe('Hello.');
 
-    await user.click(screen.getByText('Post settings'));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const settings = screen.getByRole('complementary', { name: 'Post settings' });
 
-    expect(settings).toHaveAttribute('open');
+    expect(screen.getByRole('button', { name: 'Settings' })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(settings).getByRole('combobox', { name: 'Category' })).toHaveValue('physics');
+    expect(within(settings).getByRole('textbox', { name: 'Slug' })).toHaveValue('first-post');
+
+    await user.click(within(settings).getByRole('button', { name: 'Close settings' }));
+
+    expect(screen.queryByRole('complementary', { name: 'Post settings' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('complementary', { name: 'Post settings' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the slug of a saved post when its title changes', async () => {
+    const { user } = renderEditor(SAVED_POST);
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), ' again');
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(screen.getByRole('textbox', { name: 'Slug' })).toHaveValue('first-post');
+  });
+
+  it('keeps the title on one logical line even though it wraps', async () => {
+    const { user } = renderEditor(null);
+    const titleInput = screen.getByRole('textbox', { name: 'Title' });
+    await user.type(titleInput, 'Two{Enter} words');
+
+    expect(titleInput).toHaveValue('Two words');
+
+    fireEvent.change(titleInput, { target: { value: 'Pasted\r\nlines' } });
+
+    expect(titleInput).toHaveValue('Pasted lines');
+  });
+
+  it('stops following the title once the slug is typed by hand', async () => {
+    const { user } = renderEditor(null);
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), 'Draft');
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(screen.getByText('/blog/category/draft/')).toBeInTheDocument();
+
+    const slugInput = screen.getByRole('textbox', { name: 'Slug' });
+    await user.clear(slugInput);
+    await user.type(slugInput, 'custom');
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), ' two');
+
+    expect(slugInput).toHaveValue('custom');
+  });
+
+  it('opens the drawer and names the missing path part instead of saving', async () => {
+    const observed = stubBrowserFetch({});
+    const { user } = renderEditor(null);
+    await user.type(screen.getByRole('textbox', { name: 'Title' }), '中文标题');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const settings = screen.getByRole('complementary', { name: 'Post settings' });
+
+    expect(within(settings).getByRole('alert')).toHaveTextContent('Pick a category before saving.');
+    expect(within(settings).getByRole('combobox', { name: 'Category' })).toHaveAttribute('aria-invalid', 'true');
+
+    await user.type(within(settings).getByRole('combobox', { name: 'Category' }), 'life');
+
+    expect(within(settings).getByRole('alert')).toHaveTextContent('Add a URL slug before saving.');
+    expect(within(settings).getByRole('textbox', { name: 'Slug' })).toHaveAttribute('aria-invalid', 'true');
+
+    await user.type(within(settings).getByRole('textbox', { name: 'Slug' }), 'notes');
+
+    expect(within(settings).queryByRole('alert')).not.toBeInTheDocument();
+    expect(within(settings).getByText('/blog/life/notes/')).toBeInTheDocument();
+    expect(observed).toStrictEqual([]);
   });
 
   it('switches to an exact preview and back without losing the draft', async () => {

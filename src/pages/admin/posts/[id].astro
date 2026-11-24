@@ -19,6 +19,11 @@ if (!post) return privateNotFoundResponse();
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
-<AdminLayout title={`Edit · ${post.title}`} activeSection="posts" signedInAs={access.user.githubLogin}>
+<AdminLayout
+  title={`Edit · ${post.title}`}
+  activeSection="posts"
+  signedInAs={access.user.githubLogin}
+  showsHeader={false}
+>
   <PostEditorApp client:only="react" initialPost={toEditablePost(post)} />
 </AdminLayout>

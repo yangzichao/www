@@ -30,8 +30,16 @@ test('the admin writes a private post, publishes it, edits it, and deletes it', 
   const errors = collectPageErrors(page);
   await page.goto('/admin/posts/new/');
   await page.getByRole('textbox', { name: 'Title' }).fill('E2E editor post');
-  await page.getByRole('textbox', { name: 'Path' }).fill(NEW_POST_PATH);
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByRole('alert')).toHaveText('Pick a category before saving.');
+
+  await page.getByRole('combobox', { name: 'Category' }).fill('testing');
+
+  await expect(page.getByText(NEW_POST_URL)).toBeVisible();
+
   await page.getByRole('textbox', { name: 'Tags' }).fill('e2e, editor');
+  await page.keyboard.press('Escape');
   await page
     .getByRole('textbox', { name: 'Markdown' })
     .fill('## Section\n\nInline math $a^2$.\n\n```ts\nconst x = 1;\n```');
@@ -51,7 +59,7 @@ test('the admin writes a private post, publishes it, edits it, and deletes it', 
   await expect(page.getByText(/^Created /)).toBeVisible();
   expect((await request.get(NEW_POST_URL)).status()).toBe(404);
 
-  await page.getByText('Post settings').click();
+  await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('combobox', { name: 'Visibility' }).selectOption('Public');
   await page.keyboard.press('ControlOrMeta+s');
 
@@ -71,6 +79,7 @@ test('the admin writes a private post, publishes it, edits it, and deletes it', 
   await expect(page.locator('.post-edited')).toContainText('Edited');
 
   await page.goto(editorUrl);
+  await page.getByRole('button', { name: 'Settings' }).click();
   await page.getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('button', { name: 'Click again to delete' }).click();
 

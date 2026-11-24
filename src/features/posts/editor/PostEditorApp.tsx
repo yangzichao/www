@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { describeError } from '../../http/describe-error';
-import { postUrl } from '../post-path';
 import type { PostSubmission } from '../post-types';
 import { editPostUrl } from '../post-view';
 import { renderMarkdownInBrowser } from './load-post-renderer';
+import { describePostPathProblem } from './path/describe-post-path-problem';
+import { pathFollowingTitle, pathWithCategory, pathWithSlug } from './path/post-path-changes';
 import {
   buildPostSubmission,
   draftFromPost,
@@ -15,10 +15,10 @@ import {
   type PostDraft,
 } from './post-draft';
 import { describeSavedPost } from './post-editor-status';
-import { PostDeleteButton } from './PostDeleteButton';
+import { PostEditorToolbar } from './PostEditorToolbar';
 import { LiveMarkdownEditor } from './live-markdown/LiveMarkdownEditor';
 import { PostPreview } from './PostPreview';
-import { PostSettingsPanel } from './settings/PostSettingsPanel';
+import { PostSettings } from './settings/PostSettings';
 import { createPost, deletePostById, savePost } from './posts-api';
 import { useNavigationAfterRender } from './use-navigation-after-render';
 import { useSaveShortcut } from './use-save-shortcut';
@@ -34,6 +34,12 @@ interface PostEditorAppProps {
 type EditorActivity = 'idle' | 'saving' | 'deleting';
 type EditorMode = 'write' | 'preview';
 
+const LINE_BREAKS = /[\r\n]+/g;
+
+function withoutLineBreaks(text: string): string {
+  return text.replace(LINE_BREAKS, ' ');
+}
+
 const MARKDOWN_PLACEHOLDER = 'Start writing. Markdown renders as you type: $…$ for math, ```mermaid for diagrams.';
 
 export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
@@ -43,9 +49,13 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
   const [activity, setActivity] = useState<EditorActivity>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<EditorMode>('write');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [slugFollowsTitle, setSlugFollowsTitle] = useState(initialPost === null);
+  const [showsPathProblem, setShowsPathProblem] = useState(false);
 
   const hasUnsavedChanges = !isSameDraft(draft, savedDraft);
   const isBusy = activity !== 'idle';
+  const pathProblem = showsPathProblem ? describePostPathProblem(draft.path.trim()) : null;
   useUnsavedChangesWarning(hasUnsavedChanges);
   const navigateAfterRender = useNavigationAfterRender();
 
@@ -53,8 +63,29 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
     setDraft((current) => ({ ...current, ...changes }));
   }
 
+  function updateTitle(title: string) {
+    setDraft((current) => ({
+      ...current,
+      title,
+      path: slugFollowsTitle ? pathFollowingTitle(current.path, title) : current.path,
+    }));
+  }
+
+  function updateCategory(category: string) {
+    setDraft((current) => ({ ...current, path: pathWithCategory(current.path, category) }));
+  }
+
+  function updateSlug(slug: string) {
+    setSlugFollowsTitle(false);
+    setDraft((current) => ({ ...current, path: pathWithSlug(current.path, slug) }));
+  }
+
   const updateBodyMarkdown = useCallback((bodyMarkdown: string) => {
     setDraft((current) => ({ ...current, bodyMarkdown }));
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setIsSettingsOpen(false);
   }, []);
 
   async function createFromDraft(submission: PostSubmission, draftBeingSaved: PostDraft) {
@@ -72,6 +103,11 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
 
   async function saveDraft() {
     if (isBusy) return;
+    if (describePostPathProblem(draft.path.trim())) {
+      setShowsPathProblem(true);
+      setIsSettingsOpen(true);
+      return;
+    }
     setActivity('saving');
     setErrorMessage(null);
     const draftBeingSaved = draft;
@@ -105,55 +141,49 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
   });
 
   return (
-    <div className="post-editor">
-      <div className="post-editor-toolbar">
-        <span className="post-editor-status" data-unsaved={hasUnsavedChanges}>
-          {hasUnsavedChanges ? 'Unsaved changes' : describeSavedPost(savedPost)}
-        </span>
-        {errorMessage && (
-          <span className="post-editor-error" role="alert">
-            {errorMessage}
-          </span>
-        )}
-        {savedPost && (
-          <a className="post-editor-view-link" href={postUrl(savedPost.path)} target="_blank" rel="noopener">
-            View post ↗
-          </a>
-        )}
-        {savedPost && (
-          <PostDeleteButton
-            disabled={isBusy}
-            onConfirmedDelete={() => {
-              void deleteSavedPost();
-            }}
-          />
-        )}
-        <Button
-          type="button"
-          variant="outline"
-          aria-pressed={mode === 'preview'}
-          onClick={() => {
-            setMode(mode === 'write' ? 'preview' : 'write');
-          }}
-        >
-          {mode === 'write' ? 'Preview' : 'Edit'}
-        </Button>
-        <Button type="button" disabled={isBusy} onClick={() => void saveDraft()}>
-          {activity === 'saving' ? 'Saving…' : 'Save'}
-        </Button>
-      </div>
+    <div className="post-editor" data-settings-open={isSettingsOpen}>
+      <PostEditorToolbar
+        statusText={hasUnsavedChanges ? 'Unsaved changes' : describeSavedPost(savedPost)}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isPublic={draft.isPublic}
+        errorMessage={errorMessage}
+        isPreviewing={mode === 'preview'}
+        isSettingsOpen={isSettingsOpen}
+        isSaving={activity === 'saving'}
+        isBusy={isBusy}
+        onTogglePreview={() => {
+          setMode(mode === 'write' ? 'preview' : 'write');
+        }}
+        onToggleSettings={() => {
+          setIsSettingsOpen(!isSettingsOpen);
+        }}
+        onSave={() => void saveDraft()}
+      />
 
       <div className="post-editor-sheet" hidden={mode === 'preview'}>
-        <input
+        <textarea
           className="post-editor-title"
           aria-label="Title"
           placeholder="Title"
+          rows={1}
           value={draft.title}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.preventDefault();
+          }}
           onChange={(event) => {
-            updateDraft({ title: event.target.value });
+            updateTitle(withoutLineBreaks(event.target.value));
           }}
         />
-        <PostSettingsPanel draft={draft} startsOpen={savedPost === null} onChange={updateDraft} />
+        <textarea
+          className="post-editor-subtitle"
+          aria-label="Description"
+          placeholder="Add a short description…"
+          rows={1}
+          value={draft.description}
+          onChange={(event) => {
+            updateDraft({ description: event.target.value });
+          }}
+        />
         <LiveMarkdownEditor
           markdown={draft.bodyMarkdown}
           onMarkdownChange={updateBodyMarkdown}
@@ -162,9 +192,22 @@ export default function PostEditorApp({ initialPost }: PostEditorAppProps) {
         />
       </div>
       {mode === 'preview' && <PostPreview title={draft.title} markdown={draft.bodyMarkdown} />}
-      <p className="post-editor-hint">
-        ⌘/Ctrl + S save · ⌘/Ctrl + B bold · ⌘/Ctrl + I italic · Preview shows exactly what readers will see
-      </p>
+
+      {isSettingsOpen && (
+        <PostSettings
+          draft={draft}
+          savedPost={savedPost}
+          pathProblem={pathProblem}
+          isBusy={isBusy}
+          onChange={updateDraft}
+          onCategoryChange={updateCategory}
+          onSlugChange={updateSlug}
+          onConfirmedDelete={() => {
+            void deleteSavedPost();
+          }}
+          onClose={closeSettings}
+        />
+      )}
     </div>
   );
 }

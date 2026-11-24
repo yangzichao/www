@@ -7,7 +7,7 @@ const CATEGORY_LABELS: Readonly<Record<string, string>> = {
   meta: 'Meta',
 };
 
-const CATEGORY_ORDER: readonly string[] = ['system-design', 'ai', 'growth', 'physics', 'life', 'meta'];
+export const CATEGORY_ORDER: readonly string[] = ['system-design', 'ai', 'growth', 'physics', 'life', 'meta'];
 
 export function categoryLabel(category: string): string {
   return (

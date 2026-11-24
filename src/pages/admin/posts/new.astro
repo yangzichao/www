@@ -13,6 +13,6 @@ if (access.kind === 'redirect') return Astro.redirect(access.location);
 Astro.response.headers.set('cache-control', 'no-store');
 ---
 
-<AdminLayout title="New post" activeSection="posts" signedInAs={access.user.githubLogin}>
+<AdminLayout title="New post" activeSection="posts" signedInAs={access.user.githubLogin} showsHeader={false}>
   <PostEditorApp client:only="react" initialPost={null} />
 </AdminLayout>
